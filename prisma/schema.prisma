@@ -1,0 +1,267 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  trades         Trade[]
+  dayJournals    DayJournal[]
+  tags           Tag[]
+  screenshots    Screenshot[]
+  importProfiles ImportProfile[]
+  playbooks      Playbook[]
+  accounts       Account[]
+
+  @@map("users")
+}
+
+model Trade {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String?
+  symbol                String
+  direction             Direction
+  openedAt              DateTime
+  closedAt              DateTime
+  entryPrice            Decimal   @db.Decimal(18, 8)
+  exitPrice             Decimal   @db.Decimal(18, 8)
+  quantity              Decimal   @db.Decimal(18, 8)
+  realizedPnlUsd        Decimal   @db.Decimal(18, 2)
+  grossPnlUsd           Decimal?  @db.Decimal(18, 2)
+  fees                  Decimal?  @db.Decimal(18, 2)
+  floatingRunupUsd      Decimal?  @db.Decimal(18, 2)
+  floatingDrawdownUsd   Decimal?  @db.Decimal(18, 2)
+  stopLossPriceInitial  Decimal?  @db.Decimal(18, 8)
+  profitTarget          Decimal?  @db.Decimal(18, 8)
+  plannedRMultiple      Decimal?  @db.Decimal(10, 4)
+  realizedRMultiple     Decimal?  @db.Decimal(10, 4)
+  riskRewardRatio       Decimal?  @db.Decimal(10, 4)
+  pointValue            Decimal   @default(1) @db.Decimal(18, 8)
+  ticksPerContract      Decimal?  @db.Decimal(18, 4)
+  points                Decimal?  @db.Decimal(18, 4)
+  rating                Int?
+  note                  String?   @db.Text
+  youtubeUrl            String?
+  importHash            String?   @unique
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account           Account?                @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  tags              TradeTag[]
+  screenshots       Screenshot[]
+  tradePlaybooks    TradePlaybook[]
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([openedAt])
+  @@index([closedAt])
+  @@index([symbol])
+  @@map("trades")
+}
+
+enum Direction {
+  LONG
+  SHORT
+  UNKNOWN
+}
+
+model DayJournal {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        DayTag[]
+  screenshots Screenshot[]
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("day_journals")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades    TradeTag[]
+  dayJournals DayTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+model TradeTag {
+  tradeId String
+  tagId   String
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tradeId, tagId])
+  @@map("trade_tags")
+}
+
+model DayTag {
+  dayJournalId String
+  tagId        String
+
+  dayJournal DayJournal @relation(fields: [dayJournalId], references: [id], onDelete: Cascade)
+  tag        Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([dayJournalId, tagId])
+  @@map("day_tags")
+}
+
+model Screenshot {
+  id           String      @id @default(cuid())
+  userId       String
+  tradeId      String?
+  dayJournalId String?
+  filePath     String
+  originalName String
+  createdAt    DateTime    @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trade      Trade?      @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  dayJournal DayJournal? @relation(fields: [dayJournalId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tradeId])
+  @@index([dayJournalId])
+  @@map("screenshots")
+}
+
+model ImportProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  mapping   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("import_profiles")
+}
+
+// Playbook system
+model Playbook {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups          PlaybookGroup[]
+  tradePlaybooks  TradePlaybook[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("playbooks")
+}
+
+model PlaybookGroup {
+  id         String   @id @default(cuid())
+  playbookId String
+  name       String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  playbook     Playbook              @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  prerequisites PlaybookPrerequisite[]
+
+  @@index([playbookId])
+  @@map("playbook_groups")
+}
+
+model PlaybookPrerequisite {
+  id       String   @id @default(cuid())
+  groupId  String
+  text     String
+  order    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group                PlaybookGroup                    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  checkedPrerequisites TradePlaybookPrerequisite[]
+
+  @@index([groupId])
+  @@map("playbook_prerequisites")
+}
+
+// Link between Trade and Playbook with checked prerequisites
+model TradePlaybook {
+  id         String   @id @default(cuid())
+  tradeId    String
+  playbookId String
+  createdAt  DateTime @default(now())
+
+  trade                Trade                       @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  playbook             Playbook                    @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  checkedPrerequisites TradePlaybookPrerequisite[]
+
+  @@unique([tradeId, playbookId])
+  @@index([tradeId])
+  @@index([playbookId])
+  @@map("trade_playbooks")
+}
+
+model TradePlaybookPrerequisite {
+  tradePlaybookId  String
+  prerequisiteId   String
+  checked          Boolean @default(false)
+
+  tradePlaybook TradePlaybook        @relation(fields: [tradePlaybookId], references: [id], onDelete: Cascade)
+  prerequisite  PlaybookPrerequisite @relation(fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@id([tradePlaybookId, prerequisiteId])
+  @@map("trade_playbook_prerequisites")
+}
+
+// Trading accounts
+model Account {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  broker         String?
+  description    String?  @db.Text
+  color          String   @default("#6366f1")
+  initialBalance Decimal? @db.Decimal(18, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("accounts")
+}

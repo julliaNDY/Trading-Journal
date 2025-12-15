@@ -1,0 +1,272 @@
+---
+alwaysApply: true
+⸻
+Tu es un senior full-stack engineer. Construis une web-app de journal/analytics de trading (inspirée “TradeZella-like” mais code/UI originaux), destinée à être déployée sur un hébergement IONOS avec Node.js disponible mais sans accès root. Le FTP et la DB MySQL sont vierges.
+
+Objectif produit
+
+L’app permet à des utilisateurs de s’inscrire et de :
+	•	importer leurs trades via drag & drop d’un CSV
+	•	consulter : Dashboard, Journal, Calendrier, Statistiques, Importer
+	•	enrichir chaque trade : stop loss initial (manuel), tags, screenshots
+	•	enrichir chaque journée : note du jour, tags, screenshots
+	•	calculer des statistiques par trade et globales (voir specs ci-dessous)
+	•	UI : thème sombre, style sobre, responsive, accents vert/violet/orange (boutons, badges, highlights)
+	•	i18n : FR par défaut, EN secondaire (switch langue)
+
+⸻
+
+Stack technique (adaptée IONOS)
+	•	Next.js (App Router) + TypeScript
+	•	MySQL via Prisma
+	•	Auth maison (sans provider externe) :
+	•	inscription + login email/password
+	•	mot de passe hashé bcrypt
+	•	sessions via JWT + cookie httpOnly (ou NextAuth Credentials si tu préfères, mais reste simple et robuste)
+	•	UI : TailwindCSS + shadcn/ui
+	•	Charts : Recharts
+	•	CSV : PapaParse
+	•	Upload images : stockage filesystem (dossier /public/uploads/...) pour MVP, avec abstraction StorageProvider pour pouvoir migrer vers S3 compatible plus tard.
+	•	Backup quotidien : job Node “daily backup” (dump logique) + guide pour le brancher à une tâche planifiée IONOS (cron / scheduled task). Utiliser une lib de dump MySQL en Node (ex: mysqldump npm) + zip des uploads.
+
+⸻
+
+Pages & features (routes)
+
+1) /dashboard
+	•	KPIs globaux (sur période sélectionnable) :
+	•	Profit Factor (et indice 0→10)
+	•	Average Win, Average Loss
+	•	Average Risk/Reward
+	•	Equity Curve (All time / Monthly / Weekly — via tabs)
+	•	“Time of day profitability” :
+	•	tableau + mini-graph : group by heure d’ouverture (0–23)
+	•	afficher liste des trades avec : heure ouverture, heure clôture, PnL
+	•	CTA : bouton “Importer”
+
+2) /journal
+	•	Un calendrier cliquable (mois/semaine/jour)
+	•	Quand je clique un jour :
+	•	liste des trades du jour
+	•	note du jour (éditeur simple textarea + save)
+	•	tags du jour (CRUD tags + assign)
+	•	upload screenshots liés à la journée
+	•	Chaque trade listé permet :
+	•	éditer stop loss initial
+	•	assigner tags
+	•	upload screenshots trade
+
+3) /calendrier
+	•	calendrier mensuel affichant PNL quotidien
+	•	click sur un jour → ouvre un drawer/modal avec :
+	•	PnL total du jour
+	•	trades du jour + liens vers détails
+
+4) /statistiques
+	•	Vue dédiée analytics :
+	•	Equity curve (filtre période)
+	•	tableaux : best day, worst day, avg duration, distribution wins/loss
+	•	profitabilité par heure
+	•	Average Win/Loss, Profit factor, Avg RR
+	•	Filtres :
+	•	date range
+	•	symbol
+	•	tag(s)
+
+5) /importer
+	•	Drag & drop CSV
+	•	Étapes :
+	1.	upload + preview 20 lignes
+	2.	mapping des colonnes (l’utilisateur associe colonnes CSV → champs internes)
+	3.	validation
+	4.	import en DB + rapport (nb trades importés, ignorés, erreurs)
+	•	Détection simple des formats de date (ISO/US/EU). Si ambigu, demander format à l’utilisateur.
+
+⸻
+
+Données & modèle (Prisma)
+
+Implémente au minimum :
+
+User
+	•	id, email (unique), passwordHash, createdAt
+
+Trade
+	•	id, userId (FK), symbol, direction (LONG/SHORT)
+	•	openedAt, closedAt (datetime)
+	•	entryPrice, exitPrice (decimal)
+	•	quantity (decimal)
+	•	realizedPnlUsd (decimal)
+	•	floatingRunupUsd (decimal, nullable)
+	•	floatingDrawdownUsd (decimal, nullable)
+	•	stopLossPriceInitial (decimal, nullable)  // saisi manuellement
+	•	riskRewardRatio (decimal, nullable) // calculé et stocké (ou calcul à la volée)
+	•	createdAt
+
+DayJournal
+	•	id, userId, date (YYYY-MM-DD), note (text)
+	•	createdAt
+	•	unique(userId, date)
+
+Tag
+	•	id, userId, name, color (string)
+	•	unique(userId, name)
+
+TradeTag (many-to-many)
+	•	tradeId, tagId (unique composite)
+
+DayTag (many-to-many)
+	•	dayJournalId, tagId (unique composite)
+
+Screenshot
+	•	id, userId
+	•	tradeId nullable, dayJournalId nullable
+	•	filePath, originalName, createdAt
+
+⸻
+
+Import CSV : exigences
+
+Le CSV vient d’une plateforme de trading (variable). Donc :
+	•	Implémente un système de mapping configurable et sauvegardé par user (table ImportProfile optionnelle).
+	•	Champs internes attendus :
+	•	symbol
+	•	openedAt, closedAt
+	•	direction
+	•	entryPrice, exitPrice
+	•	quantity
+	•	realizedPnlUsd
+	•	floatingRunupUsd (optionnel)
+	•	floatingDrawdownUsd (optionnel)
+
+Règles :
+	•	Si floating runup/drawdown absents, stocker null.
+	•	Si direction absente, l’inférer :
+	•	si quantity > 0 => LONG, si quantity < 0 => SHORT (et quantity = abs)
+	•	sinon inférer via entry/exit vs pnl si possible, sinon mettre UNKNOWN et demander correction manuelle (mais pour MVP, on peut imposer LONG/SHORT via mapping ou inference quantity).
+	•	Normaliser les symboles (trim, uppercase).
+	•	Dédupliquer import : hash par (userId, symbol, openedAt, closedAt, entryPrice, exitPrice, realizedPnlUsd). Ne pas réimporter doublons.
+
+⸻
+
+Calculs & stats — détails
+
+Par trade
+	1.	Direction : LONG/SHORT
+	2.	Entry / Exit
+	3.	Realized PnL (USD)
+	4.	Floating Runup (USD) = max favorable excursion en $ (si fourni)
+	5.	Floating Drawdown (USD) = max adverse excursion en $ (si fourni)
+	6.	Risk to Reward Ratio : calculé après que l’utilisateur renseigne stopLossPriceInitial
+
+Définition RR :
+	•	riskUsd = abs(entryPrice - stopLossPriceInitial) * quantity * pointValue
+	•	rewardUsd = realizedPnlUsd (ou abs(exit-entry)qtypointValue avec signe). Pour ratio, utiliser abs(rewardUsd).
+	•	RR = abs(rewardUsd) / riskUsd
+	•	Si riskUsd = 0 ou stopLoss null → RR null.
+	•	pointValue : pour MVP, mets pointValue=1 (actions/forex-like), mais prévois un champ optionnel par trade ou un mapping par symbole plus tard. Documente clairement cette limite.
+
+Global (tous trades sur période)
+	•	Profit Factor (PF) = grossProfit / abs(grossLoss)
+	•	Indice PF 0→10 : pfIndex = clamp( (PF / 3) * 10 , 0, 10 )
+	•	(3 correspond à un PF très bon ; ajustable en constante)
+	•	Average Win (moyenne des PnL > 0)
+	•	Average Loss (moyenne des PnL < 0) en valeur négative ou absolue (choisir et être cohérent UI)
+	•	Average RR (moyenne des RR non null)
+	•	Equity Curve :
+	•	All time : cumul chronologique par closedAt
+	•	Monthly : série cumulée intra-mois + navigation par mois
+	•	Weekly : série cumulée intra-semaine ISO + navigation
+	•	Heure la plus profitable :
+	•	grouper par heure d’ouverture (0–23)
+	•	afficher : heure, nombre trades, pnl total, pnl moyen
+	•	liste détaillée : openedAt, closedAt, pnl par trade
+	•	Durée moyenne des trades : avg(closedAt - openedAt)
+	•	Calendrier PnL quotidien : somme PnL par date (closedAt → date locale)
+
+⸻
+
+UX / UI
+	•	Layout : sidebar + topbar, responsive (drawer mobile)
+	•	Palette : fond dark, texte clair, accents :
+	•	boutons primary vert
+	•	secondary violet
+	•	warning/orange pour actions critiques
+	•	Composants : tables, badges tags, modals/drawers, toasts
+	•	Importer : dropzone + progress + erreurs par ligne
+	•	Journal : calendrier + panneau jour sélectionné
+
+⸻
+
+API / Server actions
+
+Utiliser Next.js route handlers (/app/api/...) ou server actions.
+Endpoints minimum :
+	•	POST /api/auth/register
+	•	POST /api/auth/login
+	•	POST /api/auth/logout
+	•	GET /api/me
+	•	POST /api/import/csv (upload + parse preview)
+	•	POST /api/import/commit (mapping + import)
+	•	CRUD tags
+	•	Update trade stopLossPriceInitial
+	•	Upload screenshots (trade/day)
+	•	CRUD day note
+
+Sécurité :
+	•	Toutes les routes protégées vérifient user session.
+	•	Validation avec zod partout.
+	•	Rate limit simple sur auth (optionnel).
+
+⸻
+
+Backup quotidien
+
+Implémente un script Node scripts/backup.ts qui :
+	1.	dump MySQL dans backups/db-YYYY-MM-DD.sql (via lib Node mysqldump)
+	2.	zip du dossier uploads + dump SQL dans backups/backup-YYYY-MM-DD.zip
+	3.	rotation : garder 14 jours
+Documente dans README.md comment planifier l’exécution quotidienne sur IONOS (Scheduled Task/Cron si disponible) ou via un “ping endpoint” sécurisé si nécessaire.
+
+⸻
+
+Livrables attendus
+	1.	Repo complet Next.js + Prisma + migrations
+	2.	Pages fonctionnelles (Dashboard/Journal/Calendrier/Statistiques/Importer)
+	3.	Import CSV avec mapping + déduplication
+	4.	Notes, tags, screenshots
+	5.	Calculs demandés + charts
+	6.	i18n FR/EN
+	7.	README : installation locale + variables env + déploiement IONOS + backup
+
+⸻
+
+Variables d’environnement
+	•	DATABASE_URL
+	•	JWT_SECRET
+	•	APP_URL
+	•	UPLOAD_DIR (par défaut public/uploads)
+	•	BACKUP_DIR (par défaut backups)
+
+⸻
+
+Plan d’implémentation (ordre)
+
+Phase 1 : setup projet, Prisma schema, auth, layout UI, i18n
+Phase 2 : import CSV (preview + mapping + commit) + table trades
+Phase 3 : stop loss edit + RR + tags
+Phase 4 : journal (calendrier cliquable + note) + screenshots
+Phase 5 : stats + dashboard charts + calendar PnL
+Phase 6 : backup script + README déploiement
+
+Commence maintenant par générer le squelette projet + schema Prisma + auth + layout, puis enchaîne phases dans l’ordre.
+
+⸻
+
+Notes importantes
+	•	Ne copie aucun texte/HTML de TradeZella.
+	•	Code propre : lint, types stricts, composants réutilisables, services TradeService, StatsService, ImportService, StorageService.
+	•	Tests minimum : import parser + calcul PF + RR.
+
+⸻
+---
