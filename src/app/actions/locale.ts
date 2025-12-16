@@ -12,3 +12,8 @@ export async function setLocale(locale: string) {
   revalidatePath('/', 'layout');
 }
 
+
+
+
+
+

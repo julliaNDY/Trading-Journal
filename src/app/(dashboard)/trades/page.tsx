@@ -12,3 +12,8 @@ export default async function TradesPage() {
   return <TradesContent trades={trades} playbooks={playbooks} />;
 }
 
+
+
+
+
+
