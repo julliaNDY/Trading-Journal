@@ -5,6 +5,7 @@ import {
   calculateGlobalStats,
   calculateEquityCurve,
   calculateHourlyStats,
+  calculateFiveMinuteStats,
 } from '@/services/stats-service';
 import { DashboardContent } from './dashboard-content';
 import { Loader2 } from 'lucide-react';
@@ -17,12 +18,14 @@ async function DashboardData() {
   const stats = calculateGlobalStats(trades);
   const equityCurve = calculateEquityCurve(trades);
   const hourlyStats = calculateHourlyStats(trades);
+  const fiveMinuteStats = calculateFiveMinuteStats(trades);
 
   return (
     <DashboardContent
       stats={stats}
       equityCurve={equityCurve}
       hourlyStats={hourlyStats}
+      fiveMinuteStats={fiveMinuteStats}
       trades={trades}
     />
   );

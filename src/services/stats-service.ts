@@ -1,6 +1,11 @@
 import type { Trade } from '@prisma/client';
 import { getDurationSeconds } from '@/lib/utils';
 
+// Extended Trade type with timesManuallySet
+interface TradeWithTimes extends Trade {
+  timesManuallySet?: boolean;
+}
+
 export interface GlobalStats {
   totalTrades: number;
   winningTrades: number;
@@ -17,7 +22,17 @@ export interface GlobalStats {
   averageRR: number | null;
   bestDay: { date: string; pnl: number } | null;
   worstDay: { date: string; pnl: number } | null;
-  averageDurationSeconds: number;
+  averageDurationSeconds: number | null;
+}
+
+export interface FiveMinuteStats {
+  timeSlot: string; // "HH:MM" format
+  hour: number;
+  minute: number;
+  trades: number;
+  totalPnl: number;
+  avgPnl: number;
+  winRate: number;
 }
 
 export interface EquityPoint {
@@ -49,7 +64,7 @@ export function calculateProfitFactorIndex(pf: number): number {
   return Math.min(10, (pf / PF_MAX) * 10);
 }
 
-export function calculateGlobalStats(trades: Trade[]): GlobalStats {
+export function calculateGlobalStats(trades: TradeWithTimes[]): GlobalStats {
   if (trades.length === 0) {
     return {
       totalTrades: 0,
@@ -67,7 +82,7 @@ export function calculateGlobalStats(trades: Trade[]): GlobalStats {
       averageRR: null,
       bestDay: null,
       worstDay: null,
-      averageDurationSeconds: 0,
+      averageDurationSeconds: null,
     };
   }
 
@@ -91,11 +106,11 @@ export function calculateGlobalStats(trades: Trade[]): GlobalStats {
   const averageLoss =
     losingTrades.length > 0 ? grossLoss / losingTrades.length : 0;
 
-  // Average RR
-  const tradesWithRR = trades.filter((t) => t.riskRewardRatio !== null);
+  // Average RR - only from trades with stopLoss set (use realizedRMultiple)
+  const tradesWithRR = trades.filter((t) => t.realizedRMultiple !== null && t.stopLossPriceInitial !== null);
   const averageRR =
     tradesWithRR.length > 0
-      ? tradesWithRR.reduce((sum, t) => sum + Number(t.riskRewardRatio), 0) /
+      ? tradesWithRR.reduce((sum, t) => sum + Number(t.realizedRMultiple), 0) /
         tradesWithRR.length
       : null;
 
@@ -119,11 +134,16 @@ export function calculateGlobalStats(trades: Trade[]): GlobalStats {
     }
   }
 
-  // Average duration in seconds
-  const totalDurationSeconds = trades.reduce((sum, t) => {
-    return sum + getDurationSeconds(new Date(t.openedAt), new Date(t.closedAt));
-  }, 0);
-  const averageDurationSeconds = Math.round(totalDurationSeconds / trades.length);
+  // Average duration in seconds - only for trades with manually set times
+  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  let averageDurationSeconds: number | null = null;
+  
+  if (tradesWithTimes.length > 0) {
+    const totalDurationSeconds = tradesWithTimes.reduce((sum, t) => {
+      return sum + getDurationSeconds(new Date(t.openedAt), new Date(t.closedAt));
+    }, 0);
+    averageDurationSeconds = Math.round(totalDurationSeconds / tradesWithTimes.length);
+  }
 
   return {
     totalTrades: trades.length,
@@ -175,8 +195,11 @@ export function calculateEquityCurve(trades: Trade[]): EquityPoint[] {
   return result;
 }
 
-export function calculateHourlyStats(trades: Trade[]): HourlyStats[] {
-  const hourlyMap = new Map<number, Trade[]>();
+export function calculateHourlyStats(trades: TradeWithTimes[]): HourlyStats[] {
+  // Only include trades with manually set times
+  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  
+  const hourlyMap = new Map<number, TradeWithTimes[]>();
 
   // Initialize all hours
   for (let h = 0; h < 24; h++) {
@@ -184,7 +207,7 @@ export function calculateHourlyStats(trades: Trade[]): HourlyStats[] {
   }
 
   // Group trades by opening hour
-  for (const trade of trades) {
+  for (const trade of tradesWithTimes) {
     const hour = new Date(trade.openedAt).getHours();
     hourlyMap.get(hour)!.push(trade);
   }
@@ -207,6 +230,59 @@ export function calculateHourlyStats(trades: Trade[]): HourlyStats[] {
       totalPnl,
       avgPnl: hourTrades.length > 0 ? totalPnl / hourTrades.length : 0,
       winRate: hourTrades.length > 0 ? (winningCount / hourTrades.length) * 100 : 0,
+    });
+  }
+
+  return result;
+}
+
+// New function: Calculate stats by 5-minute intervals
+export function calculateFiveMinuteStats(trades: TradeWithTimes[]): FiveMinuteStats[] {
+  // Only include trades with manually set times
+  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  
+  const fiveMinuteMap = new Map<string, TradeWithTimes[]>();
+
+  // Group trades by 5-minute slot based on opening time
+  for (const trade of tradesWithTimes) {
+    const openedAt = new Date(trade.openedAt);
+    const hour = openedAt.getHours();
+    const minute = Math.floor(openedAt.getMinutes() / 5) * 5;
+    const timeSlot = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    
+    if (!fiveMinuteMap.has(timeSlot)) {
+      fiveMinuteMap.set(timeSlot, []);
+    }
+    fiveMinuteMap.get(timeSlot)!.push(trade);
+  }
+
+  const result: FiveMinuteStats[] = [];
+
+  // Sort time slots and create stats
+  const sortedSlots = Array.from(fiveMinuteMap.keys()).sort();
+  
+  for (const timeSlot of sortedSlots) {
+    const slotTrades = fiveMinuteMap.get(timeSlot)!;
+    const [hourStr, minuteStr] = timeSlot.split(':');
+    const hour = parseInt(hourStr);
+    const minute = parseInt(minuteStr);
+    
+    const totalPnl = slotTrades.reduce(
+      (sum, t) => sum + Number(t.realizedPnlUsd),
+      0
+    );
+    const winningCount = slotTrades.filter(
+      (t) => Number(t.realizedPnlUsd) > 0
+    ).length;
+
+    result.push({
+      timeSlot,
+      hour,
+      minute,
+      trades: slotTrades.length,
+      totalPnl,
+      avgPnl: slotTrades.length > 0 ? totalPnl / slotTrades.length : 0,
+      winRate: slotTrades.length > 0 ? (winningCount / slotTrades.length) * 100 : 0,
     });
   }
 

@@ -69,8 +69,14 @@ export async function getUser() {
       id: true,
       email: true,
       createdAt: true,
+      isBlocked: true,
     },
   });
+
+  // If user is blocked, return null (effectively logging them out)
+  if (user?.isBlocked) {
+    return null;
+  }
 
   return user;
 }

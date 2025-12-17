@@ -12,6 +12,7 @@ import {
 
 const registerSchema = z.object({
   email: z.string().email(),
+  discordUsername: z.string().optional(),
   password: z.string().min(8),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -27,6 +28,7 @@ const loginSchema = z.object({
 export async function register(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const rawData = {
     email: formData.get('email') as string,
+    discordUsername: formData.get('discordUsername') as string || undefined,
     password: formData.get('password') as string,
     confirmPassword: formData.get('confirmPassword') as string,
   };
@@ -37,7 +39,7 @@ export async function register(formData: FormData): Promise<{ error?: string; su
     return { error: validatedData.error.errors[0].message };
   }
 
-  const { email, password } = validatedData.data;
+  const { email, discordUsername, password } = validatedData.data;
 
   try {
     // Check if user already exists
@@ -55,6 +57,7 @@ export async function register(formData: FormData): Promise<{ error?: string; su
       data: {
         email,
         passwordHash,
+        discordUsername: discordUsername || null,
       },
     });
 
@@ -90,6 +93,11 @@ export async function login(formData: FormData): Promise<{ error?: string; succe
 
     if (!user) {
       return { error: 'Invalid email or password' };
+    }
+
+    // Check if user is blocked
+    if (user.isBlocked) {
+      return { error: 'Your account has been blocked. Please contact an administrator.' };
     }
 
     // Verify password

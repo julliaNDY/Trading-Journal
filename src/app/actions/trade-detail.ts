@@ -196,15 +196,32 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
 
   if (!trade) throw new Error('Trade not found');
 
-  await prisma.trade.update({
+  // Ensure dates are proper Date objects (they might come as strings from client)
+  const parsedOpenedAt = new Date(openedAt);
+  const parsedClosedAt = new Date(closedAt);
+
+  console.log('[trade-detail updateTradeTimes] Updating trade:', tradeId);
+  console.log('[trade-detail updateTradeTimes] openedAt received:', openedAt, '-> parsed:', parsedOpenedAt.toISOString());
+  console.log('[trade-detail updateTradeTimes] closedAt received:', closedAt, '-> parsed:', parsedClosedAt.toISOString());
+
+  const result = await prisma.trade.update({
     where: { id: tradeId },
-    data: { openedAt, closedAt },
+    data: { 
+      openedAt: parsedOpenedAt, 
+      closedAt: parsedClosedAt, 
+      timesManuallySet: true 
+    },
   });
+
+  console.log('[trade-detail updateTradeTimes] Result - timesManuallySet:', result.timesManuallySet);
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath('/trades');
   revalidatePath('/journal');
   revalidatePath('/statistiques');
+  revalidatePath('/dashboard');
+  
+  return result;
 }
 
 // Recalculate fees for all trades of a user

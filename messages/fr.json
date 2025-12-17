@@ -57,7 +57,14 @@
     "invalidEmail": "Email invalide",
     "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "emailExists": "Cet email est déjà utilisé"
+    "emailExists": "Cet email est déjà utilisé",
+    "loginDescription": "Connectez-vous pour accéder à votre journal",
+    "createAccount": "Créer un compte",
+    "registerDescription": "Commencez à suivre vos performances de trading",
+    "emailPlaceholder": "vous@exemple.com",
+    "discordUsername": "Discord Username",
+    "discordUsernamePlaceholder": "votre_pseudo#0000",
+    "passwordMinLength": "Minimum 8 caractères"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -92,6 +99,7 @@
     "pnl": "PnL",
     "avgPnl": "PnL moyen",
     "noTrades": "Aucun trade",
+    "day": "Jour",
     "importCta": "Importez vos premiers trades pour commencer",
     "period": "Période",
     "last7Days": "7 derniers jours",
@@ -99,7 +107,9 @@
     "last90Days": "90 derniers jours",
     "thisMonth": "Ce mois",
     "thisYear": "Cette année",
-    "custom": "Personnalisé"
+    "custom": "Personnalisé",
+    "noTradesWithTimes": "Aucun trade avec heures renseignées",
+    "avgDuration": "Durée moyenne"
   },
   "journal": {
     "title": "Journal",
@@ -157,9 +167,20 @@
     "filters": "Filtres",
     "dateRange": "Période",
     "symbol": "Symbole",
+    "allSymbols": "Tous",
     "tags": "Tags",
     "applyFilters": "Appliquer",
-    "clearFilters": "Effacer"
+    "clearFilters": "Effacer",
+    "tradesAnalyzed": "{count} trades analysés",
+    "noDataAvailable": "Aucune donnée disponible",
+    "wins": "Gains",
+    "losses": "Pertes",
+    "winningTradesCount": "{count} trades gagnants",
+    "losingTradesCount": "{count} trades perdants",
+    "averageRRSubtitle": "Risk/Reward moyen",
+    "trades": "Trades",
+    "avg": "Moy",
+    "winRate": "Win Rate"
   },
   "import": {
     "title": "Importer des trades",
@@ -297,6 +318,7 @@
     "contracts": "Contrats",
     "points": "Points",
     "ticksPerContract": "Ticks/Contrat",
+    "tradeDuration": "Durée du trade",
     "fees": "Frais",
     "netRoi": "ROI Net",
     "grossPnl": "PnL Brut",
@@ -353,6 +375,25 @@
     "initialBalancePlaceholder": "Ex: 10000",
     "currentBalance": "Balance actuelle",
     "roi": "ROI"
+  },
+  "admin": {
+    "title": "Administration",
+    "subtitle": "Gérez les utilisateurs et les paramètres de la plateforme",
+    "totalUsers": "Utilisateurs totaux",
+    "activeUsers": "Utilisateurs actifs",
+    "blockedUsers": "Utilisateurs bloqués",
+    "usersList": "Utilisateurs inscrits",
+    "email": "E-mail",
+    "discord": "Pseudo Discord",
+    "registeredAt": "Date d'inscription",
+    "status": "Statut",
+    "actions": "Actions",
+    "active": "Actif",
+    "blocked": "Bloqué",
+    "adminStatus": "Admin",
+    "block": "Bloquer",
+    "unblock": "Débloquer",
+    "noUsers": "Aucun utilisateur inscrit"
   },
   "errors": {
     "generic": "Une erreur est survenue",

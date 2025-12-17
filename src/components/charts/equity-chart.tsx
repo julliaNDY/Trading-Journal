@@ -76,7 +76,7 @@ export function EquityChart({ data }: EquityChartProps) {
                       data.pnl >= 0 ? 'text-success' : 'text-destructive'
                     }`}
                   >
-                    {locale === 'en' ? 'Day' : 'Jour'}: {data.pnl >= 0 ? '+' : ''}
+                    {t('day')}: {data.pnl >= 0 ? '+' : ''}
                     {formatCurrency(data.pnl)}
                   </p>
                 </div>

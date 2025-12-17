@@ -9,6 +9,7 @@ import {
   YAxis,
   Cell,
 } from 'recharts';
+import { useTranslations } from 'next-intl';
 import type { HourlyStats } from '@/services/stats-service';
 import { formatCurrency } from '@/lib/utils';
 
@@ -17,10 +18,12 @@ interface HourlyChartProps {
 }
 
 export function HourlyChart({ data }: HourlyChartProps) {
+  const t = useTranslations('statistics');
+  
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Aucune donnée disponible
+        {t('noDataAvailable')}
       </div>
     );
   }
@@ -30,7 +33,7 @@ export function HourlyChart({ data }: HourlyChartProps) {
   if (filteredData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Aucune donnée disponible
+        {t('noDataAvailable')}
       </div>
     );
   }
@@ -70,9 +73,9 @@ export function HourlyChart({ data }: HourlyChartProps) {
                     {formatCurrency(data.totalPnl)}
                   </p>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>Trades: {data.trades}</p>
-                    <p>Moy: {formatCurrency(data.avgPnl)}</p>
-                    <p>Win Rate: {data.winRate.toFixed(0)}%</p>
+                    <p>{t('trades')}: {data.trades}</p>
+                    <p>{t('avg')}: {formatCurrency(data.avgPnl)}</p>
+                    <p>{t('winRate')}: {data.winRate.toFixed(0)}%</p>
                   </div>
                 </div>
               );

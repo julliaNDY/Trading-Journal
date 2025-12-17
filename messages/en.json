@@ -57,7 +57,14 @@
     "invalidEmail": "Invalid email",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordMismatch": "Passwords do not match",
-    "emailExists": "This email is already registered"
+    "emailExists": "This email is already registered",
+    "loginDescription": "Sign in to access your journal",
+    "createAccount": "Create an account",
+    "registerDescription": "Start tracking your trading performance",
+    "emailPlaceholder": "you@example.com",
+    "discordUsername": "Discord Username",
+    "discordUsernamePlaceholder": "your_username#0000",
+    "passwordMinLength": "Minimum 8 characters"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -92,6 +99,7 @@
     "pnl": "PnL",
     "avgPnl": "Avg PnL",
     "noTrades": "No trades",
+    "day": "Day",
     "importCta": "Import your first trades to get started",
     "period": "Period",
     "last7Days": "Last 7 days",
@@ -99,7 +107,9 @@
     "last90Days": "Last 90 days",
     "thisMonth": "This month",
     "thisYear": "This year",
-    "custom": "Custom"
+    "custom": "Custom",
+    "noTradesWithTimes": "No trades with times set",
+    "avgDuration": "Average Duration"
   },
   "journal": {
     "title": "Journal",
@@ -157,9 +167,20 @@
     "filters": "Filters",
     "dateRange": "Date Range",
     "symbol": "Symbol",
+    "allSymbols": "All",
     "tags": "Tags",
     "applyFilters": "Apply",
-    "clearFilters": "Clear"
+    "clearFilters": "Clear",
+    "tradesAnalyzed": "{count} trades analyzed",
+    "noDataAvailable": "No data available",
+    "wins": "Wins",
+    "losses": "Losses",
+    "winningTradesCount": "{count} winning trades",
+    "losingTradesCount": "{count} losing trades",
+    "averageRRSubtitle": "Average Risk/Reward",
+    "trades": "Trades",
+    "avg": "Avg",
+    "winRate": "Win Rate"
   },
   "import": {
     "title": "Import Trades",
@@ -297,6 +318,7 @@
     "contracts": "Contracts",
     "points": "Points",
     "ticksPerContract": "Ticks/Contract",
+    "tradeDuration": "Trade Duration",
     "fees": "Fees",
     "netRoi": "Net ROI",
     "grossPnl": "Gross PnL",
@@ -353,6 +375,25 @@
     "initialBalancePlaceholder": "Ex: 10000",
     "currentBalance": "Current Balance",
     "roi": "ROI"
+  },
+  "admin": {
+    "title": "Administration",
+    "subtitle": "Manage users and platform settings",
+    "totalUsers": "Total Users",
+    "activeUsers": "Active Users",
+    "blockedUsers": "Blocked Users",
+    "usersList": "Registered Users",
+    "email": "Email",
+    "discord": "Discord Username",
+    "registeredAt": "Registered At",
+    "status": "Status",
+    "actions": "Actions",
+    "active": "Active",
+    "blocked": "Blocked",
+    "adminStatus": "Admin",
+    "block": "Block",
+    "unblock": "Unblock",
+    "noUsers": "No users registered yet"
   },
   "errors": {
     "generic": "An error occurred",

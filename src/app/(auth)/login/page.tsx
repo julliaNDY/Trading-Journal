@@ -3,13 +3,15 @@
 import { useFormStatus } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { login } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -45,17 +47,28 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
       <div className="absolute inset-0 bg-background/80" />
       
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <AuthLanguageSwitcher />
+      </div>
+      
       <Card className="w-full max-w-md relative z-10 animate-scale-in">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 animate-fade-in">
-              <TrendingUp className="w-8 h-8 text-primary" />
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 animate-fade-in overflow-hidden">
+              <Image
+                src="/cttp-logo.png"
+                alt="CTTP Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
             </div>
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold">Trading Journal</CardTitle>
             <CardDescription>
-              Connectez-vous pour accéder à votre journal
+              {t('loginDescription')}
             </CardDescription>
           </div>
         </CardHeader>
@@ -74,7 +87,7 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="vous@exemple.com"
+                placeholder={t('emailPlaceholder')}
                 required
                 autoComplete="email"
               />

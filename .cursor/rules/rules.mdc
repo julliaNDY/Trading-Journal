@@ -1,7 +1,9 @@
 ---
 alwaysApply: true
 ⸻
-Tu es un senior full-stack engineer. Construis une web-app de journal/analytics de trading (inspirée “TradeZella-like” mais code/UI originaux), destinée à être déployée sur un hébergement IONOS avec Node.js disponible mais sans accès root. Le FTP et la DB MySQL sont vierges.
+Tu es un senior full-stack engineer. Construis une web-app de journal/analytics de trading (inspirée “TradeZella-like” mais code/UI originaux), destinée à être déployée sur un VPS OVH par le biais de push github. 
+
+Garde en mémoire toutes les modifications effectuées précedemment ainsi que tous nos échanges. 
 
 Objectif produit
 

@@ -30,6 +30,7 @@ import type { Trade, Tag } from '@prisma/client';
 
 interface TradeWithTags extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
+  timesManuallySet?: boolean;
 }
 
 interface StatisticsContentProps {
@@ -110,92 +111,86 @@ export function StatisticsContent({
         <div>
           <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground">
-            {filteredTrades.length} trades analysés
+            {t('tradesAnalyzed', { count: filteredTrades.length })}
           </p>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            {t('filters')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4 items-end">
-            {/* Date Range */}
-            <div className="space-y-2">
-              <Label>{t('dateRange')}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-[240px] justify-start text-left font-normal',
-                      !dateRange.from && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {formatDate(dateRange.from, dateLocale)} - {formatDate(dateRange.to, dateLocale)}
-                        </>
-                      ) : (
-                        formatDate(dateRange.from, dateLocale)
-                      )
-                    ) : (
-                      'Sélectionner'
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange.from}
-                    selected={{ from: dateRange.from, to: dateRange.to }}
-                    onSelect={(range) =>
-                      setDateRange({ from: range?.from, to: range?.to })
-                    }
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Filters Label */}
+            <div className="flex items-center gap-2 mr-2">
+              <Filter className="h-5 w-5" />
+              <span className="font-semibold">{t('filters')}</span>
             </div>
+
+            {/* Date Range */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'w-[220px] justify-start text-left font-normal',
+                    !dateRange.from && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      <>
+                        {formatDate(dateRange.from, dateLocale)} - {formatDate(dateRange.to, dateLocale)}
+                      </>
+                    ) : (
+                      formatDate(dateRange.from, dateLocale)
+                    )
+                  ) : (
+                    t('dateRange')
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from}
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) =>
+                    setDateRange({ from: range?.from, to: range?.to })
+                  }
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
 
             {/* Symbol */}
-            <div className="space-y-2">
-              <Label>{t('symbol')}</Label>
-              <Select 
-                value={selectedSymbol || '__all__'} 
-                onValueChange={(v) => setSelectedSymbol(v === '__all__' ? '' : v)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Tous" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tous</SelectItem>
-                  {symbols.map((symbol) => (
-                    <SelectItem key={symbol} value={symbol}>
-                      {symbol}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select 
+              value={selectedSymbol || '__all__'} 
+              onValueChange={(v) => setSelectedSymbol(v === '__all__' ? '' : v)}
+            >
+              <SelectTrigger className="w-[130px] h-9">
+                <SelectValue placeholder={t('symbol')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{t('allSymbols')}</SelectItem>
+                {symbols.map((symbol) => (
+                  <SelectItem key={symbol} value={symbol}>
+                    {symbol}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Tags */}
-            <div className="space-y-2">
-              <Label>{t('tags')}</Label>
+            {tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => (
                   <Badge
                     key={tag.id}
                     variant={selectedTags.includes(tag.id) ? 'default' : 'outline'}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs"
                     style={
                       selectedTags.includes(tag.id)
                         ? { backgroundColor: tag.color }
@@ -206,15 +201,12 @@ export function StatisticsContent({
                     {tag.name}
                   </Badge>
                 ))}
-                {tags.length === 0 && (
-                  <span className="text-sm text-muted-foreground">Aucun tag</span>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Clear Filters */}
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
                 <X className="h-4 w-4 mr-1" />
                 {t('clearFilters')}
               </Button>
@@ -234,19 +226,19 @@ export function StatisticsContent({
         <StatCard
           label={t('averageWin')}
           value={formatCurrency(stats.averageWin)}
-          subValue={`${stats.winningTrades} trades gagnants`}
+          subValue={t('winningTradesCount', { count: stats.winningTrades })}
           trend="up"
         />
         <StatCard
           label={t('averageLoss')}
           value={formatCurrency(stats.averageLoss)}
-          subValue={`${stats.losingTrades} trades perdants`}
+          subValue={t('losingTradesCount', { count: stats.losingTrades })}
           trend="down"
         />
         <StatCard
           label={t('averageRR')}
           value={stats.averageRR ? formatNumber(stats.averageRR, 2) : 'N/A'}
-          subValue="Risk/Reward moyen"
+          subValue={t('averageRRSubtitle')}
           trend={stats.averageRR && stats.averageRR >= 1.5 ? 'up' : 'neutral'}
         />
       </div>
@@ -291,9 +283,13 @@ export function StatisticsContent({
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground">{t('avgDuration')}</p>
             <p className="text-xl font-bold">
-              {formatDurationWithSeconds(stats.averageDurationSeconds)}
+              {stats.averageDurationSeconds !== null 
+                ? formatDurationWithSeconds(stats.averageDurationSeconds)
+                : 'N/A'}
             </p>
-            <p className="text-sm text-muted-foreground">par trade</p>
+            <p className="text-sm text-muted-foreground">
+              {stats.averageDurationSeconds !== null ? 'par trade' : 'heures non renseignées'}
+            </p>
           </CardContent>
         </Card>
       </div>

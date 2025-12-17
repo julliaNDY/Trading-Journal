@@ -74,6 +74,7 @@ interface TradeWithRelations extends Trade {
     playbook: { id: string; name: string };
     checkedPrerequisites: { prerequisiteId: string; checked: boolean }[];
   }[];
+  timesManuallySet: boolean;
 }
 
 interface Prerequisite {
@@ -440,14 +441,22 @@ function TradeRow({
   const [stopLoss, setStopLoss] = useState(
     trade.stopLossPriceInitial ? Number(trade.stopLossPriceInitial).toString() : ''
   );
-  const [openTime, setOpenTime] = useState(formatTimeForInput(new Date(trade.openedAt)));
-  const [closeTime, setCloseTime] = useState(formatTimeForInput(new Date(trade.closedAt)));
+  
+  // Local state for dates (to update duration immediately after save)
+  const [localOpenedAt, setLocalOpenedAt] = useState(new Date(trade.openedAt));
+  const [localClosedAt, setLocalClosedAt] = useState(new Date(trade.closedAt));
+  
+  const [openTime, setOpenTime] = useState(formatTimeForInputWithSeconds(new Date(trade.openedAt)));
+  const [closeTime, setCloseTime] = useState(formatTimeForInputWithSeconds(new Date(trade.closedAt)));
   const [tradeNote, setTradeNote] = useState(trade.note || '');
-  const [youtubeUrl, setYoutubeUrl] = useState(trade.youtubeUrl || '');
+  const [localYoutubeUrl, setLocalYoutubeUrl] = useState(trade.youtubeUrl || '');
   const [screenshots, setScreenshots] = useState(trade.screenshots);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  
+  // Local state for immediate UI updates
+  const [localTimesManuallySet, setLocalTimesManuallySet] = useState(trade.timesManuallySet === true);
 
   // Playbook assignment state
   const [selectedPlaybookId, setSelectedPlaybookId] = useState('');
@@ -455,7 +464,9 @@ function TradeRow({
 
   const pnl = Number(trade.realizedPnlUsd);
   const isProfit = pnl >= 0;
-  const duration = getDurationSeconds(new Date(trade.openedAt), new Date(trade.closedAt));
+  
+  // Use local dates for duration calculation (updates immediately after save)
+  const duration = getDurationSeconds(localOpenedAt, localClosedAt);
   const dateLocale = locale === 'en' ? 'en-GB' : 'fr-FR';
   const dateStr = new Date(trade.closedAt).toLocaleDateString(dateLocale, {
     day: '2-digit',
@@ -467,10 +478,16 @@ function TradeRow({
     minute: '2-digit',
   });
 
-  function formatTimeForInput(date: Date) {
+  // Check if stop loss is set for RR display
+  const hasStopLoss = trade.stopLossPriceInitial !== null;
+  // Check if times were manually set for duration display (use local state)
+  const hasManualTimes = localTimesManuallySet;
+
+  function formatTimeForInputWithSeconds(date: Date) {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   }
   
   // Extract YouTube video ID from URL
@@ -486,16 +503,28 @@ function TradeRow({
       const price = stopLoss ? parseFloat(stopLoss) : null;
       await updateTradeStopLoss(trade.id, price);
 
-      const [openHours, openMinutes] = openTime.split(':').map(Number);
-      const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
+      const openParts = openTime.split(':').map(Number);
+      const closeParts = closeTime.split(':').map(Number);
+      const openHours = openParts[0] || 0;
+      const openMinutes = openParts[1] || 0;
+      const openSeconds = openParts[2] || 0;
+      const closeHours = closeParts[0] || 0;
+      const closeMinutes = closeParts[1] || 0;
+      const closeSeconds = closeParts[2] || 0;
 
       const newOpenedAt = new Date(trade.openedAt);
-      newOpenedAt.setHours(openHours, openMinutes, 0, 0);
+      newOpenedAt.setHours(openHours, openMinutes, openSeconds, 0);
 
       const newClosedAt = new Date(trade.closedAt);
-      newClosedAt.setHours(closeHours, closeMinutes, 0, 0);
+      newClosedAt.setHours(closeHours, closeMinutes, closeSeconds, 0);
 
       await updateTradeTimes(trade.id, newOpenedAt, newClosedAt);
+      
+      // Update local state immediately for UI
+      setLocalOpenedAt(newOpenedAt);
+      setLocalClosedAt(newClosedAt);
+      setLocalTimesManuallySet(true);
+      
       setIsEditingTrade(false);
       router.refresh();
     } catch (error) {
@@ -521,7 +550,7 @@ function TradeRow({
   const handleSaveYoutubeUrl = async () => {
     setIsSaving(true);
     try {
-      await updateTradeYoutubeUrl(trade.id, youtubeUrl || null);
+      await updateTradeYoutubeUrl(trade.id, localYoutubeUrl || null);
       setIsEditingVideo(false);
       router.refresh();
     } catch (error) {
@@ -535,7 +564,7 @@ function TradeRow({
     setIsSaving(true);
     try {
       await updateTradeYoutubeUrl(trade.id, null);
-      setYoutubeUrl('');
+      setLocalYoutubeUrl('');
       router.refresh();
     } catch (error) {
       console.error('Error removing youtube URL:', error);
@@ -609,7 +638,7 @@ function TradeRow({
   };
 
   const inputId = `trade-photo-${trade.id}`;
-  const youtubeVideoId = youtubeUrl ? getYoutubeVideoId(youtubeUrl) : null;
+  const youtubeVideoId = localYoutubeUrl ? getYoutubeVideoId(localYoutubeUrl) : null;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking on interactive elements
@@ -673,22 +702,23 @@ function TradeRow({
 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span>{dateStr} {timeStr}</span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDurationWithSeconds(duration)}
-                </span>
+                {hasManualTimes && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-primary" />
+                    {formatDurationWithSeconds(duration)}
+                  </span>
+                )}
                 <span>
                   {tTrade('entryPrice')}: {Number(trade.entryPrice).toFixed(2)}
                 </span>
                 <span>
                   {tTrade('exitPrice')}: {Number(trade.exitPrice).toFixed(2)}
+                  {hasStopLoss && trade.realizedRMultiple && (
+                    <span className="ml-2 text-primary font-medium">
+                      (R/R: {Number(trade.realizedRMultiple).toFixed(2)})
+                    </span>
+                  )}
                 </span>
-                {trade.stopLossPriceInitial && (
-                  <span>SL: {Number(trade.stopLossPriceInitial).toFixed(2)}</span>
-                )}
-                {trade.riskRewardRatio && (
-                  <span>R/R: {Number(trade.riskRewardRatio).toFixed(2)}</span>
-                )}
               </div>
 
               {/* Playbooks */}
@@ -720,27 +750,6 @@ function TradeRow({
                 </div>
               )}
 
-              {/* Note preview */}
-              {trade.note && (
-                <p className="text-sm text-muted-foreground mt-2 truncate">
-                  📝 {trade.note}
-                </p>
-              )}
-
-              {/* YouTube Video embed */}
-              {youtubeVideoId && (
-                <div className="mt-3">
-                  <div className="relative w-full max-w-md aspect-video rounded-lg overflow-hidden border">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-                      title="YouTube video"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 w-full h-full"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Actions */}
@@ -750,46 +759,52 @@ function TradeRow({
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setIsAssigningPlaybook(true)}
+                title={tTrade('assignPlaybook')}
               >
-                <ListChecks className={cn("h-4 w-4", trade.tradePlaybooks.length > 0 && "text-primary")} />
+                <ListChecks className={cn("h-4 w-4", trade.tradePlaybooks.length > 0 && "text-success")} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setIsEditingNote(true)}
+                title={tJournal('tradeNote')}
               >
-                <FileText className={cn("h-4 w-4", trade.note && "text-primary")} />
+                <FileText className={cn("h-4 w-4", trade.note && "text-success")} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setIsViewingScreenshots(true)}
+                title={tJournal('screenshots')}
               >
-                <ImageIcon className={cn("h-4 w-4", screenshots.length > 0 && "text-primary")} />
+                <ImageIcon className={cn("h-4 w-4", screenshots.length > 0 && "text-success")} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setIsEditingVideo(true)}
+                title={t('youtubeUrl')}
               >
-                <Video className={cn("h-4 w-4", youtubeUrl && "text-primary")} />
+                <Video className={cn("h-4 w-4", localYoutubeUrl && "text-success")} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setIsEditingTrade(true)}
+                title={tJournal('tradeDetails')}
               >
-                <Edit2 className="h-4 w-4" />
+                <Clock className={cn("h-4 w-4", hasManualTimes && "text-success")} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => setIsDeleting(true)}
+                title={tCommon('delete')}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -820,11 +835,21 @@ function TradeRow({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">{tJournal('openTime')}</Label>
-                  <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
+                  <Input 
+                    type="time" 
+                    step="1"
+                    value={openTime} 
+                    onChange={(e) => setOpenTime(e.target.value)} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">{tJournal('closeTime')}</Label>
-                  <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
+                  <Input 
+                    type="time" 
+                    step="1"
+                    value={closeTime} 
+                    onChange={(e) => setCloseTime(e.target.value)} 
+                  />
                 </div>
               </div>
             </div>
@@ -919,14 +944,14 @@ function TradeRow({
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Input
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
+              value={localYoutubeUrl}
+              onChange={(e) => setLocalYoutubeUrl(e.target.value)}
               placeholder={t('youtubeUrlPlaceholder')}
             />
-            {youtubeUrl && getYoutubeVideoId(youtubeUrl) && (
+            {localYoutubeUrl && getYoutubeVideoId(localYoutubeUrl) && (
               <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
                 <iframe
-                  src={`https://www.youtube.com/embed/${getYoutubeVideoId(youtubeUrl)}`}
+                  src={`https://www.youtube.com/embed/${getYoutubeVideoId(localYoutubeUrl)}`}
                   title="YouTube video preview"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -936,7 +961,7 @@ function TradeRow({
             )}
           </div>
           <DialogFooter>
-            {youtubeUrl && (
+            {localYoutubeUrl && (
               <Button variant="destructive" onClick={handleRemoveVideo} disabled={isSaving}>
                 {t('removeVideo')}
               </Button>

@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { useTranslations } from 'next-intl';
 
 interface DistributionChartProps {
   data: {
@@ -18,20 +19,21 @@ interface DistributionChartProps {
 }
 
 export function DistributionChart({ data }: DistributionChartProps) {
+  const t = useTranslations('statistics');
   const total = data.wins + data.losses + data.breakeven;
 
   if (total === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Aucune donnée disponible
+        {t('noDataAvailable')}
       </div>
     );
   }
 
   const chartData = [
-    { name: 'Gains', value: data.wins, color: 'hsl(var(--success))' },
-    { name: 'Pertes', value: data.losses, color: 'hsl(var(--destructive))' },
-    { name: 'Neutre', value: data.breakeven, color: 'hsl(var(--muted-foreground))' },
+    { name: t('wins'), value: data.wins, color: 'hsl(var(--success))' },
+    { name: t('losses'), value: data.losses, color: 'hsl(var(--destructive))' },
+    { name: t('breakeven'), value: data.breakeven, color: 'hsl(var(--muted-foreground))' },
   ].filter((d) => d.value > 0);
 
   return (

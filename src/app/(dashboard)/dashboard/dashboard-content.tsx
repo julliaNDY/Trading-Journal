@@ -13,8 +13,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
-import type { GlobalStats, EquityPoint, HourlyStats } from '@/services/stats-service';
+import { formatCurrency, formatNumber, formatPercent, formatDurationWithSeconds } from '@/lib/utils';
+import type { GlobalStats, EquityPoint, HourlyStats, FiveMinuteStats } from '@/services/stats-service';
 import type { Trade } from '@prisma/client';
 import { EquityChart } from '@/components/charts/equity-chart';
 import { HourlyChart } from '@/components/charts/hourly-chart';
@@ -24,6 +24,7 @@ interface DashboardContentProps {
   stats: GlobalStats;
   equityCurve: EquityPoint[];
   hourlyStats: HourlyStats[];
+  fiveMinuteStats: FiveMinuteStats[];
   trades: Trade[];
 }
 
@@ -101,6 +102,7 @@ export function DashboardContent({
   stats,
   equityCurve,
   hourlyStats,
+  fiveMinuteStats,
   trades,
 }: DashboardContentProps) {
   const t = useTranslations('dashboard');
@@ -227,29 +229,32 @@ export function DashboardContent({
         </CardContent>
       </Card>
 
-      {/* Hourly Stats Table */}
+      {/* 5-Minute Stats Table */}
       <Card>
         <CardHeader>
           <CardTitle>{t('timeOfDayProfitability')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-2">{t('hour')}</th>
-                  <th className="text-right py-3 px-2">{t('trades')}</th>
-                  <th className="text-right py-3 px-2">{t('pnl')}</th>
-                  <th className="text-right py-3 px-2">{t('avgPnl')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hourlyStats
-                  .filter((h) => h.trades > 0)
-                  .map((stat) => (
-                    <tr key={stat.hour} className="border-b border-border/50">
+          {fiveMinuteStats.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {t('noTradesWithTimes')}
+            </p>
+          ) : (
+            <div className="overflow-x-auto max-h-[500px]">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2">{t('hour')}</th>
+                    <th className="text-right py-3 px-2">{t('trades')}</th>
+                    <th className="text-right py-3 px-2">{t('pnl')}</th>
+                    <th className="text-right py-3 px-2">{t('avgPnl')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fiveMinuteStats.map((stat) => (
+                    <tr key={stat.timeSlot} className="border-b border-border/50">
                       <td className="py-2 px-2 font-medium">
-                        {stat.hour.toString().padStart(2, '0')}:00
+                        {stat.timeSlot}
                       </td>
                       <td className="text-right py-2 px-2">{stat.trades}</td>
                       <td
@@ -270,11 +275,26 @@ export function DashboardContent({
                       </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Average Duration - only if available */}
+      {stats.averageDurationSeconds !== null && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">{t('avgDuration')}</p>
+              <p className="text-xl font-semibold">
+                {formatDurationWithSeconds(stats.averageDurationSeconds)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

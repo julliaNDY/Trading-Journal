@@ -135,15 +135,33 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
 
   if (!trade) throw new Error('Trade not found');
 
-  await prisma.trade.update({
+  // Ensure dates are proper Date objects (they might come as strings from client)
+  const parsedOpenedAt = new Date(openedAt);
+  const parsedClosedAt = new Date(closedAt);
+
+  console.log('[updateTradeTimes] Updating trade:', tradeId);
+  console.log('[updateTradeTimes] openedAt received:', openedAt, 'parsed:', parsedOpenedAt);
+  console.log('[updateTradeTimes] closedAt received:', closedAt, 'parsed:', parsedClosedAt);
+
+  const result = await prisma.trade.update({
     where: { id: tradeId },
-    data: { openedAt, closedAt },
+    data: { 
+      openedAt: parsedOpenedAt, 
+      closedAt: parsedClosedAt, 
+      timesManuallySet: true 
+    },
   });
+
+  console.log('[updateTradeTimes] Update result - timesManuallySet:', result.timesManuallySet, 'openedAt:', result.openedAt, 'closedAt:', result.closedAt);
 
   revalidatePath('/journal');
   revalidatePath('/dashboard');
   revalidatePath('/statistiques');
   revalidatePath('/calendrier');
+  revalidatePath('/trades');
+  revalidatePath(`/trades/${tradeId}`);
+  
+  return result;
 }
 
 // Trade note management

@@ -62,6 +62,7 @@ interface TradeWithRelations extends Trade {
     playbook: { id: string; name: string };
     checkedPrerequisites: { prerequisiteId: string; checked: boolean }[];
   }[];
+  timesManuallySet: boolean;
 }
 
 interface PlaybookForSelection {
@@ -94,6 +95,9 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [screenshots, setScreenshots] = useState(initialTrade.screenshots);
   
+  // Local state for playbooks (to update UI immediately)
+  const [tradePlaybooks, setTradePlaybooks] = useState(initialTrade.tradePlaybooks);
+  
   // Editable fields
   const [note, setNote] = useState(trade.note || '');
   const [youtubeUrl, setYoutubeUrl] = useState(trade.youtubeUrl || '');
@@ -101,15 +105,40 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const [stopLoss, setStopLoss] = useState(trade.stopLossPriceInitial ? Number(trade.stopLossPriceInitial).toString() : '');
   const [profitTarget, setProfitTarget] = useState(trade.profitTarget ? Number(trade.profitTarget).toString() : '');
   
-  // Time editing
-  const formatTimeForInput = (date: Date) => {
+  // Local state for R multiples (to update immediately after save)
+  const [localRealizedRMultiple, setLocalRealizedRMultiple] = useState<number | null>(
+    trade.realizedRMultiple ? Number(trade.realizedRMultiple) : null
+  );
+  const [localPlannedRMultiple, setLocalPlannedRMultiple] = useState<number | null>(
+    trade.plannedRMultiple ? Number(trade.plannedRMultiple) : null
+  );
+  
+  // Local state for times manually set
+  const [localTimesManuallySet, setLocalTimesManuallySet] = useState(
+    trade.timesManuallySet === true
+  );
+  
+  // Time editing with seconds support
+  const formatTimeForInputWithSeconds = (date: Date) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   };
-  const [openTime, setOpenTime] = useState(formatTimeForInput(new Date(trade.openedAt)));
-  const [closeTime, setCloseTime] = useState(formatTimeForInput(new Date(trade.closedAt)));
+  
+  // Local state for dates (to update duration immediately after save)
+  const [localOpenedAt, setLocalOpenedAt] = useState(new Date(trade.openedAt));
+  const [localClosedAt, setLocalClosedAt] = useState(new Date(trade.closedAt));
+  
+  const [openTime, setOpenTime] = useState(formatTimeForInputWithSeconds(new Date(trade.openedAt)));
+  const [closeTime, setCloseTime] = useState(formatTimeForInputWithSeconds(new Date(trade.closedAt)));
   const [isEditingTimes, setIsEditingTimes] = useState(false);
+  
+  // Check if times were manually set for duration display
+  const hasManualTimes = localTimesManuallySet;
+  
+  // Debug log
+  console.log('[TradeDetailContent] hasManualTimes:', hasManualTimes, 'localTimesManuallySet:', localTimesManuallySet, 'trade.timesManuallySet:', trade.timesManuallySet);
   
   // Playbook dialog
   const [isAssigningPlaybook, setIsAssigningPlaybook] = useState(false);
@@ -125,16 +154,18 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const pointValue = Number(trade.pointValue);
   const points = trade.points ? Number(trade.points) : Math.abs(exitPrice - entryPrice);
   const ticksPerContract = trade.ticksPerContract ? Number(trade.ticksPerContract) : null;
-  const duration = getDurationSeconds(new Date(trade.openedAt), new Date(trade.closedAt));
+  
+  // Use local dates for duration calculation (updates immediately after save)
+  const duration = getDurationSeconds(localOpenedAt, localClosedAt);
   
   // Calculate fees based on symbol (use stored value or calculate)
   const calculatedFees = calculateTradeFees(trade.symbol, quantity);
   const fees = trade.fees ? Number(trade.fees) : calculatedFees;
   const grossPnl = trade.grossPnlUsd ? Number(trade.grossPnlUsd) : calculateGrossPnl(pnl, fees);
   
-  // R Multiples
-  const plannedRMultiple = trade.plannedRMultiple ? Number(trade.plannedRMultiple) : null;
-  const realizedRMultiple = trade.realizedRMultiple ? Number(trade.realizedRMultiple) : null;
+  // R Multiples - use local state for immediate updates
+  const plannedRMultiple = localPlannedRMultiple;
+  const realizedRMultiple = localRealizedRMultiple;
   
   // Net ROI calculation (simplified)
   const netRoi = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice) * 100 * (trade.direction === 'LONG' ? 1 : -1) : 0;
@@ -162,11 +193,37 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const handleSaveDetails = async () => {
     setIsSaving(true);
     try {
+      const stopLossValue = stopLoss ? parseFloat(stopLoss) : null;
+      const profitTargetValue = profitTarget ? parseFloat(profitTarget) : null;
+      
       await updateTradeDetails(trade.id, {
-        stopLossPriceInitial: stopLoss ? parseFloat(stopLoss) : null,
-        profitTarget: profitTarget ? parseFloat(profitTarget) : null,
+        stopLossPriceInitial: stopLossValue,
+        profitTarget: profitTargetValue,
       });
-      router.refresh();
+      
+      // Calculate R multiples locally for immediate UI update
+      if (stopLossValue && profitTargetValue) {
+        const risk = Math.abs(entryPrice - stopLossValue);
+        const reward = Math.abs(profitTargetValue - entryPrice);
+        if (risk > 0) {
+          setLocalPlannedRMultiple(reward / risk);
+        }
+      } else {
+        setLocalPlannedRMultiple(null);
+      }
+      
+      if (stopLossValue) {
+        const risk = Math.abs(entryPrice - stopLossValue);
+        const actualMove = trade.direction === 'LONG' 
+          ? exitPrice - entryPrice 
+          : entryPrice - exitPrice;
+        if (risk > 0) {
+          setLocalRealizedRMultiple(actualMove / risk);
+        }
+      } else {
+        setLocalRealizedRMultiple(null);
+      }
+      
     } catch (error) {
       console.error('Error saving details:', error);
     } finally {
@@ -177,18 +234,43 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const handleSaveTimes = async () => {
     setIsSaving(true);
     try {
-      const [openHours, openMinutes] = openTime.split(':').map(Number);
-      const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
+      const openParts = openTime.split(':').map(Number);
+      const closeParts = closeTime.split(':').map(Number);
+      const openHours = openParts[0] || 0;
+      const openMinutes = openParts[1] || 0;
+      const openSeconds = openParts[2] || 0;
+      const closeHours = closeParts[0] || 0;
+      const closeMinutes = closeParts[1] || 0;
+      const closeSeconds = closeParts[2] || 0;
       
       const newOpenedAt = new Date(trade.openedAt);
-      newOpenedAt.setHours(openHours, openMinutes, 0, 0);
+      newOpenedAt.setHours(openHours, openMinutes, openSeconds, 0);
       
       const newClosedAt = new Date(trade.closedAt);
-      newClosedAt.setHours(closeHours, closeMinutes, 0, 0);
+      newClosedAt.setHours(closeHours, closeMinutes, closeSeconds, 0);
       
-      await updateTradeTimes(trade.id, newOpenedAt, newClosedAt);
+      console.log('[handleSaveTimes] Input openTime:', openTime, 'closeTime:', closeTime);
+      console.log('[handleSaveTimes] Parsed openHours:', openHours, 'openMinutes:', openMinutes, 'openSeconds:', openSeconds);
+      console.log('[handleSaveTimes] newOpenedAt:', newOpenedAt.toISOString());
+      console.log('[handleSaveTimes] newClosedAt:', newClosedAt.toISOString());
+      console.log('[handleSaveTimes] Calling updateTradeTimes...');
+      
+      const result = await updateTradeTimes(trade.id, newOpenedAt, newClosedAt);
+      
+      console.log('[handleSaveTimes] Server response:', result);
+      
+      // Update local state immediately for UI
+      setLocalOpenedAt(newOpenedAt);
+      setLocalClosedAt(newClosedAt);
+      setLocalTimesManuallySet(true);
+      
+      // Update the time input fields to reflect saved values
+      setOpenTime(formatTimeForInputWithSeconds(newOpenedAt));
+      setCloseTime(formatTimeForInputWithSeconds(newClosedAt));
+      
+      console.log('[handleSaveTimes] Local state updated, localTimesManuallySet set to true');
+      
       setIsEditingTimes(false);
-      router.refresh();
     } catch (error) {
       console.error('Error saving times:', error);
     } finally {
@@ -249,10 +331,24 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
     setIsSaving(true);
     try {
       await assignPlaybookToTrade(trade.id, selectedPlaybookId, Array.from(checkedPrereqs));
+      
+      // Update local state immediately
+      const playbook = playbooks.find(p => p.id === selectedPlaybookId);
+      if (playbook) {
+        const allPrereqIds = playbook.groups.flatMap(g => g.prerequisites.map(p => p.id));
+        const newTradePlaybook = {
+          playbook: { id: playbook.id, name: playbook.name },
+          checkedPrerequisites: allPrereqIds.map(prereqId => ({
+            prerequisiteId: prereqId,
+            checked: checkedPrereqs.has(prereqId),
+          })),
+        };
+        setTradePlaybooks(prev => [...prev, newTradePlaybook]);
+      }
+      
       setIsAssigningPlaybook(false);
       setSelectedPlaybookId('');
       setCheckedPrereqs(new Set());
-      router.refresh();
     } catch (error) {
       console.error('Error assigning playbook:', error);
     } finally {
@@ -263,7 +359,8 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const handleRemovePlaybook = async (playbookId: string) => {
     try {
       await removePlaybookFromTrade(trade.id, playbookId);
-      router.refresh();
+      // Update local state immediately
+      setTradePlaybooks(prev => prev.filter(tp => tp.playbook.id !== playbookId));
     } catch (error) {
       console.error('Error removing playbook:', error);
     }
@@ -349,10 +446,10 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                   <p className="font-semibold">{points.toFixed(2)}</p>
                 </div>
 
-                {/* Ticks per Contract */}
+                {/* Trade Duration */}
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">{t('ticksPerContract')}</p>
-                  <p className="font-semibold">{ticksPerContract ? ticksPerContract.toFixed(2) : '-'}</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('tradeDuration')}</p>
+                  <p className="font-semibold">{hasManualTimes ? formatDurationWithSeconds(duration) : 'N/A'}</p>
                 </div>
 
                 {/* Fees */}
@@ -392,11 +489,11 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {trade.tradePlaybooks.length === 0 ? (
+              {tradePlaybooks.length === 0 ? (
                 <p className="text-muted-foreground text-sm">{t('noPlaybook')}</p>
               ) : (
                 <div className="space-y-2">
-                  {trade.tradePlaybooks.map((tp) => {
+                  {tradePlaybooks.map((tp) => {
                     const checkedCount = tp.checkedPrerequisites.filter((cp) => cp.checked).length;
                     const totalCount = tp.checkedPrerequisites.length;
                     return (
@@ -521,6 +618,7 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                       <Label>{t('openTime')}</Label>
                       <Input
                         type="time"
+                        step="1"
                         value={openTime}
                         onChange={(e) => setOpenTime(e.target.value)}
                       />
@@ -529,6 +627,7 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                       <Label>{t('closeTime')}</Label>
                       <Input
                         type="time"
+                        step="1"
                         value={closeTime}
                         onChange={(e) => setCloseTime(e.target.value)}
                       />

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -13,7 +14,6 @@ import {
   LogOut,
   Menu,
   X,
-  TrendingUp,
   ClipboardList,
   ListChecks,
   Wallet,
@@ -26,11 +26,11 @@ import { LanguageSwitcher } from './language-switcher';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
+  { href: '/statistiques', icon: BarChart3, labelKey: 'statistics' },
   { href: '/trades', icon: ClipboardList, labelKey: 'trades' },
   { href: '/journal', icon: BookOpen, labelKey: 'journal' },
   { href: '/calendrier', icon: Calendar, labelKey: 'calendar' },
   { href: '/playbooks', icon: ListChecks, labelKey: 'playbooks' },
-  { href: '/statistiques', icon: BarChart3, labelKey: 'statistics' },
   { href: '/importer', icon: Upload, labelKey: 'import' },
   { href: '/comptes', icon: Wallet, labelKey: 'accounts' },
 ];
@@ -76,11 +76,17 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
-              <TrendingUp className="w-6 h-6 text-primary" />
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 overflow-hidden">
+              <Image
+                src="/cttp-logo.png"
+                alt="CTTP Logo"
+                width={24}
+                height={24}
+                className="object-contain"
+              />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Trading</h1>
+              <h1 className="text-lg font-bold text-foreground">Trading Path</h1>
               <p className="text-xs text-muted-foreground">Journal</p>
             </div>
           </div>
