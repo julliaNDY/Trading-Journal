@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,12 +8,21 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Save,
   Loader2,
   Clock,
   Image as ImageIcon,
   Upload,
   ExternalLink,
+  Filter,
+  X,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDurationWithSeconds, getDurationSeconds } from '@/lib/utils';
 import { ImageLightbox, ImageThumbnail } from '@/components/ui/image-lightbox';
@@ -27,9 +36,17 @@ import {
   getDailyPnlMap,
 } from '@/app/actions/journal';
 
+interface Account {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface JournalContentProps {
   userId: string;
   tags: Tag[];
+  accounts: Account[];
+  symbols: string[];
 }
 
 interface TradeWithTags extends Trade {
@@ -50,23 +67,33 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export function JournalContent({ userId, tags }: JournalContentProps) {
+export function JournalContent({ userId, tags, accounts, symbols }: JournalContentProps) {
   const t = useTranslations('journal');
   const tCommon = useTranslations('common');
+  const tStats = useTranslations('statistics');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-GB' : 'fr-FR';
   const searchParams = useSearchParams();
+  
+  // Get today's date in user's local timezone (midnight)
+  const getTodayLocal = () => {
+    const now = new Date();
+    // Create a new date with only year, month, day (no time component)
+    // This ensures we get the correct local date
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  };
   
   // Initialize date from URL parameter or use today
   const getInitialDate = () => {
     const dateParam = searchParams.get('date');
     if (dateParam) {
-      const parsed = new Date(dateParam);
-      if (!isNaN(parsed.getTime())) {
-        return parsed;
+      // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+      const [year, month, day] = dateParam.split('-').map(Number);
+      if (year && month && day) {
+        return new Date(year, month - 1, day);
       }
     }
-    return new Date();
+    return getTodayLocal();
   };
   
   const [selectedDate, setSelectedDate] = useState<Date>(getInitialDate);
@@ -78,24 +105,52 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [dailyPnl, setDailyPnl] = useState<Record<string, number>>({});
+  
+  // Today's date (client-side only to avoid hydration mismatch)
+  const [today, setToday] = useState<Date | null>(null);
+  
+  // Filters
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('');
+  
+  // Set today's date on client side
+  useEffect(() => {
+    setToday(getTodayLocal());
+  }, []);
 
   // Load daily PnL map
   useEffect(() => {
     const loadPnlMap = async () => {
-      const pnlMap = await getDailyPnlMap();
+      const pnlMap = await getDailyPnlMap(getTimezoneOffset());
       setDailyPnl(pnlMap);
     };
     loadPnlMap();
   }, [trades]);
+
+  // Helper to format date as YYYY-MM-DD (local timezone)
+  const formatDateForServer = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get user's timezone offset in minutes (e.g., UTC+1 = -60)
+  const getTimezoneOffset = () => {
+    return new Date().getTimezoneOffset();
+  };
 
   // Load data when date changes
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // Pass date and timezone offset to handle timezone correctly
+        const dateStr = formatDateForServer(selectedDate);
+        const timezoneOffset = getTimezoneOffset();
         const [tradesData, journalData] = await Promise.all([
-          getTradesForDate(selectedDate.toISOString()),
-          getDayJournal(selectedDate.toISOString()),
+          getTradesForDate(dateStr, timezoneOffset),
+          getDayJournal(dateStr, timezoneOffset),
         ]);
         setTrades(tradesData as TradeWithTags[]);
         setDayJournal(journalData as DayJournalData | null);
@@ -114,7 +169,7 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
   const handleSaveNote = async () => {
     setIsSaving(true);
     try {
-      await saveDayNote(selectedDate.toISOString(), note);
+      await saveDayNote(formatDateForServer(selectedDate), note, getTimezoneOffset());
     } catch (error) {
       console.error('Error saving note:', error);
     } finally {
@@ -122,7 +177,41 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
     }
   };
 
-  const dayPnl = trades.reduce((sum, t) => sum + Number(t.realizedPnlUsd), 0);
+  // Filter trades
+  const filteredTrades = useMemo(() => {
+    return trades.filter((trade) => {
+      // Account filter
+      if (selectedAccounts.length > 0) {
+        if (!trade.accountId || !selectedAccounts.includes(trade.accountId)) {
+          return false;
+        }
+      }
+
+      // Symbol filter
+      if (selectedSymbol && trade.symbol !== selectedSymbol) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [trades, selectedAccounts, selectedSymbol]);
+
+  const dayPnl = filteredTrades.reduce((sum, t) => sum + Number(t.realizedPnlUsd), 0);
+
+  const toggleAccount = (accountId: string) => {
+    setSelectedAccounts((prev) =>
+      prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId]
+    );
+  };
+
+  const hasFilters = selectedAccounts.length > 0 || selectedSymbol;
+
+  const clearFilters = () => {
+    setSelectedAccounts([]);
+    setSelectedSymbol('');
+  };
 
   // Calendar generation
   const generateCalendarDays = () => {
@@ -167,6 +256,70 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
           </p>
         </div>
       </div>
+
+      {/* Filters */}
+      {(accounts.length > 0 || symbols.length > 0) && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Filters Label */}
+              <div className="flex items-center gap-2 mr-2">
+                <Filter className="h-5 w-5" />
+                <span className="font-semibold">{tStats('filters')}</span>
+              </div>
+
+              {/* Accounts */}
+              {accounts.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {accounts.map((account) => (
+                    <Badge
+                      key={account.id}
+                      variant={selectedAccounts.includes(account.id) ? 'default' : 'outline'}
+                      className="cursor-pointer text-xs"
+                      style={
+                        selectedAccounts.includes(account.id)
+                          ? { backgroundColor: account.color }
+                          : { borderColor: account.color, color: account.color }
+                      }
+                      onClick={() => toggleAccount(account.id)}
+                    >
+                      {account.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Symbol */}
+              {symbols.length > 0 && (
+                <Select 
+                  value={selectedSymbol || '__all__'} 
+                  onValueChange={(v) => setSelectedSymbol(v === '__all__' ? '' : v)}
+                >
+                  <SelectTrigger className="w-[130px] h-9">
+                    <SelectValue placeholder={tStats('symbol')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">{tStats('allSymbols')}</SelectItem>
+                    {symbols.map((symbol) => (
+                      <SelectItem key={symbol} value={symbol}>
+                        {symbol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Clear filters */}
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  {tCommon('reset')}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top section: Calendar + Day Note side by side */}
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -218,7 +371,7 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
                 const dateKey = `${year}-${month}-${dayNum}`;
                 const pnl = dailyPnl[dateKey];
                 const isSelected = selectedDate.toDateString() === day.toDateString();
-                const isToday = new Date().toDateString() === day.toDateString();
+                const isToday = today ? today.toDateString() === day.toDateString() : false;
                 
                 return (
                   <button
@@ -273,7 +426,8 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
 
           {/* Day Note with integrated photos */}
           <DayNoteCard
-            dateStr={selectedDate.toISOString()}
+            dateStr={formatDateForServer(selectedDate)}
+            timezoneOffset={getTimezoneOffset()}
             note={note}
             onNoteChange={setNote}
             screenshots={dayScreenshots}
@@ -288,7 +442,7 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {t('tradesOfDay')} ({trades.length})
+            {t('tradesOfDay')} ({filteredTrades.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -296,13 +450,13 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : trades.length === 0 ? (
+          ) : filteredTrades.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               {t('noTradesThisDay')}
             </p>
           ) : (
             <div className="space-y-3">
-              {trades.map((trade) => (
+              {filteredTrades.map((trade) => (
                 <TradeCard 
                   key={trade.id} 
                   trade={trade}
@@ -319,6 +473,7 @@ export function JournalContent({ userId, tags }: JournalContentProps) {
 // Day Note with integrated photos component
 function DayNoteCard({
   dateStr,
+  timezoneOffset,
   note,
   onNoteChange,
   screenshots,
@@ -327,6 +482,7 @@ function DayNoteCard({
   onSave,
 }: {
   dateStr: string;
+  timezoneOffset: number;
   note: string;
   onNoteChange: (note: string) => void;
   screenshots: { id: string; filePath: string; originalName: string }[];
@@ -347,7 +503,7 @@ function DayNoteCard({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const newScreenshot = await uploadDayScreenshot(dateStr, formData);
+      const newScreenshot = await uploadDayScreenshot(dateStr, formData, timezoneOffset);
       onScreenshotsChange([...screenshots, newScreenshot]);
     } catch (error) {
       console.error('Error uploading screenshot:', error);

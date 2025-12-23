@@ -6,23 +6,36 @@ import { getUser } from '@/lib/auth';
 import { updateStopLoss } from '@/services/trade-service';
 import { storage, isValidImageType, isValidFileSize } from '@/services/storage-service';
 
-export async function getTradesForDate(dateStr: string) {
+/**
+ * Get trades for a specific date in the user's timezone
+ * @param dateStr - Date in YYYY-MM-DD format (user's local date)
+ * @param timezoneOffset - User's timezone offset in minutes (from getTimezoneOffset())
+ *                         e.g., UTC+1 = -60, UTC-5 = 300
+ */
+export async function getTradesForDate(dateStr: string, timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) return [];
 
-  const date = new Date(dateStr);
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  // Parse date string in YYYY-MM-DD format
+  const [year, month, day] = dateStr.split('-').map(Number);
+  
+  // Create UTC timestamps for start and end of day in user's timezone
+  // timezoneOffset is in minutes, negative for east of UTC (e.g., UTC+1 = -60)
+  // To get UTC time for midnight in user's timezone:
+  // If user is UTC+1 (offset=-60), midnight local = 23:00 UTC previous day
+  // So we need to ADD the offset to convert local to UTC
+  const startOfDayUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  startOfDayUTC.setUTCMinutes(startOfDayUTC.getUTCMinutes() + timezoneOffset);
+  
+  const endOfDayUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  endOfDayUTC.setUTCMinutes(endOfDayUTC.getUTCMinutes() + timezoneOffset);
 
   return prisma.trade.findMany({
     where: {
       userId: user.id,
       closedAt: {
-        gte: startOfDay,
-        lte: endOfDay,
+        gte: startOfDayUTC,
+        lte: endOfDayUTC,
       },
     },
     include: {
@@ -49,12 +62,19 @@ export async function getTradesForDate(dateStr: string) {
   });
 }
 
-export async function getDayJournal(dateStr: string) {
+/**
+ * Get day journal for a specific date in the user's timezone
+ * @param dateStr - Date in YYYY-MM-DD format (user's local date)
+ * @param timezoneOffset - User's timezone offset in minutes
+ */
+export async function getDayJournal(dateStr: string, timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) return null;
 
-  const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
+  // Parse date string and create UTC date adjusted for user's timezone
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   return prisma.dayJournal.findUnique({
     where: {
@@ -86,12 +106,14 @@ export async function getDayJournal(dateStr: string) {
   });
 }
 
-export async function saveDayNote(dateStr: string, note: string) {
+export async function saveDayNote(dateStr: string, note: string, timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
 
-  const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
+  // Parse date string and create UTC date adjusted for user's timezone
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   await prisma.dayJournal.upsert({
     where: {
@@ -438,12 +460,14 @@ export async function deleteScreenshot(screenshotId: string) {
 }
 
 // Screenshot management for day journal
-export async function uploadDayScreenshot(dateStr: string, formData: FormData) {
+export async function uploadDayScreenshot(dateStr: string, formData: FormData, timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
 
-  const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
+  // Parse date string and create UTC date adjusted for user's timezone
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   // Get or create day journal
   let dayJournal = await prisma.dayJournal.findUnique({
@@ -555,7 +579,11 @@ export async function removeTagFromTrade(tradeId: string, tagId: string) {
 }
 
 // Get daily PnL for calendar
-export async function getDailyPnlMap() {
+/**
+ * Get daily PnL map for calendar display
+ * @param timezoneOffset - User's timezone offset in minutes
+ */
+export async function getDailyPnlMap(timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) return {};
 
@@ -570,11 +598,14 @@ export async function getDailyPnlMap() {
   const pnlMap: Record<string, number> = {};
   
   for (const trade of trades) {
-    // Use local date to avoid timezone issues
-    const date = new Date(trade.closedAt);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    // Convert UTC time to user's local time
+    const utcDate = new Date(trade.closedAt);
+    // Subtract offset to convert from UTC to local (offset is negative for east of UTC)
+    const localDate = new Date(utcDate.getTime() - timezoneOffset * 60 * 1000);
+    
+    const year = localDate.getUTCFullYear();
+    const month = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getUTCDate()).padStart(2, '0');
     const dateKey = `${year}-${month}-${day}`;
     pnlMap[dateKey] = (pnlMap[dateKey] || 0) + Number(trade.realizedPnlUsd);
   }

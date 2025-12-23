@@ -22,8 +22,23 @@ model User {
   screenshots     Screenshot[]
   tags            Tag[]
   trades          Trade[]
+  passwordResets  PasswordReset[]
 
   @@map("users")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_resets")
 }
 
 model Trade {

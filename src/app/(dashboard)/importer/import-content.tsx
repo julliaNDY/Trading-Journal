@@ -33,7 +33,7 @@ import {
   FIXED_MAPPING,
   type ImportPreview,
 } from '@/services/import-service';
-import { commitImport } from '@/app/actions/import';
+import { commitImport, checkDuplicates } from '@/app/actions/import';
 import { createAccount } from '@/app/actions/accounts';
 
 interface Account {
@@ -63,6 +63,12 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     validCount: number;
     errors: { row: number; message: string }[];
   } | null>(null);
+  const [duplicateCheck, setDuplicateCheck] = useState<{
+    duplicateCount: number;
+    newCount: number;
+    duplicateDetails: { symbol: string; date: string }[];
+  } | null>(null);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [importResult, setImportResult] = useState<{
     imported: number;
     skipped: number;
@@ -82,7 +88,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
       setFileContent(content);
 
@@ -100,6 +106,19 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
       });
 
       setStep('preview');
+
+      // Check for duplicates asynchronously
+      if (result.trades.length > 0) {
+        setIsCheckingDuplicates(true);
+        try {
+          const dupCheck = await checkDuplicates(result.trades);
+          setDuplicateCheck(dupCheck);
+        } catch (error) {
+          console.error('Error checking duplicates:', error);
+        } finally {
+          setIsCheckingDuplicates(false);
+        }
+      }
     };
     reader.readAsText(file);
   }, []);
@@ -167,6 +186,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     setFileContent('');
     setPreview(null);
     setValidationResult(null);
+    setDuplicateCheck(null);
     setImportResult(null);
     setSelectedAccountId('');
     setIsCreatingAccount(false);
@@ -188,7 +208,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
       <div>
         <h1 className="text-3xl font-bold">{t('title')}</h1>
         <p className="text-muted-foreground">
-          Importez vos trades depuis un fichier CSV
+          {t('subtitle')}
         </p>
       </div>
 
@@ -253,14 +273,6 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
                 </p>
               </div>
             </div>
-
-            {/* Expected format info */}
-            <div className="mt-6 p-4 rounded-lg bg-muted/50">
-              <p className="text-sm font-medium mb-2">Format attendu :</p>
-              <p className="text-xs text-muted-foreground font-mono">
-                DT, Symbol, Quantity, Entry, Exit, ProfitLoss
-              </p>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -275,7 +287,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
                 {tAccounts('selectAccount')}
               </CardTitle>
               <CardDescription>
-                Sélectionnez le compte de trading d'où proviennent ces trades
+                {t('selectAccountDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -356,7 +368,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
             <CardHeader>
               <CardTitle>{t('preview')}</CardTitle>
               <CardDescription>
-                {preview.totalRows} lignes détectées (délimiteur: {preview.detectedDelimiter === ';' ? 'point-virgule' : 'virgule'})
+                {t('rowsDetected', { count: preview.totalRows })} ({t('delimiter')}: {preview.detectedDelimiter === ';' ? t('semicolon') : t('comma')})
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -397,26 +409,65 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
                 <Check className="w-6 h-6 text-success" />
                 <div>
                   <p className="font-medium text-success">
-                    {validationResult.validCount} trades valides
+                    {t('validTrades', { count: validationResult.validCount })}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Prêts à être importés
+                    {t('readyToImport')}
                   </p>
                 </div>
               </div>
+
+              {/* Duplicate Warning */}
+              {isCheckingDuplicates && (
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">{t('checkingDuplicates')}</p>
+                </div>
+              )}
+
+              {duplicateCheck && duplicateCheck.duplicateCount > 0 && (
+                <div className="space-y-2 p-4 rounded-lg bg-warning/10 border border-warning/30">
+                  <div className="flex items-center gap-2 text-warning">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-medium">
+                      {t('duplicatesFound', { count: duplicateCheck.duplicateCount })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('duplicatesWillBeSkipped', { 
+                      newCount: duplicateCheck.newCount,
+                      duplicateCount: duplicateCheck.duplicateCount 
+                    })}
+                  </p>
+                  {duplicateCheck.duplicateDetails.length > 0 && (
+                    <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                      {duplicateCheck.duplicateDetails.map((dup, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">
+                          • {dup.symbol} - {dup.date}
+                        </p>
+                      ))}
+                      {duplicateCheck.duplicateCount > 10 && (
+                        <p className="text-xs text-muted-foreground italic">
+                          {t('andMoreDuplicates', { count: duplicateCheck.duplicateCount - 10 })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {validationResult.errors.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="w-5 h-5" />
                     <span className="font-medium">
-                      {validationResult.errors.length} erreurs
+                      {t('errorsCount', { count: validationResult.errors.length })}
                     </span>
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {validationResult.errors.map((err, i) => (
                       <p key={i} className="text-sm text-muted-foreground">
-                        Ligne {err.row}: {err.message}
+                        {t('rowNumber', { row: err.row })}: {err.message}
                       </p>
                     ))}
                   </div>
@@ -425,11 +476,11 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
 
               <div className="flex justify-end gap-4">
                 <Button variant="outline" onClick={handleReset}>
-                  Annuler
+                  {tCommon('cancel')}
                 </Button>
                 <Button
                   onClick={handleImport}
-                  disabled={validationResult.validCount === 0}
+                  disabled={validationResult.validCount === 0 || isCheckingDuplicates || (duplicateCheck?.newCount === 0)}
                 >
                   {t('startImport')}
                 </Button>
@@ -447,7 +498,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
               <div className="text-center">
                 <p className="text-lg font-medium">{t('importing')}</p>
                 <p className="text-muted-foreground">
-                  Veuillez patienter...
+                  {t('pleaseWait')}
                 </p>
               </div>
               <Progress value={50} className="w-64" />
@@ -504,10 +555,10 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
 
             <div className="flex justify-end gap-4">
               <Button variant="outline" onClick={handleReset}>
-                Nouvel import
+                {t('newImport')}
               </Button>
               <Button asChild>
-                <a href="/dashboard">Voir le dashboard</a>
+                <a href="/dashboard">{t('viewDashboard')}</a>
               </Button>
             </div>
           </CardContent>

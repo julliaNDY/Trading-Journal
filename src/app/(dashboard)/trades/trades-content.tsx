@@ -16,6 +16,8 @@ import {
   ListChecks,
   Video,
   Star,
+  Filter,
+  CalendarIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +50,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { cn, formatCurrency, formatDurationWithSeconds, getDurationSeconds } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn, formatCurrency, formatDurationWithSeconds, getDurationSeconds, formatDate } from '@/lib/utils';
 import { ImageLightbox, ImageThumbnail } from '@/components/ui/image-lightbox';
 import {
   updateTradeStopLoss,
@@ -94,16 +98,27 @@ interface PlaybookForSelection {
   groups: PlaybookGroup[];
 }
 
+interface Account {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface TradesContentProps {
   trades: TradeWithRelations[];
   playbooks: PlaybookForSelection[];
+  symbols: string[];
+  accounts: Account[];
 }
 
-export function TradesContent({ trades: initialTrades, playbooks }: TradesContentProps) {
+export function TradesContent({ trades: initialTrades, playbooks, symbols, accounts }: TradesContentProps) {
   const t = useTranslations('trades');
   const tCommon = useTranslations('common');
+  const tStats = useTranslations('statistics');
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale();
+  const dateLocale = locale === 'en' ? 'en-GB' : 'fr-FR';
 
   const [trades, setTrades] = useState(initialTrades);
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +126,11 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
   const [filterPlaybook, setFilterPlaybook] = useState(searchParams.get('playbook') || '');
   const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // New filters
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   
   // Double confirmation states
   const [showDeleteSelectedDialog, setShowDeleteSelectedDialog] = useState(false);
@@ -139,6 +159,28 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
       );
     }
 
+    // Account filter
+    if (selectedAccounts.length > 0) {
+      result = result.filter((t) =>
+        t.accountId && selectedAccounts.includes(t.accountId)
+      );
+    }
+
+    // Symbol filter
+    if (selectedSymbol) {
+      result = result.filter((t) => t.symbol === selectedSymbol);
+    }
+
+    // Date filter
+    if (dateRange.from) {
+      result = result.filter((t) => new Date(t.closedAt) >= dateRange.from!);
+    }
+    if (dateRange.to) {
+      const endOfDay = new Date(dateRange.to);
+      endOfDay.setHours(23, 59, 59, 999);
+      result = result.filter((t) => new Date(t.closedAt) <= endOfDay);
+    }
+
     // Sort
     switch (sortBy) {
       case 'date':
@@ -153,7 +195,25 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
     }
 
     return result;
-  }, [trades, searchQuery, filterPlaybook, sortBy]);
+  }, [trades, searchQuery, filterPlaybook, selectedAccounts, selectedSymbol, dateRange, sortBy]);
+
+  const toggleAccount = (accountId: string) => {
+    setSelectedAccounts((prev) =>
+      prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId]
+    );
+  };
+
+  const hasFilters = searchQuery || filterPlaybook || selectedAccounts.length > 0 || selectedSymbol || dateRange.from || dateRange.to;
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterPlaybook('');
+    setSelectedAccounts([]);
+    setSelectedSymbol('');
+    setDateRange({});
+  };
 
   const handleSelectTrade = (tradeId: string, checked: boolean) => {
     const newSelected = new Set(selectedTrades);
@@ -339,20 +399,106 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
+            {/* Filter icon & label */}
+            <div className="flex items-center gap-2 mr-2">
+              <Filter className="h-5 w-5" />
+              <span className="font-semibold">{tStats('filters')}</span>
+            </div>
+
+            {/* Search */}
+            <div className="min-w-[180px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={tCommon('search')}
-                  className="pl-9"
+                  className="pl-9 h-9"
                 />
               </div>
             </div>
 
+            {/* Date Range */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'w-[220px] justify-start text-left font-normal',
+                    !dateRange.from && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      <>
+                        {formatDate(dateRange.from, dateLocale)} - {formatDate(dateRange.to, dateLocale)}
+                      </>
+                    ) : (
+                      formatDate(dateRange.from, dateLocale)
+                    )
+                  ) : (
+                    tStats('dateRange')
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from}
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) =>
+                    setDateRange({ from: range?.from, to: range?.to })
+                  }
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Accounts */}
+            {accounts.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {accounts.map((account) => (
+                  <Badge
+                    key={account.id}
+                    variant={selectedAccounts.includes(account.id) ? 'default' : 'outline'}
+                    className="cursor-pointer text-xs"
+                    style={
+                      selectedAccounts.includes(account.id)
+                        ? { backgroundColor: account.color }
+                        : { borderColor: account.color, color: account.color }
+                    }
+                    onClick={() => toggleAccount(account.id)}
+                  >
+                    {account.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Symbol */}
+            <Select 
+              value={selectedSymbol || '__all__'} 
+              onValueChange={(v) => setSelectedSymbol(v === '__all__' ? '' : v)}
+            >
+              <SelectTrigger className="w-[130px] h-9">
+                <SelectValue placeholder={tStats('symbol')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{tStats('allSymbols')}</SelectItem>
+                {symbols.map((symbol) => (
+                  <SelectItem key={symbol} value={symbol}>
+                    {symbol}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Playbook */}
             <Select value={filterPlaybook} onValueChange={setFilterPlaybook}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[180px] h-9">
                 <SelectValue placeholder={t('filterByPlaybook')} />
               </SelectTrigger>
               <SelectContent>
@@ -365,8 +511,9 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
               </SelectContent>
             </Select>
 
+            {/* Sort */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[150px] h-9">
                 <SelectValue placeholder={t('sortBy')} />
               </SelectTrigger>
               <SelectContent>
@@ -375,6 +522,14 @@ export function TradesContent({ trades: initialTrades, playbooks }: TradesConten
                 <SelectItem value="symbol">{t('sortBySymbol')}</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Clear filters */}
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" />
+                {tCommon('reset')}
+              </Button>
+            )}
             
             {filteredTrades.length > 0 && (
               <Button variant="ghost" size="sm" onClick={handleSelectAll}>

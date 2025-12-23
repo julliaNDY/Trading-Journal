@@ -30,26 +30,35 @@ import type { Trade, Tag } from '@prisma/client';
 
 interface TradeWithTags extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
-  timesManuallySet?: boolean;
+}
+
+interface Account {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface StatisticsContentProps {
   initialTrades: TradeWithTags[];
   symbols: string[];
   tags: Tag[];
+  accounts: Account[];
 }
 
 export function StatisticsContent({
   initialTrades,
   symbols,
   tags,
+  accounts,
 }: StatisticsContentProps) {
   const t = useTranslations('statistics');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-GB' : 'fr-FR';
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Filter trades based on criteria
@@ -67,6 +76,13 @@ export function StatisticsContent({
         if (closedAt > endOfDay) return false;
       }
 
+      // Account filter
+      if (selectedAccounts.length > 0) {
+        if (!trade.accountId || !selectedAccounts.includes(trade.accountId)) {
+          return false;
+        }
+      }
+
       // Symbol filter
       if (selectedSymbol && trade.symbol !== selectedSymbol) return false;
 
@@ -80,7 +96,7 @@ export function StatisticsContent({
 
       return true;
     });
-  }, [initialTrades, dateRange, selectedSymbol, selectedTags]);
+  }, [initialTrades, dateRange, selectedAccounts, selectedSymbol, selectedTags]);
 
   // Calculate stats
   const stats = useMemo(() => calculateGlobalStats(filteredTrades), [filteredTrades]);
@@ -91,10 +107,19 @@ export function StatisticsContent({
   const clearFilters = () => {
     setDateRange({});
     setSelectedSymbol('');
+    setSelectedAccounts([]);
     setSelectedTags([]);
   };
 
-  const hasFilters = dateRange.from || dateRange.to || selectedSymbol || selectedTags.length > 0;
+  const hasFilters = dateRange.from || dateRange.to || selectedSymbol || selectedAccounts.length > 0 || selectedTags.length > 0;
+
+  const toggleAccount = (accountId: string) => {
+    setSelectedAccounts((prev) =>
+      prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId]
+    );
+  };
 
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) =>
@@ -164,6 +189,27 @@ export function StatisticsContent({
                 />
               </PopoverContent>
             </Popover>
+
+            {/* Accounts */}
+            {accounts.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {accounts.map((account) => (
+                  <Badge
+                    key={account.id}
+                    variant={selectedAccounts.includes(account.id) ? 'default' : 'outline'}
+                    className="cursor-pointer text-xs"
+                    style={
+                      selectedAccounts.includes(account.id)
+                        ? { backgroundColor: account.color }
+                        : { borderColor: account.color, color: account.color }
+                    }
+                    onClick={() => toggleAccount(account.id)}
+                  >
+                    {account.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
             {/* Symbol */}
             <Select 

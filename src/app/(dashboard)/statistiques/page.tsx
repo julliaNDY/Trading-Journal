@@ -9,12 +9,17 @@ async function StatisticsData() {
   const user = await getUser();
   if (!user) return null;
 
-  const [trades, symbols, tags] = await Promise.all([
+  const [trades, symbols, tags, accounts] = await Promise.all([
     getTrades({ userId: user.id }),
     getUniqueSymbols(user.id),
     prisma.tag.findMany({
       where: { userId: user.id },
       orderBy: { name: 'asc' },
+    }),
+    prisma.account.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, color: true },
     }),
   ]);
 
@@ -23,6 +28,7 @@ async function StatisticsData() {
       initialTrades={trades}
       symbols={symbols}
       tags={tags}
+      accounts={accounts}
     />
   );
 }
