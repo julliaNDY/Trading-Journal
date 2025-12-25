@@ -12,6 +12,14 @@ interface Screenshot {
   originalName: string;
 }
 
+// Helper to generate image URL - uses API route to handle special characters in filenames
+function getImageUrl(filePath: string): string {
+  // Split path into segments and encode each one
+  const segments = filePath.split('/');
+  const encodedSegments = segments.map(segment => encodeURIComponent(segment));
+  return `/api/uploads/${encodedSegments.join('/')}`;
+}
+
 interface ImageLightboxProps {
   screenshots: Screenshot[];
   initialIndex?: number;
@@ -111,7 +119,7 @@ export function ImageLightbox({ screenshots, initialIndex = 0, isOpen, onClose }
         {/* Image container */}
         <div className="flex items-center justify-center w-full h-[85vh] overflow-auto p-8">
           <img
-            src={`/uploads/${currentScreenshot.filePath}`}
+            src={getImageUrl(currentScreenshot.filePath)}
             alt={currentScreenshot.originalName}
             className="max-w-full max-h-full object-contain transition-transform duration-200"
             style={{ transform: `scale(${zoom})` }}
@@ -147,7 +155,7 @@ export function ImageThumbnail({ screenshot, onView, onDelete, size = 'md' }: Im
   return (
     <div className={cn('relative group rounded-md overflow-hidden border border-border', sizeClasses[size])}>
       <img
-        src={`/uploads/${screenshot.filePath}`}
+        src={getImageUrl(screenshot.filePath)}
         alt={screenshot.originalName}
         className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
         onClick={onView}

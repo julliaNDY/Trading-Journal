@@ -713,32 +713,38 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                 <div className="space-y-4 pt-4 border-t">
                   <p className="text-sm font-medium">{t('screenshots')}</p>
                   <div className="space-y-4">
-                    {screenshots.map((screenshot, index) => (
-                      <div key={screenshot.id} className="relative group">
-                        <img
-                          src={`/uploads/${screenshot.filePath}`}
-                          alt={screenshot.originalName}
-                          className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => setLightboxIndex(index)}
-                        />
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <a
-                            href={`/uploads/${screenshot.filePath}`}
-                            download={screenshot.originalName}
-                            className="p-2 rounded-full bg-black/50 hover:bg-black/70 text-white"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Download className="h-4 w-4" />
-                          </a>
-                          <button
-                            onClick={() => handleDeleteScreenshot(screenshot.id)}
-                            className="p-2 rounded-full bg-destructive/80 hover:bg-destructive text-white"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                    {screenshots.map((screenshot, index) => {
+                      // Use API route to handle special characters in filenames
+                      const segments = screenshot.filePath.split('/');
+                      const encodedSegments = segments.map(segment => encodeURIComponent(segment));
+                      const imageUrl = `/api/uploads/${encodedSegments.join('/')}`;
+                      return (
+                        <div key={screenshot.id} className="relative group">
+                          <img
+                            src={imageUrl}
+                            alt={screenshot.originalName}
+                            className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setLightboxIndex(index)}
+                          />
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a
+                              href={imageUrl}
+                              download={screenshot.originalName}
+                              className="p-2 rounded-full bg-black/50 hover:bg-black/70 text-white"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download className="h-4 w-4" />
+                            </a>
+                            <button
+                              onClick={() => handleDeleteScreenshot(screenshot.id)}
+                              className="p-2 rounded-full bg-destructive/80 hover:bg-destructive text-white"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -18,6 +18,7 @@ import {
   Star,
   Filter,
   CalendarIcon,
+  Plus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,9 @@ import {
   assignPlaybookToTrade,
   removePlaybookFromTrade,
 } from '@/app/actions/playbooks';
-import type { Trade } from '@prisma/client';
+import { createManualTrade } from '@/app/actions/trades';
+import type { Trade, Direction } from '@prisma/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface TradeWithRelations extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
@@ -137,6 +140,105 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [confirmDeleteSelected, setConfirmDeleteSelected] = useState(false);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+
+  // Create trade dialog state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const { toast } = useToast();
+  const tTrade = useTranslations('trade');
+  const tTradeDetail = useTranslations('tradeDetail');
+
+  // Create trade form state
+  const [newTrade, setNewTrade] = useState({
+    symbol: '',
+    direction: '' as Direction | '',
+    tradeDate: new Date(),
+    openTime: '09:30:00',
+    closeTime: '16:00:00',
+    entryPrice: '',
+    exitPrice: '',
+    quantity: '',
+    realizedPnlUsd: '',
+    accountId: '',
+    stopLossPriceInitial: '',
+    profitTarget: '',
+  });
+
+  const resetCreateForm = () => {
+    setNewTrade({
+      symbol: '',
+      direction: '' as Direction | '',
+      tradeDate: new Date(),
+      openTime: '09:30:00',
+      closeTime: '16:00:00',
+      entryPrice: '',
+      exitPrice: '',
+      quantity: '',
+      realizedPnlUsd: '',
+      accountId: '',
+      stopLossPriceInitial: '',
+      profitTarget: '',
+    });
+  };
+
+  const handleCreateTrade = async () => {
+    if (!newTrade.symbol || !newTrade.direction || !newTrade.entryPrice || !newTrade.exitPrice || !newTrade.quantity || !newTrade.realizedPnlUsd) {
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      // Parse times
+      const openParts = newTrade.openTime.split(':').map(Number);
+      const closeParts = newTrade.closeTime.split(':').map(Number);
+
+      const openedAt = new Date(newTrade.tradeDate);
+      openedAt.setHours(openParts[0] || 0, openParts[1] || 0, openParts[2] || 0, 0);
+
+      const closedAt = new Date(newTrade.tradeDate);
+      closedAt.setHours(closeParts[0] || 0, closeParts[1] || 0, closeParts[2] || 0, 0);
+
+      const createdTrade = await createManualTrade({
+        symbol: newTrade.symbol,
+        direction: newTrade.direction as Direction,
+        openedAt,
+        closedAt,
+        entryPrice: parseFloat(newTrade.entryPrice),
+        exitPrice: parseFloat(newTrade.exitPrice),
+        quantity: parseFloat(newTrade.quantity),
+        realizedPnlUsd: parseFloat(newTrade.realizedPnlUsd),
+        accountId: newTrade.accountId || null,
+        stopLossPriceInitial: newTrade.stopLossPriceInitial ? parseFloat(newTrade.stopLossPriceInitial) : null,
+        profitTarget: newTrade.profitTarget ? parseFloat(newTrade.profitTarget) : null,
+      });
+
+      // Add the new trade to the list with required fields for TradeWithRelations
+      const tradeWithRelations = {
+        ...createdTrade,
+        tags: [],
+        screenshots: [],
+        tradePlaybooks: [],
+      };
+      setTrades([tradeWithRelations as TradeWithRelations, ...trades]);
+      
+      setShowCreateDialog(false);
+      resetCreateForm();
+      toast({
+        title: tCommon('success'),
+        description: t('tradeCreated'),
+      });
+      router.refresh();
+    } catch (error) {
+      console.error('Error creating trade:', error);
+      toast({
+        title: tCommon('error'),
+        description: t('tradeCreateError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   // Filter and sort trades
   const filteredTrades = useMemo(() => {
@@ -295,32 +397,42 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
           <p className="text-muted-foreground">{t('subtitle')}</p>
         </div>
         
-        {/* Delete actions */}
-        {trades.length > 0 && (
-          <div className="flex items-center gap-2">
-            {selectedTrades.size > 0 && (
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setShowCreateDialog(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('createTrade')}
+          </Button>
+          
+          {/* Delete actions */}
+          {trades.length > 0 && (
+            <>
+              {selectedTrades.size > 0 && (
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteSelectedDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {tCommon('deleteSelected')} ({selectedTrades.size})
+                </Button>
+              )}
+              
               <Button 
-                variant="destructive" 
+                variant="outline" 
                 size="sm" 
                 disabled={isDeleting}
-                onClick={() => setShowDeleteSelectedDialog(true)}
+                onClick={() => setShowDeleteAllDialog(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                {tCommon('deleteSelected')} ({selectedTrades.size})
+                {tCommon('deleteAll')}
               </Button>
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              disabled={isDeleting}
-              onClick={() => setShowDeleteAllDialog(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {tCommon('deleteAll')}
-            </Button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Delete Selected Dialog - Double confirmation */}
@@ -394,6 +506,206 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Trade Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) resetCreateForm();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('createTradeTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Row 1: Symbol & Direction */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{tTrade('symbol')} *</Label>
+                <Input
+                  value={newTrade.symbol}
+                  onChange={(e) => setNewTrade({ ...newTrade, symbol: e.target.value.toUpperCase() })}
+                  placeholder="MNQ, NQ, ES..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{tTrade('direction')} *</Label>
+                <Select
+                  value={newTrade.direction}
+                  onValueChange={(v) => setNewTrade({ ...newTrade, direction: v as Direction })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('selectDirection')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LONG">{tTrade('long')}</SelectItem>
+                    <SelectItem value="SHORT">{tTrade('short')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 2: Date & Times */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>{t('tradeDate')} *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !newTrade.tradeDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newTrade.tradeDate ? formatDate(newTrade.tradeDate, dateLocale) : t('tradeDate')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newTrade.tradeDate}
+                      onSelect={(date) => date && setNewTrade({ ...newTrade, tradeDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('openTime')} *</Label>
+                <Input
+                  type="time"
+                  step="1"
+                  value={newTrade.openTime}
+                  onChange={(e) => setNewTrade({ ...newTrade, openTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('closeTime')} *</Label>
+                <Input
+                  type="time"
+                  step="1"
+                  value={newTrade.closeTime}
+                  onChange={(e) => setNewTrade({ ...newTrade, closeTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Entry & Exit Price */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{tTrade('entryPrice')} *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newTrade.entryPrice}
+                  onChange={(e) => setNewTrade({ ...newTrade, entryPrice: e.target.value })}
+                  placeholder="21500.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{tTrade('exitPrice')} *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newTrade.exitPrice}
+                  onChange={(e) => setNewTrade({ ...newTrade, exitPrice: e.target.value })}
+                  placeholder="21550.00"
+                />
+              </div>
+            </div>
+
+            {/* Row 4: Quantity & PnL */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{tTrade('quantity')} *</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  value={newTrade.quantity}
+                  onChange={(e) => setNewTrade({ ...newTrade, quantity: e.target.value })}
+                  placeholder="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{tTrade('pnl')} (USD) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newTrade.realizedPnlUsd}
+                  onChange={(e) => setNewTrade({ ...newTrade, realizedPnlUsd: e.target.value })}
+                  placeholder="100.00"
+                />
+              </div>
+            </div>
+
+            {/* Row 5: Stop Loss & Profit Target */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{tTradeDetail('stopLoss')}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newTrade.stopLossPriceInitial}
+                  onChange={(e) => setNewTrade({ ...newTrade, stopLossPriceInitial: e.target.value })}
+                  placeholder="21480.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{tTradeDetail('profitTarget')}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newTrade.profitTarget}
+                  onChange={(e) => setNewTrade({ ...newTrade, profitTarget: e.target.value })}
+                  placeholder="21580.00"
+                />
+              </div>
+            </div>
+
+            {/* Row 6: Account */}
+            {accounts.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t('selectAccount')}</Label>
+                <Select
+                  value={newTrade.accountId || '__none__'}
+                  onValueChange={(v) => setNewTrade({ ...newTrade, accountId: v === '__none__' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('selectAccount')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t('noAccount')}</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: account.color }}
+                          />
+                          {account.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button 
+              onClick={handleCreateTrade} 
+              disabled={isCreating || !newTrade.symbol || !newTrade.direction || !newTrade.entryPrice || !newTrade.exitPrice || !newTrade.quantity || !newTrade.realizedPnlUsd}
+            >
+              {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tCommon('create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <Card>

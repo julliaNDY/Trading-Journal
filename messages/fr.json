@@ -340,7 +340,18 @@
     "deleteTradeConfirm": "Êtes-vous sûr de vouloir supprimer ce trade ?",
     "deleteSelectedConfirm": "Êtes-vous sûr de vouloir supprimer {count} trade(s) ?",
     "deleteAllConfirm": "Êtes-vous sûr de vouloir supprimer tous les trades ? Cette action est irréversible.",
-    "confirmCheckbox": "Je confirme vouloir supprimer définitivement"
+    "confirmCheckbox": "Je confirme vouloir supprimer définitivement",
+    "createTrade": "Créer un trade",
+    "createTradeTitle": "Nouveau trade",
+    "createTradeDescription": "Ajoutez manuellement un trade à votre journal",
+    "tradeDate": "Date du trade",
+    "openTime": "Heure d'ouverture",
+    "closeTime": "Heure de fermeture",
+    "selectDirection": "Sélectionner la direction",
+    "selectAccount": "Sélectionner un compte",
+    "noAccount": "Sans compte",
+    "tradeCreated": "Trade créé avec succès",
+    "tradeCreateError": "Erreur lors de la création du trade"
   },
   "tradeDetail": {
     "netPnl": "PnL Net",

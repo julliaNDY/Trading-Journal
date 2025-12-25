@@ -9,6 +9,25 @@ export interface StorageProvider {
   getUrl(filePath: string): string;
 }
 
+// Sanitize filename to remove special characters that cause URL issues
+function sanitizeFilename(filename: string): string {
+  // Remove or replace problematic characters
+  return filename
+    // Normalize unicode characters (é -> e, à -> a, etc.)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    // Replace spaces with underscores
+    .replace(/\s+/g, '_')
+    // Remove apostrophes and quotes
+    .replace(/['"]/g, '')
+    // Remove other special characters except alphanumeric, underscore, hyphen, and dot
+    .replace(/[^a-zA-Z0-9_\-\.]/g, '')
+    // Remove multiple consecutive underscores/hyphens
+    .replace(/[_-]+/g, '_')
+    // Ensure it doesn't start or end with underscore/hyphen
+    .replace(/^[_-]+|[_-]+$/g, '');
+}
+
 // Filesystem storage provider (for MVP)
 export class FilesystemStorage implements StorageProvider {
   private baseDir: string;
@@ -21,9 +40,10 @@ export class FilesystemStorage implements StorageProvider {
     const dir = path.join(this.baseDir, subdir);
     await fs.mkdir(dir, { recursive: true });
 
-    // Generate unique filename
+    // Generate unique filename with sanitized basename
     const ext = path.extname(file.name);
-    const basename = path.basename(file.name, ext);
+    const rawBasename = path.basename(file.name, ext);
+    const basename = sanitizeFilename(rawBasename) || 'image';
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const filename = `${basename}-${timestamp}-${random}${ext}`;

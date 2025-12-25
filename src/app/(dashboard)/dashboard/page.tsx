@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getUser } from '@/lib/auth';
-import { getTrades } from '@/services/trade-service';
+import { getTrades, serializeTrades } from '@/services/trade-service';
 import {
   calculateGlobalStats,
   calculateEquityCurve,
@@ -15,6 +15,7 @@ async function DashboardData() {
   if (!user) return null;
 
   const trades = await getTrades({ userId: user.id });
+  const serializedTrades = serializeTrades(trades);
   const stats = calculateGlobalStats(trades);
   const equityCurve = calculateEquityCurve(trades);
   const hourlyStats = calculateHourlyStats(trades);
@@ -26,7 +27,7 @@ async function DashboardData() {
       equityCurve={equityCurve}
       hourlyStats={hourlyStats}
       fiveMinuteStats={fiveMinuteStats}
-      trades={trades}
+      trades={serializedTrades}
     />
   );
 }

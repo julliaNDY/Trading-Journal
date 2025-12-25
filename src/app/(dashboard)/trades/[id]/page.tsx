@@ -3,13 +3,14 @@ import { getUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { TradeDetailContent } from './trade-detail-content';
 import { getPlaybooksForSelection } from '@/app/actions/trades';
+import { serializeTrade } from '@/services/trade-service';
 
 interface TradeDetailPageProps {
   params: { id: string };
 }
 
 async function getTrade(tradeId: string, userId: string) {
-  return prisma.trade.findFirst({
+  const trade = await prisma.trade.findFirst({
     where: { id: tradeId, userId },
     include: {
       account: {
@@ -32,6 +33,9 @@ async function getTrade(tradeId: string, userId: string) {
       },
     },
   });
+
+  if (!trade) return null;
+  return serializeTrade(trade);
 }
 
 export default async function TradeDetailPage({ params }: TradeDetailPageProps) {

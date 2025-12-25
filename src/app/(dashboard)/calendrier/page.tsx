@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getUser } from '@/lib/auth';
-import { getTrades } from '@/services/trade-service';
+import { getTrades, serializeTrades } from '@/services/trade-service';
 import { calculateDailyPnl } from '@/services/stats-service';
 import { CalendarContent } from './calendar-content';
 import { Loader2 } from 'lucide-react';
@@ -10,9 +10,10 @@ async function CalendarData() {
   if (!user) return null;
 
   const trades = await getTrades({ userId: user.id });
+  const serializedTrades = serializeTrades(trades);
   const dailyPnl = calculateDailyPnl(trades);
 
-  return <CalendarContent dailyPnl={dailyPnl} trades={trades} />;
+  return <CalendarContent dailyPnl={dailyPnl} trades={serializedTrades} />;
 }
 
 function LoadingState() {

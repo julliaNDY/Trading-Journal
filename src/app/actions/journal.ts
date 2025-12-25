@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
-import { updateStopLoss } from '@/services/trade-service';
+import { updateStopLoss, serializeTrades, serializeTrade } from '@/services/trade-service';
 import { storage, isValidImageType, isValidFileSize } from '@/services/storage-service';
 
 /**
@@ -30,7 +30,7 @@ export async function getTradesForDate(dateStr: string, timezoneOffset: number =
   const endOfDayUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
   endOfDayUTC.setUTCMinutes(endOfDayUTC.getUTCMinutes() + timezoneOffset);
 
-  return prisma.trade.findMany({
+  const trades = await prisma.trade.findMany({
     where: {
       userId: user.id,
       closedAt: {
@@ -60,6 +60,8 @@ export async function getTradesForDate(dateStr: string, timezoneOffset: number =
     },
     orderBy: { closedAt: 'asc' },
   });
+
+  return serializeTrades(trades);
 }
 
 /**
@@ -272,7 +274,7 @@ export async function getTradeById(tradeId: string) {
   const user = await getUser();
   if (!user) return null;
 
-  return prisma.trade.findFirst({
+  const trade = await prisma.trade.findFirst({
     where: { id: tradeId, userId: user.id },
     include: {
       tags: {
@@ -303,6 +305,9 @@ export async function getTradeById(tradeId: string) {
       },
     },
   });
+
+  if (!trade) return null;
+  return serializeTrade(trade);
 }
 
 // Trade deletion

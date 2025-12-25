@@ -7,6 +7,92 @@ export interface TradeWithTags extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
 }
 
+// Serialized trade type for client components (Decimal -> number)
+export interface SerializedTrade {
+  id: string;
+  userId: string;
+  symbol: string;
+  direction: Direction;
+  openedAt: Date;
+  closedAt: Date;
+  entryPrice: number;
+  exitPrice: number;
+  quantity: number;
+  realizedPnlUsd: number;
+  floatingRunupUsd: number | null;
+  floatingDrawdownUsd: number | null;
+  stopLossPriceInitial: number | null;
+  riskRewardRatio: number | null;
+  pointValue: number;
+  importHash: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  accountId: string | null;
+  fees: number | null;
+  grossPnlUsd: number | null;
+  note: string | null;
+  plannedRMultiple: number | null;
+  points: number | null;
+  profitTarget: number | null;
+  rating: number | null;
+  realizedRMultiple: number | null;
+  ticksPerContract: number | null;
+  youtubeUrl: string | null;
+  timesManuallySet: boolean;
+  tags: { tag: { id: string; name: string; color: string } }[];
+}
+
+// Helper to convert Decimal to number
+function decimalToNumber(value: Decimal | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  return Number(value);
+}
+
+// Serialize a single trade for client components
+export function serializeTrade<T extends Trade>(trade: T): T & {
+  entryPrice: number;
+  exitPrice: number;
+  quantity: number;
+  realizedPnlUsd: number;
+  floatingRunupUsd: number | null;
+  floatingDrawdownUsd: number | null;
+  stopLossPriceInitial: number | null;
+  riskRewardRatio: number | null;
+  pointValue: number;
+  fees: number | null;
+  grossPnlUsd: number | null;
+  plannedRMultiple: number | null;
+  points: number | null;
+  profitTarget: number | null;
+  realizedRMultiple: number | null;
+  ticksPerContract: number | null;
+} {
+  return {
+    ...trade,
+    entryPrice: Number(trade.entryPrice),
+    exitPrice: Number(trade.exitPrice),
+    quantity: Number(trade.quantity),
+    realizedPnlUsd: Number(trade.realizedPnlUsd),
+    floatingRunupUsd: decimalToNumber(trade.floatingRunupUsd),
+    floatingDrawdownUsd: decimalToNumber(trade.floatingDrawdownUsd),
+    stopLossPriceInitial: decimalToNumber(trade.stopLossPriceInitial),
+    riskRewardRatio: decimalToNumber(trade.riskRewardRatio),
+    pointValue: Number(trade.pointValue),
+    fees: decimalToNumber(trade.fees),
+    grossPnlUsd: decimalToNumber(trade.grossPnlUsd),
+    plannedRMultiple: decimalToNumber(trade.plannedRMultiple),
+    points: decimalToNumber(trade.points),
+    profitTarget: decimalToNumber(trade.profitTarget),
+    realizedRMultiple: decimalToNumber(trade.realizedRMultiple),
+    ticksPerContract: decimalToNumber(trade.ticksPerContract),
+  };
+}
+
+// Serialize an array of trades for client components
+export function serializeTrades<T extends Trade>(trades: T[]): ReturnType<typeof serializeTrade<T>>[] {
+  return trades.map(serializeTrade);
+}
+
 export interface TradeFilters {
   userId: string;
   startDate?: Date;

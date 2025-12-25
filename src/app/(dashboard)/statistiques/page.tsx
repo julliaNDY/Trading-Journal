@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getUser } from '@/lib/auth';
-import { getTrades, getUniqueSymbols } from '@/services/trade-service';
+import { getTrades, getUniqueSymbols, serializeTrades } from '@/services/trade-service';
 import prisma from '@/lib/prisma';
 import { StatisticsContent } from './statistics-content';
 import { Loader2 } from 'lucide-react';
@@ -23,9 +23,11 @@ async function StatisticsData() {
     }),
   ]);
 
+  const serializedTrades = serializeTrades(trades);
+
   return (
     <StatisticsContent
-      initialTrades={trades}
+      initialTrades={serializedTrades}
       symbols={symbols}
       tags={tags}
       accounts={accounts}
