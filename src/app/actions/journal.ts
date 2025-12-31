@@ -67,16 +67,16 @@ export async function getTradesForDate(dateStr: string, timezoneOffset: number =
 /**
  * Get day journal for a specific date in the user's timezone
  * @param dateStr - Date in YYYY-MM-DD format (user's local date)
- * @param timezoneOffset - User's timezone offset in minutes
+ * @param timezoneOffset - User's timezone offset in minutes (unused for @db.Date fields)
  */
 export async function getDayJournal(dateStr: string, timezoneOffset: number = 0) {
   const user = await getUser();
   if (!user) return null;
 
-  // Parse date string and create UTC date adjusted for user's timezone
+  // Parse date string - for @db.Date fields, we use UTC midnight without timezone adjustment
+  // because MySQL DATE type only stores the date part
   const [year, month, day] = dateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   return prisma.dayJournal.findUnique({
     where: {
@@ -112,10 +112,10 @@ export async function saveDayNote(dateStr: string, note: string, timezoneOffset:
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
 
-  // Parse date string and create UTC date adjusted for user's timezone
+  // Parse date string - for @db.Date fields, we use UTC midnight without timezone adjustment
+  // because MySQL DATE type only stores the date part
   const [year, month, day] = dateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   await prisma.dayJournal.upsert({
     where: {
@@ -131,6 +131,35 @@ export async function saveDayNote(dateStr: string, note: string, timezoneOffset:
     },
     update: {
       note,
+    },
+  });
+
+  revalidatePath('/journal');
+}
+
+export async function saveDayYoutubeUrl(dateStr: string, youtubeUrl: string | null, timezoneOffset: number = 0) {
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  // Parse date string - for @db.Date fields, we use UTC midnight without timezone adjustment
+  // because MySQL DATE type only stores the date part
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+  await prisma.dayJournal.upsert({
+    where: {
+      userId_date: {
+        userId: user.id,
+        date,
+      },
+    },
+    create: {
+      userId: user.id,
+      date,
+      youtubeUrl,
+    },
+    update: {
+      youtubeUrl,
     },
   });
 
@@ -469,10 +498,10 @@ export async function uploadDayScreenshot(dateStr: string, formData: FormData, t
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
 
-  // Parse date string and create UTC date adjusted for user's timezone
+  // Parse date string - for @db.Date fields, we use UTC midnight without timezone adjustment
+  // because MySQL DATE type only stores the date part
   const [year, month, day] = dateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  date.setUTCMinutes(date.getUTCMinutes() + timezoneOffset);
 
   // Get or create day journal
   let dayJournal = await prisma.dayJournal.findUnique({

@@ -19,6 +19,10 @@ import {
   Filter,
   CalendarIcon,
   Plus,
+  CheckCircle,
+  Circle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +66,6 @@ import {
   updateTradeYoutubeUrl,
   deleteTrade,
   deleteTrades,
-  deleteAllTrades,
   uploadTradeScreenshot,
   deleteScreenshot,
 } from '@/app/actions/journal';
@@ -82,6 +85,7 @@ interface TradeWithRelations extends Trade {
     checkedPrerequisites: { prerequisiteId: string; checked: boolean }[];
   }[];
   timesManuallySet: boolean;
+  reviewed: boolean;
 }
 
 interface Prerequisite {
@@ -131,15 +135,15 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
   const [isDeleting, setIsDeleting] = useState(false);
   
   // New filters
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [showReviewed, setShowReviewed] = useState<boolean>(true);
+  
   
   // Double confirmation states
   const [showDeleteSelectedDialog, setShowDeleteSelectedDialog] = useState(false);
-  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [confirmDeleteSelected, setConfirmDeleteSelected] = useState(false);
-  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   // Create trade dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -262,10 +266,13 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
     }
 
     // Account filter
-    if (selectedAccounts.length > 0) {
-      result = result.filter((t) =>
-        t.accountId && selectedAccounts.includes(t.accountId)
-      );
+    if (selectedAccount && selectedAccount !== '__all__') {
+      result = result.filter((t) => t.accountId === selectedAccount);
+    }
+    
+    // Reviewed filter
+    if (!showReviewed) {
+      result = result.filter((t) => !t.reviewed);
     }
 
     // Symbol filter
@@ -297,25 +304,19 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
     }
 
     return result;
-  }, [trades, searchQuery, filterPlaybook, selectedAccounts, selectedSymbol, dateRange, sortBy]);
+  }, [trades, searchQuery, filterPlaybook, selectedAccount, selectedSymbol, dateRange, sortBy, showReviewed]);
 
-  const toggleAccount = (accountId: string) => {
-    setSelectedAccounts((prev) =>
-      prev.includes(accountId)
-        ? prev.filter((id) => id !== accountId)
-        : [...prev, accountId]
-    );
-  };
-
-  const hasFilters = searchQuery || filterPlaybook || selectedAccounts.length > 0 || selectedSymbol || dateRange.from || dateRange.to;
+  const hasFilters = searchQuery || filterPlaybook || (selectedAccount && selectedAccount !== '__all__') || selectedSymbol || dateRange.from || dateRange.to || !showReviewed;
 
   const clearFilters = () => {
     setSearchQuery('');
     setFilterPlaybook('');
-    setSelectedAccounts([]);
+    setSelectedAccount('');
     setSelectedSymbol('');
     setDateRange({});
+    setShowReviewed(true);
   };
+  
 
   const handleSelectTrade = (tradeId: string, checked: boolean) => {
     const newSelected = new Set(selectedTrades);
@@ -352,30 +353,9 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
     }
   };
 
-  const handleDeleteAll = async () => {
-    setIsDeleting(true);
-    try {
-      await deleteAllTrades();
-      setTrades([]);
-      setSelectedTrades(new Set());
-      setShowDeleteAllDialog(false);
-      setConfirmDeleteAll(false);
-      router.refresh();
-    } catch (error) {
-      console.error('Error deleting all trades:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const resetDeleteSelectedDialog = () => {
     setShowDeleteSelectedDialog(false);
     setConfirmDeleteSelected(false);
-  };
-
-  const resetDeleteAllDialog = () => {
-    setShowDeleteAllDialog(false);
-    setConfirmDeleteAll(false);
   };
 
   const handleDeleteTrade = async (tradeId: string) => {
@@ -403,34 +383,20 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
             onClick={() => setShowCreateDialog(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
-            {t('createTrade')}
+            {t('addTrade')}
           </Button>
           
           {/* Delete actions */}
-          {trades.length > 0 && (
-            <>
-              {selectedTrades.size > 0 && (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  disabled={isDeleting}
-                  onClick={() => setShowDeleteSelectedDialog(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {tCommon('deleteSelected')} ({selectedTrades.size})
-                </Button>
-              )}
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={isDeleting}
-                onClick={() => setShowDeleteAllDialog(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {tCommon('deleteAll')}
-              </Button>
-            </>
+          {trades.length > 0 && selectedTrades.size > 0 && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              disabled={isDeleting}
+              onClick={() => setShowDeleteSelectedDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {tCommon('deleteSelected')} ({selectedTrades.size})
+            </Button>
           )}
         </div>
       </div>
@@ -440,20 +406,22 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{tCommon('confirmDelete')}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>{t('deleteSelectedConfirm', { count: selectedTrades.size })}</p>
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox 
-                  id="confirm-delete-selected"
-                  checked={confirmDeleteSelected}
-                  onCheckedChange={(checked) => setConfirmDeleteSelected(checked === true)}
-                />
-                <label 
-                  htmlFor="confirm-delete-selected" 
-                  className="text-sm font-medium text-foreground cursor-pointer"
-                >
-                  {t('confirmCheckbox')}
-                </label>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">{t('deleteSelectedConfirm', { count: selectedTrades.size })}</p>
+                <div className="flex items-center gap-2 pt-2">
+                  <Checkbox 
+                    id="confirm-delete-selected"
+                    checked={confirmDeleteSelected}
+                    onCheckedChange={(checked) => setConfirmDeleteSelected(checked === true)}
+                  />
+                  <label 
+                    htmlFor="confirm-delete-selected" 
+                    className="text-sm font-medium text-foreground cursor-pointer"
+                  >
+                    {t('confirmCheckbox')}
+                  </label>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -471,41 +439,6 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete All Dialog - Double confirmation */}
-      <AlertDialog open={showDeleteAllDialog} onOpenChange={resetDeleteAllDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tCommon('confirmDelete')}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>{t('deleteAllConfirm')}</p>
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox 
-                  id="confirm-delete-all"
-                  checked={confirmDeleteAll}
-                  onCheckedChange={(checked) => setConfirmDeleteAll(checked === true)}
-                />
-                <label 
-                  htmlFor="confirm-delete-all" 
-                  className="text-sm font-medium text-foreground cursor-pointer"
-                >
-                  {t('confirmCheckbox')}
-                </label>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteAll}
-              disabled={!confirmDeleteAll || isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              {tCommon('delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Create Trade Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={(open) => {
@@ -769,25 +702,30 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
               </PopoverContent>
             </Popover>
 
-            {/* Accounts */}
+            {/* Accounts Dropdown */}
             {accounts.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {accounts.map((account) => (
-                  <Badge
-                    key={account.id}
-                    variant={selectedAccounts.includes(account.id) ? 'default' : 'outline'}
-                    className="cursor-pointer text-xs"
-                    style={
-                      selectedAccounts.includes(account.id)
-                        ? { backgroundColor: account.color }
-                        : { borderColor: account.color, color: account.color }
-                    }
-                    onClick={() => toggleAccount(account.id)}
-                  >
-                    {account.name}
-                  </Badge>
-                ))}
-              </div>
+              <Select 
+                value={selectedAccount || '__all__'} 
+                onValueChange={(v) => setSelectedAccount(v === '__all__' ? '' : v)}
+              >
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder={t('allAccounts')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{t('allAccounts')}</SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: account.color }}
+                        />
+                        {account.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             {/* Symbol */}
@@ -834,6 +772,26 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
                 <SelectItem value="symbol">{t('sortBySymbol')}</SelectItem>
               </SelectContent>
             </Select>
+            
+            {/* Show/Hide Reviewed Toggle */}
+            <Button
+              variant={showReviewed ? "outline" : "default"}
+              size="sm"
+              onClick={() => setShowReviewed(!showReviewed)}
+              className="h-9"
+            >
+              {showReviewed ? (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  {t('hideReviewed')}
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  {t('showReviewed')}
+                </>
+              )}
+            </Button>
 
             {/* Clear filters */}
             {hasFilters && (
@@ -1164,6 +1122,12 @@ function TradeRow({
                       />
                     ))}
                   </div>
+                )}
+                {trade.reviewed && (
+                  <Badge variant="outline" className="text-success border-success">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {t('reviewed')}
+                  </Badge>
                 )}
               </div>
 

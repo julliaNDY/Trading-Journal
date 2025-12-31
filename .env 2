@@ -1,0 +1,14 @@
+# Database
+DATABASE_URL="mysql://root:VpsDeGrosRaciste77@localhost:3306/trading_journal?connection_limit=5&pool_timeout=0"
+
+# JWT Secret (generate with: openssl rand -base64 32)
+JWT_SECRET="bfjdkghskjghdhfjkhdjfksdhfgjdsk"
+
+# App URL
+APP_URL="http://localhost:3000"
+
+# Upload directory (relative to project root)
+UPLOAD_DIR="public/uploads"
+
+# Backup directory (relative to project root)
+BACKUP_DIR="backups"

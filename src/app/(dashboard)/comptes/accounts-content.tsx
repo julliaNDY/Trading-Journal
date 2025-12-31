@@ -80,6 +80,7 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
   const [isCreating, setIsCreating] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingTradesAccount, setDeletingTradesAccount] = useState<Account | null>(null);
   const [confirmDeleteTrades, setConfirmDeleteTrades] = useState(false);
   
@@ -168,13 +169,23 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
 
   const handleDelete = async () => {
     if (!deletingAccount) return;
+    setIsDeleting(true);
     try {
       await deleteAccount(deletingAccount.id);
       setAccounts(prev => prev.filter(a => a.id !== deletingAccount.id));
       setDeletingAccount(null);
+      setConfirmDeleteAccount(false);
+      router.refresh();
     } catch (error) {
       console.error('Error deleting account:', error);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const resetDeleteAccountDialog = () => {
+    setDeletingAccount(null);
+    setConfirmDeleteAccount(false);
   };
 
   const handleDeleteTrades = async () => {
@@ -481,17 +492,44 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
       </Dialog>
 
       {/* Delete Account Confirmation */}
-      <AlertDialog open={!!deletingAccount} onOpenChange={() => setDeletingAccount(null)}>
+      <AlertDialog open={!!deletingAccount} onOpenChange={resetDeleteAccountDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{tCommon('confirmDelete')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteConfirm')}
+            <AlertDialogTitle>{t('deleteAccount')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <p>{t('deleteAccountConfirm', { count: deletingAccount?.tradesCount || 0 })}</p>
+                {deletingAccount && (
+                  <p className="font-medium text-foreground">
+                    {deletingAccount.name} - {deletingAccount.tradesCount} trade(s)
+                  </p>
+                )}
+                {deletingAccount && deletingAccount.tradesCount > 0 && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox 
+                      id="confirm-delete-account"
+                      checked={confirmDeleteAccount}
+                      onCheckedChange={(checked) => setConfirmDeleteAccount(checked === true)}
+                    />
+                    <label 
+                      htmlFor="confirm-delete-account" 
+                      className="text-sm font-medium text-foreground cursor-pointer"
+                    >
+                      {t('confirmCheckbox')}
+                    </label>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              disabled={(deletingAccount?.tradesCount || 0) > 0 && !confirmDeleteAccount || isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -503,25 +541,27 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('deleteAccountTrades')}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>{t('deleteAccountTradesConfirm')}</p>
-              {deletingTradesAccount && (
-                <p className="font-medium text-foreground">
-                  {deletingTradesAccount.name} - {deletingTradesAccount.tradesCount} trade(s)
-                </p>
-              )}
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox 
-                  id="confirm-delete-trades"
-                  checked={confirmDeleteTrades}
-                  onCheckedChange={(checked) => setConfirmDeleteTrades(checked === true)}
-                />
-                <label 
-                  htmlFor="confirm-delete-trades" 
-                  className="text-sm font-medium text-foreground cursor-pointer"
-                >
-                  {t('confirmCheckbox')}
-                </label>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <p>{t('deleteAccountTradesConfirm')}</p>
+                {deletingTradesAccount && (
+                  <p className="font-medium text-foreground">
+                    {deletingTradesAccount.name} - {deletingTradesAccount.tradesCount} trade(s)
+                  </p>
+                )}
+                <div className="flex items-center gap-2 pt-2">
+                  <Checkbox 
+                    id="confirm-delete-trades"
+                    checked={confirmDeleteTrades}
+                    onCheckedChange={(checked) => setConfirmDeleteTrades(checked === true)}
+                  />
+                  <label 
+                    htmlFor="confirm-delete-trades" 
+                    className="text-sm font-medium text-foreground cursor-pointer"
+                  >
+                    {t('confirmCheckbox')}
+                  </label>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -116,17 +116,30 @@ export async function updateAccount(
   revalidatePath('/comptes');
 }
 
-// Delete account
+// Delete account and its trades
 export async function deleteAccount(accountId: string) {
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
 
+  // First delete all trades associated with this account
+  await prisma.trade.deleteMany({
+    where: { 
+      accountId,
+      userId: user.id,
+    },
+  });
+
+  // Then delete the account
   await prisma.account.delete({
     where: { id: accountId, userId: user.id },
   });
 
   revalidatePath('/comptes');
   revalidatePath('/trades');
+  revalidatePath('/journal');
+  revalidatePath('/dashboard');
+  revalidatePath('/statistiques');
+  revalidatePath('/calendrier');
 }
 
 // Delete all trades for an account

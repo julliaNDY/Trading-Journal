@@ -52,7 +52,9 @@ import {
   assignPlaybookToTrade,
   removePlaybookFromTrade,
 } from '@/app/actions/playbooks';
+import { toggleTradeReviewed } from '@/app/actions/trades';
 import type { Trade, Account } from '@prisma/client';
+import { CheckCircle, Circle } from 'lucide-react';
 
 interface TradeWithRelations extends Trade {
   account: { id: string; name: string; color: string } | null;
@@ -63,6 +65,7 @@ interface TradeWithRelations extends Trade {
     checkedPrerequisites: { prerequisiteId: string; checked: boolean }[];
   }[];
   timesManuallySet: boolean;
+  reviewed: boolean;
 }
 
 interface PlaybookForSelection {
@@ -94,6 +97,8 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [screenshots, setScreenshots] = useState(initialTrade.screenshots);
+  const [isReviewed, setIsReviewed] = useState(initialTrade.reviewed ?? false);
+  const tTrades = useTranslations('trades');
   
   // Local state for playbooks (to update UI immediately)
   const [tradePlaybooks, setTradePlaybooks] = useState(initialTrade.tradePlaybooks);
@@ -363,6 +368,15 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
       setTradePlaybooks(prev => prev.filter(tp => tp.playbook.id !== playbookId));
     } catch (error) {
       console.error('Error removing playbook:', error);
+    }
+  };
+
+  const handleToggleReviewed = async () => {
+    try {
+      const result = await toggleTradeReviewed(trade.id);
+      setIsReviewed(result.reviewed);
+    } catch (error) {
+      console.error('Error toggling reviewed status:', error);
     }
   };
 
@@ -820,6 +834,32 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
           )}
         </div>
       </div>
+
+      {/* Mark as Reviewed Button */}
+      <Card className="mt-6">
+        <CardContent className="py-4">
+          <Button 
+            onClick={handleToggleReviewed}
+            variant={isReviewed ? "default" : "outline"}
+            className={cn(
+              "w-full",
+              isReviewed && "bg-success hover:bg-success/90 text-success-foreground"
+            )}
+          >
+            {isReviewed ? (
+              <>
+                <CheckCircle className="mr-2 h-5 w-5" />
+                {tTrades('reviewed')}
+              </>
+            ) : (
+              <>
+                <Circle className="mr-2 h-5 w-5" />
+                {tTrades('markAsReviewed')}
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Assign Playbook Dialog */}
       <Dialog open={isAssigningPlaybook} onOpenChange={setIsAssigningPlaybook}>

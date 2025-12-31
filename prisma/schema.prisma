@@ -72,6 +72,7 @@ model Trade {
   ticksPerContract     Decimal?        @db.Decimal(18, 4)
   youtubeUrl           String?
   timesManuallySet     Boolean         @default(false)
+  reviewed             Boolean         @default(false)
   screenshots          Screenshot[]
   tradePlaybooks       TradePlaybook[]
   tags                 TradeTag[]
@@ -91,6 +92,7 @@ model DayJournal {
   userId      String
   date        DateTime     @db.Date
   note        String?      @db.Text
+  youtubeUrl  String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
