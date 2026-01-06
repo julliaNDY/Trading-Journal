@@ -20,7 +20,7 @@ git fetch --all
 git pull --ff-only
 
 echo "==> 3) Installer dépendances propres"
-npm ci
+npm ci --legacy-peer-deps
 
 echo "==> 4) Prisma generate (client)"
 npx prisma generate
