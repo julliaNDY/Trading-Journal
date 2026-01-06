@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
 import { updatePassword } from '@/app/actions/auth';
+import { createBrowserClient } from '@supabase/ssr';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -37,6 +38,63 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
+
+  // Gérer les hash fragments de Supabase (implicit flow) au chargement
+  useEffect(() => {
+    const handleHashParams = async () => {
+      // Vérifier si on a des hash params de Supabase
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        if (accessToken && type === 'recovery') {
+          // On a un token de recovery dans le hash - établir la session
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (error) {
+            console.error('Error setting session from hash:', error);
+            setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
+            setIsValidSession(false);
+            return;
+          }
+
+          // Session établie - nettoyer le hash de l'URL
+          window.history.replaceState(null, '', window.location.pathname);
+          setIsValidSession(true);
+          return;
+        }
+      }
+
+      // Pas de hash params - vérifier si on a déjà une session valide
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setIsValidSession(true);
+      } else {
+        // Pas de session - rediriger vers forgot-password
+        setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
+        setIsValidSession(false);
+      }
+    };
+
+    handleHashParams();
+  }, [t]);
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -64,6 +122,48 @@ export default function ResetPasswordPage() {
     } else {
       setError(result.error || 'Une erreur est survenue');
     }
+  }
+
+  // Loading state pendant la vérification de session
+  if (isValidSession === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
+        <div className="absolute inset-0 bg-background/80" />
+        <Card className="w-full max-w-md relative z-10">
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Session invalide - afficher erreur avec lien
+  if (isValidSession === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
+        <div className="absolute inset-0 bg-background/80" />
+        <div className="absolute top-4 right-4 z-20">
+          <AuthLanguageSwitcher />
+        </div>
+        <Card className="w-full max-w-md relative z-10">
+          <CardHeader className="space-y-4 text-center">
+            <CardTitle className="text-2xl font-bold">{t('resetPasswordTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 text-sm text-destructive bg-destructive/10 rounded-lg">
+              {error || t('sessionExpired') || 'Session expired. Please request a new reset link.'}
+            </div>
+            <Link href="/forgot-password">
+              <Button variant="outline" className="w-full">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t('requestNewLink') || 'Request a new link'}
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

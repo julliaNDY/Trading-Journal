@@ -73,6 +73,8 @@
     "redirectingToDashboard": "Redirection vers le tableau de bord...",
     "checkEmailConfirmation": "Vérifiez votre email pour confirmer votre inscription.",
     "resetLinkSent": "Si un compte existe avec cet email, vous recevrez un lien de réinitialisation sous peu.",
+    "sessionExpired": "Votre session a expiré ou le lien est invalide. Veuillez demander un nouveau lien.",
+    "requestNewLink": "Demander un nouveau lien",
     "resetPasswordTitle": "Définir un nouveau mot de passe",
     "resetPasswordDescription": "Entrez votre nouveau mot de passe ci-dessous",
     "newPassword": "Nouveau mot de passe",

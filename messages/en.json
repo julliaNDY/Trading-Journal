@@ -73,6 +73,8 @@
     "redirectingToDashboard": "Redirecting to dashboard...",
     "checkEmailConfirmation": "Check your email to confirm your registration.",
     "resetLinkSent": "If an account exists with this email, you will receive a password reset link shortly.",
+    "sessionExpired": "Your session has expired or the link is invalid. Please request a new reset link.",
+    "requestNewLink": "Request a new link",
     "resetPasswordTitle": "Set new password",
     "resetPasswordDescription": "Enter your new password below",
     "newPassword": "New password",

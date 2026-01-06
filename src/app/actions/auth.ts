@@ -154,9 +154,9 @@ export async function requestPasswordReset(
   try {
     const supabase = await createClient()
 
-    // Utiliser un chemin dédié pour le recovery
+    // Rediriger directement vers /reset-password (gère les hash fragments côté client)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/auth/callback/recovery`,
+      redirectTo: `${getAppUrl()}/reset-password`,
     })
 
     if (error) {
