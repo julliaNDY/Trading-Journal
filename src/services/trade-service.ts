@@ -48,8 +48,17 @@ function decimalToNumber(value: Decimal | null | undefined): number | null {
   return Number(value);
 }
 
+// Serialized partial exit for client
+interface SerializedPartialExit {
+  id: string;
+  exitPrice: number;
+  quantity: number;
+  exitedAt: Date;
+  pnl: number;
+}
+
 // Serialize a single trade for client components
-export function serializeTrade<T extends Trade>(trade: T): T & {
+export function serializeTrade<T extends Trade & { partialExits?: { id: string; exitPrice: Decimal; quantity: Decimal; exitedAt: Date; pnl: Decimal }[] }>(trade: T): T & {
   entryPrice: number;
   exitPrice: number;
   quantity: number;
@@ -66,7 +75,17 @@ export function serializeTrade<T extends Trade>(trade: T): T & {
   profitTarget: number | null;
   realizedRMultiple: number | null;
   ticksPerContract: number | null;
+  partialExits: SerializedPartialExit[];
 } {
+  // Serialize partial exits if present
+  const serializedPartialExits: SerializedPartialExit[] = trade.partialExits?.map(exit => ({
+    id: exit.id,
+    exitPrice: Number(exit.exitPrice),
+    quantity: Number(exit.quantity),
+    exitedAt: exit.exitedAt,
+    pnl: Number(exit.pnl),
+  })) || [];
+
   return {
     ...trade,
     entryPrice: Number(trade.entryPrice),
@@ -85,6 +104,7 @@ export function serializeTrade<T extends Trade>(trade: T): T & {
     profitTarget: decimalToNumber(trade.profitTarget),
     realizedRMultiple: decimalToNumber(trade.realizedRMultiple),
     ticksPerContract: decimalToNumber(trade.ticksPerContract),
+    partialExits: serializedPartialExits,
   };
 }
 
@@ -117,7 +137,60 @@ export interface CreateTradeInput {
   importHash?: string;
 }
 
-// Calculate import hash for deduplication
+// Simple hash function used by both signature types
+function simpleHash(data: string): string {
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * Calculate FLEXIBLE trade signature for merge/matching
+ * Based on: userId, accountId, symbol, DATE(openedAt), entryPrice (rounded to 2 decimals)
+ * 
+ * This signature is STABLE even if:
+ * - Times change (CSV import without times vs OCR with times)
+ * - Exit price changes (partial exits)
+ * - PnL changes (partial exits)
+ * - closedAt changes (last exit time)
+ * 
+ * IMPORTANT: accountId is included to prevent cross-account false duplicates
+ */
+export function calculateTradeSignature(trade: {
+  userId: string;
+  accountId?: string | null;
+  symbol: string;
+  openedAt: Date;
+  entryPrice: number;
+}): string {
+  // Extract just the date part (YYYY-MM-DD) for matching
+  const dateOnly = trade.openedAt.toISOString().split('T')[0];
+  
+  // Round entry price to 2 decimals for fuzzy matching
+  // This handles minor OCR errors like 25717.25 vs 25717.24
+  const entryPriceRounded = Math.round(trade.entryPrice * 100) / 100;
+  
+  const data = [
+    trade.userId,
+    trade.accountId || 'no-account', // Include accountId to prevent cross-account duplicates
+    trade.symbol.toUpperCase().trim(),
+    dateOnly,
+    entryPriceRounded.toFixed(2),
+  ].join('|');
+
+  return 'sig_' + simpleHash(data);
+}
+
+/**
+ * Calculate STRICT import hash for exact deduplication (legacy)
+ * Based on: userId, symbol, openedAt (full), closedAt (full), entryPrice, exitPrice, realizedPnlUsd
+ * 
+ * Used to prevent exact duplicate imports
+ */
 export function calculateImportHash(trade: {
   userId: string;
   symbol: string;
@@ -137,20 +210,352 @@ export function calculateImportHash(trade: {
     trade.realizedPnlUsd.toFixed(2),
   ].join('|');
 
-  // Simple hash function
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+  return simpleHash(data);
+}
+
+/**
+ * Find existing trade by flexible signature
+ * Returns the trade if found, null otherwise
+ * 
+ * IMPORTANT: accountId is required to prevent cross-account false duplicates
+ */
+export async function findTradeBySignature(
+  userId: string,
+  symbol: string,
+  openedAt: Date,
+  entryPrice: number,
+  accountId?: string | null
+): Promise<Trade | null> {
+  const signature = calculateTradeSignature({ userId, accountId, symbol, openedAt, entryPrice });
+  
+  // First try exact signature match
+  const exactMatch = await prisma.trade.findFirst({
+    where: {
+      userId,
+      tradeSignature: signature,
+    },
+    include: {
+      partialExits: true,
+    },
+  });
+  
+  if (exactMatch) return exactMatch;
+  
+  // Fallback: fuzzy match by date + entry price range (for trades without signature)
+  // MUST respect accountId boundary to prevent cross-account duplicates
+  const dateStart = new Date(openedAt);
+  dateStart.setHours(0, 0, 0, 0);
+  const dateEnd = new Date(openedAt);
+  dateEnd.setHours(23, 59, 59, 999);
+  
+  const fuzzyMatch = await prisma.trade.findFirst({
+    where: {
+      userId,
+      // Respect account boundary - only match within same account
+      accountId: accountId || null,
+      symbol: symbol.toUpperCase().trim(),
+      openedAt: {
+        gte: dateStart,
+        lte: dateEnd,
+      },
+      // Entry price within 0.5% tolerance for OCR errors
+      entryPrice: {
+        gte: entryPrice * 0.995,
+        lte: entryPrice * 1.005,
+      },
+    },
+    include: {
+      partialExits: true,
+    },
+  });
+  
+  return fuzzyMatch;
+}
+
+/**
+ * Input data for a partial exit
+ */
+export interface PartialExitInput {
+  exitedAt: Date;
+  exitPrice: number;
+  quantity: number;
+  pnl: number;
+}
+
+/**
+ * Input for merging trade data (from OCR or enrichment)
+ */
+export interface MergeTradeInput {
+  userId: string;
+  symbol: string;
+  direction: Direction;
+  openedAt: Date;
+  closedAt: Date;
+  entryPrice: number;
+  exitPrice: number;
+  quantity: number;
+  realizedPnlUsd: number;
+  accountId?: string | null;
+  partialExits?: PartialExitInput[];
+  timesManuallySet?: boolean;
+}
+
+/**
+ * Result of a merge operation
+ */
+export interface MergeResult {
+  action: 'created' | 'updated' | 'skipped';
+  trade: Trade;
+  message?: string;
+}
+
+/**
+ * Calculate exit signature for deduplication of partial exits
+ */
+function calculateExitSignature(exit: { exitedAt: Date; exitPrice: number; quantity: number }): string {
+  const data = [
+    exit.exitedAt.toISOString(),
+    exit.exitPrice.toFixed(4),
+    exit.quantity.toFixed(4),
+  ].join('|');
+  return simpleHash(data);
+}
+
+/**
+ * Check if time A is more precise than time B
+ * "More precise" means it has actual hours/minutes/seconds instead of 00:00:00 or 09:00:XX (placeholder times)
+ */
+function isTimePrecise(date: Date): boolean {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  
+  // Consider precise if not midnight and not placeholder 09:00:XX
+  if (hours === 0 && minutes === 0) return false;
+  if (hours === 9 && minutes === 0 && seconds < 60) return false; // Placeholder from CSV import
+  return true;
+}
+
+/**
+ * Merge new trade data with existing trade
+ * Handles:
+ * - Time enrichment (if new times are more precise)
+ * - Partial exits (adds new exits, recalculates totals)
+ * - Account assignment (if existing has none)
+ */
+export async function mergeTradeData(
+  existingTrade: Trade & { partialExits?: { id: string; exitedAt: Date; exitPrice: Decimal; quantity: Decimal; pnl: Decimal }[] },
+  newData: MergeTradeInput
+): Promise<MergeResult> {
+  const updates: Record<string, unknown> = {};
+  let needsUpdate = false;
+  
+  // 1. Check if times should be updated
+  const existingOpenPrecise = existingTrade.timesManuallySet || isTimePrecise(existingTrade.openedAt);
+  const newOpenPrecise = newData.timesManuallySet || isTimePrecise(newData.openedAt);
+  
+  if (!existingOpenPrecise && newOpenPrecise) {
+    updates.openedAt = newData.openedAt;
+    updates.timesManuallySet = true;
+    needsUpdate = true;
   }
-  return Math.abs(hash).toString(36);
+  
+  // 2. Handle partial exits
+  const existingExits = existingTrade.partialExits || [];
+  const newExits = newData.partialExits || [];
+  
+  if (newExits.length > 0) {
+    // Calculate signatures for existing exits
+    const existingExitSignatures = new Set(
+      existingExits.map(e => calculateExitSignature({
+        exitedAt: e.exitedAt,
+        exitPrice: Number(e.exitPrice),
+        quantity: Number(e.quantity),
+      }))
+    );
+    
+    // Find new exits that don't exist yet
+    const exitsToAdd: PartialExitInput[] = [];
+    for (const exit of newExits) {
+      const sig = calculateExitSignature(exit);
+      if (!existingExitSignatures.has(sig)) {
+        exitsToAdd.push(exit);
+      }
+    }
+    
+    // Add new exits
+    if (exitsToAdd.length > 0) {
+      for (const exit of exitsToAdd) {
+        await prisma.tradeExit.create({
+          data: {
+            tradeId: existingTrade.id,
+            exitedAt: exit.exitedAt,
+            exitPrice: exit.exitPrice,
+            quantity: exit.quantity,
+            pnl: exit.pnl,
+          },
+        });
+      }
+      
+      // Recalculate trade totals from all exits
+      const allExits = await prisma.tradeExit.findMany({
+        where: { tradeId: existingTrade.id },
+        orderBy: { exitedAt: 'asc' },
+      });
+      
+      if (allExits.length > 0) {
+        // Calculate weighted average exit price
+        const totalQty = allExits.reduce((sum, e) => sum + Number(e.quantity), 0);
+        const weightedPrice = allExits.reduce((sum, e) => sum + Number(e.exitPrice) * Number(e.quantity), 0) / totalQty;
+        const totalPnl = allExits.reduce((sum, e) => sum + Number(e.pnl), 0);
+        const lastExitTime = allExits[allExits.length - 1].exitedAt;
+        
+        updates.exitPrice = Math.round(weightedPrice * 100000000) / 100000000; // 8 decimals
+        updates.realizedPnlUsd = Math.round(totalPnl * 100) / 100; // 2 decimals
+        updates.closedAt = lastExitTime;
+        updates.quantity = totalQty;
+        updates.hasPartialExits = allExits.length > 1;
+        
+        // Recalculate fees and gross PnL
+        const fees = calculateTradeFees(existingTrade.symbol, totalQty);
+        updates.fees = fees;
+        updates.grossPnlUsd = calculateGrossPnl(totalPnl, fees);
+        
+        needsUpdate = true;
+      }
+    }
+  } else if (!existingTrade.hasPartialExits) {
+    // No partial exits in new data, but check if closedAt should be updated
+    const existingClosePrecise = existingTrade.timesManuallySet || isTimePrecise(existingTrade.closedAt);
+    const newClosePrecise = newData.timesManuallySet || isTimePrecise(newData.closedAt);
+    
+    if (!existingClosePrecise && newClosePrecise) {
+      updates.closedAt = newData.closedAt;
+      updates.timesManuallySet = true;
+      needsUpdate = true;
+    }
+  }
+  
+  // 3. Account assignment (only if existing has none and new has one)
+  if (!existingTrade.accountId && newData.accountId) {
+    updates.accountId = newData.accountId;
+    needsUpdate = true;
+  }
+  
+  // 4. Apply updates if needed
+  if (needsUpdate) {
+    const updatedTrade = await prisma.trade.update({
+      where: { id: existingTrade.id },
+      data: updates,
+    });
+    
+    return {
+      action: 'updated',
+      trade: updatedTrade,
+      message: `Trade enrichi avec ${Object.keys(updates).length} champ(s)`,
+    };
+  }
+  
+  return {
+    action: 'skipped',
+    trade: existingTrade,
+    message: 'Trade identique, aucune mise à jour nécessaire',
+  };
+}
+
+/**
+ * Create or merge a trade (idempotent operation)
+ * If a matching trade exists (by signature), merge the data
+ * Otherwise, create a new trade
+ */
+export async function createOrMergeTrade(input: MergeTradeInput): Promise<MergeResult> {
+  const symbol = input.symbol.toUpperCase().trim();
+  
+  // Try to find existing trade by signature (including accountId)
+  const existingTrade = await findTradeBySignature(
+    input.userId,
+    symbol,
+    input.openedAt,
+    input.entryPrice,
+    input.accountId
+  );
+  
+  if (existingTrade) {
+    // Merge with existing trade
+    return mergeTradeData(
+      existingTrade as Trade & { partialExits?: { id: string; exitedAt: Date; exitPrice: Decimal; quantity: Decimal; pnl: Decimal }[] },
+      { ...input, symbol }
+    );
+  }
+  
+  // Create new trade
+  const tradeSignature = calculateTradeSignature({
+    userId: input.userId,
+    accountId: input.accountId,
+    symbol,
+    openedAt: input.openedAt,
+    entryPrice: input.entryPrice,
+  });
+  
+  const quantity = Math.abs(input.quantity);
+  const fees = calculateTradeFees(symbol, quantity);
+  const grossPnlUsd = calculateGrossPnl(input.realizedPnlUsd, fees);
+  
+  const newTrade = await prisma.trade.create({
+    data: {
+      userId: input.userId,
+      accountId: input.accountId,
+      symbol,
+      direction: input.direction,
+      openedAt: input.openedAt,
+      closedAt: input.closedAt,
+      entryPrice: input.entryPrice,
+      exitPrice: input.exitPrice,
+      quantity,
+      realizedPnlUsd: input.realizedPnlUsd,
+      grossPnlUsd,
+      fees,
+      tradeSignature,
+      timesManuallySet: input.timesManuallySet ?? false,
+      hasPartialExits: (input.partialExits?.length ?? 0) > 1,
+    },
+  });
+  
+  // Create partial exits if provided
+  if (input.partialExits && input.partialExits.length > 0) {
+    for (const exit of input.partialExits) {
+      await prisma.tradeExit.create({
+        data: {
+          tradeId: newTrade.id,
+          exitedAt: exit.exitedAt,
+          exitPrice: exit.exitPrice,
+          quantity: exit.quantity,
+          pnl: exit.pnl,
+        },
+      });
+    }
+  }
+  
+  return {
+    action: 'created',
+    trade: newTrade,
+    message: 'Nouveau trade créé',
+  };
 }
 
 export async function createTrade(input: CreateTradeInput): Promise<Trade> {
   const importHash = input.importHash || calculateImportHash(input);
   const symbol = input.symbol.toUpperCase().trim();
   const quantity = Math.abs(input.quantity);
+  
+  // Calculate flexible trade signature for future merge matching
+  const tradeSignature = calculateTradeSignature({
+    userId: input.userId,
+    accountId: input.accountId,
+    symbol,
+    openedAt: input.openedAt,
+    entryPrice: input.entryPrice,
+  });
   
   // Calculate fees based on symbol and quantity
   const fees = calculateTradeFees(symbol, quantity);
@@ -175,6 +580,7 @@ export async function createTrade(input: CreateTradeInput): Promise<Trade> {
       floatingRunupUsd: input.floatingRunupUsd,
       floatingDrawdownUsd: input.floatingDrawdownUsd,
       importHash,
+      tradeSignature,
     },
   });
 }

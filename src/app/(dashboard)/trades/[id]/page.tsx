@@ -31,6 +31,9 @@ async function getTrade(tradeId: string, userId: string) {
           checkedPrerequisites: true,
         },
       },
+      partialExits: {
+        orderBy: { exitedAt: 'asc' },
+      },
     },
   });
 

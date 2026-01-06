@@ -3,7 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
-import { serializeTrades, serializeTrade } from '@/services/trade-service';
+import { 
+  serializeTrades, 
+  serializeTrade, 
+  createOrMergeTrade,
+  type PartialExitInput 
+} from '@/services/trade-service';
 import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
 import type { Direction } from '@prisma/client';
 
@@ -206,13 +211,23 @@ export async function toggleTradeReviewed(tradeId: string) {
   return { reviewed: updatedTrade.reviewed };
 }
 
+// Partial exit data
+export interface PartialExitData {
+  exitDt: string;
+  exitPrice: number;
+  quantity: number;
+  pnl: number;
+}
+
 // OCR trade data from screenshot
 export interface OcrTradeData {
   entryDt: string; // "12/30/2025 10:09:48 AM"
   exitDt: string;  // "12/30/2025 10:12:05 AM"
   entryPrice: number;
-  exitPrice: number;
-  profitLoss: number;
+  exitPrice: number;  // Average exit price if multiple exits
+  profitLoss: number; // Total PnL
+  quantity?: number;  // Total quantity
+  partialExits?: PartialExitData[]; // Individual exits if multiple
 }
 
 // Parse dates from OCR format: "12/30/2025 10:09:48 AM"
@@ -245,7 +260,15 @@ function parseOcrDate(dateStr: string): Date | null {
   }
 }
 
-// Create new trades from OCR data
+/**
+ * Create or merge trades from OCR data
+ * Uses the new signature-based matching for intelligent merge
+ * 
+ * Flow:
+ * 1. Try to find existing trade by signature (date + entry price)
+ * 2. If found: MERGE (enrich with times, partial exits)
+ * 3. If not found: CREATE new trade
+ */
 export async function createTradesFromOcr(
   ocrData: OcrTradeData[], 
   symbol: string, 
@@ -256,88 +279,93 @@ export async function createTradesFromOcr(
 
   let createdCount = 0;
   let skippedCount = 0;
+  let updatedCount = 0;
   const errors: string[] = [];
 
   for (const data of ocrData) {
-    const openedAt = parseOcrDate(data.entryDt);
-    const closedAt = parseOcrDate(data.exitDt);
+    try {
+      const openedAt = parseOcrDate(data.entryDt);
+      const closedAt = parseOcrDate(data.exitDt);
 
-    if (!openedAt || !closedAt) {
-      errors.push(`Could not parse dates: ${data.entryDt} - ${data.exitDt}`);
-      continue;
-    }
+      if (!openedAt || !closedAt) {
+        errors.push(`Could not parse dates: ${data.entryDt} - ${data.exitDt}`);
+        continue;
+      }
 
-    // Check for duplicates - same user, same times, same prices
-    const existingTrade = await prisma.trade.findFirst({
-      where: {
+      // Determine direction based on entry/exit prices and PnL
+      const priceMove = data.exitPrice - data.entryPrice;
+      const isProfit = data.profitLoss > 0;
+      const direction: Direction = (priceMove > 0 && isProfit) || (priceMove < 0 && !isProfit) 
+        ? 'LONG' 
+        : 'SHORT';
+
+      // Calculate quantity from PnL and price difference if not provided
+      let quantity = data.quantity || 1;
+      
+      if (!data.quantity) {
+        const pointDiff = Math.abs(data.exitPrice - data.entryPrice);
+        if (pointDiff > 0 && data.profitLoss !== 0) {
+          // Estimate point value based on price range
+          let pointValue = 1;
+          if (data.entryPrice > 15000) {
+            // NQ (~$20/pt) or MNQ (~$2/pt)
+            pointValue = Math.abs(data.profitLoss / pointDiff) > 10 ? 20 : 2;
+          } else if (data.entryPrice > 4000) {
+            // ES (~$50/pt) or MES (~$5/pt)
+            pointValue = Math.abs(data.profitLoss / pointDiff) > 25 ? 50 : 5;
+          }
+          quantity = Math.max(1, Math.round(Math.abs(data.profitLoss) / (pointDiff * pointValue)));
+        }
+      }
+
+      // Convert partial exits to the expected format
+      let partialExits: PartialExitInput[] | undefined;
+      if (data.partialExits && data.partialExits.length > 0) {
+        partialExits = [];
+        for (const exit of data.partialExits) {
+          const exitedAt = parseOcrDate(exit.exitDt);
+          if (exitedAt) {
+            partialExits.push({
+              exitedAt,
+              exitPrice: exit.exitPrice,
+              quantity: exit.quantity,
+              pnl: exit.pnl,
+            });
+          }
+        }
+      }
+
+      // Use the new createOrMergeTrade function
+      const result = await createOrMergeTrade({
         userId: user.id,
+        symbol,
+        direction,
         openedAt,
         closedAt,
         entryPrice: data.entryPrice,
         exitPrice: data.exitPrice,
-      },
-    });
-
-    if (existingTrade) {
-      skippedCount++;
-      continue; // Skip duplicate
-    }
-
-    // Determine direction based on entry/exit prices and PnL
-    // If profit when exit > entry, it's LONG; if profit when exit < entry, it's SHORT
-    const priceMove = data.exitPrice - data.entryPrice;
-    const isProfit = data.profitLoss > 0;
-    const direction: Direction = (priceMove > 0 && isProfit) || (priceMove < 0 && !isProfit) 
-      ? 'LONG' 
-      : 'SHORT';
-
-    // Calculate quantity from PnL and price difference
-    // For futures, PnL = points * quantity * pointValue
-    // We'll estimate quantity assuming standard point values
-    const pointDiff = Math.abs(data.exitPrice - data.entryPrice);
-    let quantity = 1;
-    
-    if (pointDiff > 0 && data.profitLoss !== 0) {
-      // Try to determine point value based on price range (NQ ~20000, ES ~5000, MNQ/MES similar)
-      let pointValue = 1;
-      if (data.entryPrice > 15000) {
-        // Likely NQ - $20 per point, or MNQ - $2 per point
-        pointValue = Math.abs(data.profitLoss / pointDiff) > 10 ? 20 : 2;
-      } else if (data.entryPrice > 4000) {
-        // Likely ES - $50 per point, or MES - $5 per point
-        pointValue = Math.abs(data.profitLoss / pointDiff) > 25 ? 50 : 5;
-      }
-      
-      quantity = Math.round(Math.abs(data.profitLoss) / (pointDiff * pointValue));
-      if (quantity < 1) quantity = 1;
-    }
-
-    // Calculate fees
-    const fees = calculateTradeFees(symbol, quantity);
-    const grossPnlUsd = calculateGrossPnl(data.profitLoss, fees);
-
-    try {
-      await prisma.trade.create({
-        data: {
-          userId: user.id,
-          accountId,
-          symbol: symbol.toUpperCase(),
-          direction,
-          openedAt,
-          closedAt,
-          entryPrice: data.entryPrice,
-          exitPrice: data.exitPrice,
-          quantity,
-          realizedPnlUsd: data.profitLoss,
-          grossPnlUsd,
-          fees,
-          timesManuallySet: true,
-        },
+        quantity,
+        realizedPnlUsd: data.profitLoss,
+        accountId,
+        partialExits,
+        timesManuallySet: true,
       });
-      createdCount++;
+
+      // Update counters based on result
+      switch (result.action) {
+        case 'created':
+          createdCount++;
+          break;
+        case 'updated':
+          updatedCount++;
+          break;
+        case 'skipped':
+          skippedCount++;
+          break;
+      }
     } catch (error) {
-      console.error('Error creating trade:', error);
-      errors.push(`Failed to create trade: ${data.entryDt}`);
+      console.error('Error processing OCR trade:', error);
+      errors.push(`Failed to process trade: ${data.entryDt}`);
     }
   }
 
@@ -347,7 +375,7 @@ export async function createTradesFromOcr(
   revalidatePath('/calendrier');
   revalidatePath('/journal');
 
-  return { createdCount, skippedCount, errors };
+  return { createdCount, skippedCount, updatedCount, errors };
 }
 
 // Update existing trade times from OCR data (for trades already imported via CSV)

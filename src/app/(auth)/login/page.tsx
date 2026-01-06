@@ -4,7 +4,8 @@ import { useFormStatus } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { login } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,16 @@ function SubmitButton() {
 
 export default function LoginPage() {
   const t = useTranslations('auth');
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+
+  // Gérer les erreurs de callback auth
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'auth_callback_error') {
+      setError(t('authCallbackError') || 'Erreur de confirmation. Veuillez réessayer.');
+    }
+  }, [searchParams, t]);
 
   async function handleSubmit(formData: FormData) {
     setError(null);

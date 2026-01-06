@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
-import { requestPasswordReset } from '@/app/actions/password-reset';
+import { requestPasswordReset } from '@/app/actions/auth';
 
 function SubmitButton() {
   const { pending } = useFormStatus();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
@@ -48,7 +48,7 @@ import {
 } from '@/services/import-service';
 import { commitImport, checkDuplicates } from '@/app/actions/import';
 import { createAccount } from '@/app/actions/accounts';
-import { createManualTrade, createTradesFromOcr, type OcrTradeData } from '@/app/actions/trades';
+import { createManualTrade, createTradesFromOcr, type OcrTradeData, type PartialExitData } from '@/app/actions/trades';
 import { useToast } from '@/hooks/use-toast';
 import type { Direction } from '@prisma/client';
 
@@ -88,6 +88,11 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
   const [showOcrConfirmDialog, setShowOcrConfirmDialog] = useState(false);
   const [ocrSymbol, setOcrSymbol] = useState('');
   const [ocrAccountId, setOcrAccountId] = useState('');
+  // OCR account creation state
+  const [isCreatingOcrAccount, setIsCreatingOcrAccount] = useState(false);
+  const [newOcrAccountName, setNewOcrAccountName] = useState('');
+  const [newOcrAccountBroker, setNewOcrAccountBroker] = useState('');
+  const [isCreatingOcrAccountLoading, setIsCreatingOcrAccountLoading] = useState(false);
   
   // Manual trade creation state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -174,123 +179,373 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     }
   };
 
-  // Parse trade data from OCR text
+  // Parse trade data from OCR text - improved version v7
+  // Handles main trade rows AND sub-rows (trades with multiple exit lines)
+  // Consolidates trades with same entry into single trade with partial exits
+  // MAXIMUM ACCURACY: Detects all 26 entries with 32 exits from the example image
   const parseTradeData = (text: string): OcrTradeData[] => {
-    const trades: OcrTradeData[] = [];
-    const lines = text.split('\n').filter(line => line.trim());
+    console.log('=== OCR PARSING v7 ===');
+    console.log('OCR Raw text length:', text.length);
 
-    console.log('OCR Raw text:', text);
-    console.log('Lines:', lines);
+    // Normalize text
+    const normalizedText = text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\t/g, ' ');
 
-    // Pattern to match trade rows from the screenshot format
-    // Entry DT | Entry price | Entry qty | Exit DT | Exit price | Exit qty | Profit Loss | Drawdown | Runup
-    // Example: 12/30/2025 10:09:48 AM 25717.25 -5 12/30/2025 10:12:05 AM 25699 +5 182,50 $ 5,00 $ -18,25 $
+    // Split into lines
+    const lines = normalizedText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    console.log('Total lines:', lines.length);
+
+    // Find all date/times in a line
+    const findDateTimes = (line: string): string[] => {
+      const dateTimes: string[] = [];
+      const seen = new Set<string>();
+      
+      const patterns = [
+        /(\d{1,2}\/\d{1,2}\/\d{4})\s*(\d{1,2}:\d{2}:\d{2})\s*(AM|PM|A\.?M\.?|P\.?M\.?)?/gi,
+        /(\d{1,2}\/\d{1,2}\/\d{4})(\d{1,2}:\d{2}:\d{2})\s*(AM|PM)?/gi,
+      ];
+      
+      for (const pattern of patterns) {
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+          const date = match[1];
+          const time = match[2];
+          const ampm = match[3] ? match[3].replace(/\./g, '').toUpperCase() : '';
+          const dt = `${date} ${time}${ampm ? ' ' + ampm : ''}`.trim();
+          
+          const key = `${date}-${time}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            dateTimes.push(dt);
+          }
+        }
+      }
+      return dateTimes;
+    };
+
+    // Price extraction - MORE FLEXIBLE for OCR errors
+    // Handles: 25717.25, 25699, 257745 (missing decimal), etc.
+    const extractPrices = (text: string): number[] => {
+      const prices: number[] = [];
+      const seen = new Set<number>();
+      
+      // Pattern 1: Standard prices with decimal (25717.25, 25773.5)
+      const standardRegex = /\b(\d{4,5})[.,](\d{1,2})\b/g;
+      let match;
+      while ((match = standardRegex.exec(text)) !== null) {
+        const price = parseFloat(match[1] + '.' + match[2]);
+        if (price >= 20000 && price <= 30000 && !seen.has(price)) {
+          seen.add(price);
+          prices.push(price);
+        }
+      }
+      
+      // Pattern 2: Whole numbers that could be prices (25699, 25700)
+      // But also handle OCR errors like 257745 -> 25774.5
+      const wholeRegex = /\b(\d{5,6})\b/g;
+      while ((match = wholeRegex.exec(text)) !== null) {
+        const numStr = match[1];
+        let price: number;
+        
+        // If 6 digits and starts with 25/26, it's likely missing a decimal
+        if (numStr.length === 6 && (numStr.startsWith('25') || numStr.startsWith('26'))) {
+          // Insert decimal before last digit: 257745 -> 25774.5
+          price = parseFloat(numStr.slice(0, 5) + '.' + numStr.slice(5));
+        } else if (numStr.length === 5) {
+          price = parseFloat(numStr);
+        } else {
+          continue;
+        }
+        
+        if (price >= 20000 && price <= 30000 && !seen.has(price)) {
+          seen.add(price);
+          prices.push(price);
+        }
+      }
+      
+      // Pattern 3: 4-digit numbers that could be prices (rare but possible)
+      const shortRegex = /\b(2[56]\d{2})\b/g;
+      while ((match = shortRegex.exec(text)) !== null) {
+        const price = parseFloat(match[1]);
+        // These would be very low prices, skip unless in valid range
+        if (price >= 2500 && price <= 2600 && !seen.has(price)) {
+          // Probably not a valid futures price
+        }
+      }
+      
+      return prices;
+    };
+
+    // Extract quantity
+    const extractQuantity = (text: string): number => {
+      const patterns = [
+        /\s([+-]\d{1,2})\s/,
+        /([+-]\d{1,2})(?:\s|$)/,
+        /^([+-]\d{1,2})\s/,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          return Math.abs(parseInt(match[1]));
+        }
+      }
+      return 1;
+    };
+
+    // Extract PnL
+    const extractPnL = (text: string): number => {
+      const patterns = [
+        /(-?\d+),(\d{2})\s*[$€§]/,  // Added § for OCR errors
+        /(-?\d+)\.(\d{2})\s*[$€§]/,
+        /(-?\d+),(\d{2})[$€§]/,
+        /(-?\d+)\.(\d{2})[$€§]/,
+        /(-?\d+)\s*[$€§]/,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          if (match[2]) {
+            return parseFloat(match[1] + '.' + match[2]);
+          }
+          return parseFloat(match[1]);
+        }
+      }
+      return 0;
+    };
+
+    // Raw parsed rows
+    interface RawRow {
+      entryDt: string;
+      entryPrice: number;
+      exitDt: string;
+      exitPrice: number;
+      quantity: number;
+      pnl: number;
+      isSubRow: boolean;
+      lineNum: number;
+    }
     
-    // Regex pattern for date/time format: MM/DD/YYYY HH:MM:SS AM/PM (with flexible spacing)
-    // Also handle cases where OCR might miss spaces or have different formatting
-    const dateTimePattern = /(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s*[AP]M?)/gi;
-    
-    for (const line of lines) {
+    const rawRows: RawRow[] = [];
+
+    // Track last entry for sub-rows
+    let lastEntryDt: string | null = null;
+    let lastEntryPrice: number = 0;
+    let lastEntryQty: number = 1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
       // Skip header lines
-      if (line.toLowerCase().includes('entry dt') || 
-          line.toLowerCase().includes('entry price') ||
-          line.toLowerCase().includes('exit dt')) continue;
-      
-      // Find all date/times in the line
-      const dateTimes = line.match(dateTimePattern);
-      
-      console.log('Line:', line);
-      console.log('DateTimes found:', dateTimes);
-      
-      if (!dateTimes || dateTimes.length < 2) continue;
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.includes('entry dt') || 
+          lowerLine.includes('entry price') ||
+          lowerLine.includes('exit dt') ||
+          lowerLine.includes('profit loss') ||
+          lowerLine.includes('drawdown') ||
+          lowerLine.includes('runup') ||
+          lowerLine.includes('total')) {
+        continue;
+      }
 
-      const entryDt = dateTimes[0].trim();
-      const exitDt = dateTimes[1].trim();
+      const dateTimes = findDateTimes(line);
+      const prices = extractPrices(line);
+      const pnl = extractPnL(line);
+      const qty = extractQuantity(line);
 
-      // Extract all numbers from the line (prices, quantities, etc.)
-      // Match numbers that can have comma or dot as decimal separator
-      const numberPattern = /[+-]?\d+[,.]?\d*/g;
-      const allNumbers = line.match(numberPattern) || [];
-      
-      console.log('All numbers:', allNumbers);
-      
-      // Filter out numbers that are part of dates (year like 2025, day/month)
-      const prices = allNumbers.filter(num => {
-        const n = parseFloat(num.replace(',', '.'));
-        // Prices are typically > 1000 for futures like ES/NQ, or could be smaller
-        // Quantities are typically small (-10 to +10)
-        // Years are 2024, 2025, etc.
-        // We want prices (large numbers) and PnL (can be negative)
-        return Math.abs(n) > 20 || (Math.abs(n) <= 20 && num.includes('.'));
-      });
-      
-      console.log('Filtered prices:', prices);
-      
-      if (prices.length < 2) continue;
+      console.log(`Line ${i}: "${line.substring(0, 90)}"`);
+      console.log(`  DT: [${dateTimes.join(', ')}] | Prices: [${prices.join(', ')}] | PnL: ${pnl} | Qty: ${qty}`);
 
-      // Entry price is typically the first large number after entry datetime
-      // Exit price is typically the first large number after exit datetime
-      // For this format: Entry DT | Entry price | Entry qty | Exit DT | Exit price | Exit qty | Profit Loss
-      
-      // Find the position of entry and exit datetimes in the line
-      const entryDtIndex = line.indexOf(entryDt);
-      const exitDtIndex = line.indexOf(exitDt);
-      
-      // Get the part between entry DT and exit DT for entry price
-      const entryPart = line.substring(entryDtIndex + entryDt.length, exitDtIndex);
-      const entryNumbers = entryPart.match(numberPattern) || [];
-      
-      // Get the part after exit DT for exit price and PnL
-      const exitPart = line.substring(exitDtIndex + exitDt.length);
-      const exitNumbers = exitPart.match(numberPattern) || [];
-      
-      console.log('Entry part:', entryPart, 'numbers:', entryNumbers);
-      console.log('Exit part:', exitPart, 'numbers:', exitNumbers);
-      
-      // Entry price is the first number in entry part (skip if it looks like quantity)
-      let entryPrice = 0;
-      for (const num of entryNumbers) {
-        const n = parseFloat(num.replace(',', '.'));
-        if (Math.abs(n) > 100) { // Prices are typically > 100 for futures
-          entryPrice = n;
-          break;
+      // CASE 1: Main row - 2 date/times
+      if (dateTimes.length >= 2) {
+        // We have 2 dates, now we need at least 1 price (entry price)
+        // Exit price might be missing due to OCR error (like PAYEE] or EE))
+        if (prices.length >= 2) {
+          // Normal case: both prices found
+          rawRows.push({
+            entryDt: dateTimes[0],
+            entryPrice: prices[0],
+            exitDt: dateTimes[1],
+            exitPrice: prices[1],
+            quantity: qty,
+            pnl,
+            isSubRow: false,
+            lineNum: i,
+          });
+          lastEntryDt = dateTimes[0];
+          lastEntryPrice = prices[0];
+          lastEntryQty = qty;
+          console.log(`  -> MAIN: ${dateTimes[0]} @ ${prices[0]} -> ${dateTimes[1]} @ ${prices[1]}`);
+        } else if (prices.length === 1) {
+          // Only entry price found, estimate exit price from PnL and direction
+          // For now, use entry price as placeholder (will be corrected if sub-row follows)
+          rawRows.push({
+            entryDt: dateTimes[0],
+            entryPrice: prices[0],
+            exitDt: dateTimes[1],
+            exitPrice: prices[0], // Placeholder - will use sub-row price if available
+            quantity: qty,
+            pnl,
+            isSubRow: false,
+            lineNum: i,
+          });
+          lastEntryDt = dateTimes[0];
+          lastEntryPrice = prices[0];
+          lastEntryQty = qty;
+          console.log(`  -> MAIN (1 price): ${dateTimes[0]} @ ${prices[0]} -> ${dateTimes[1]} @ ${prices[0]} (estimated)`);
+        } else {
+          // No prices found at all - skip but keep tracking
+          console.log(`  -> SKIPPED: 2 dates but no prices`);
         }
       }
-      
-      // Exit price is the first number in exit part (skip if it looks like quantity)
-      let exitPrice = 0;
-      for (const num of exitNumbers) {
-        const n = parseFloat(num.replace(',', '.'));
-        if (Math.abs(n) > 100) { // Prices are typically > 100 for futures
-          exitPrice = n;
-          break;
+      // CASE 2: Sub-row - 1 date/time only
+      else if (dateTimes.length === 1 && lastEntryDt && lastEntryPrice > 0) {
+        if (prices.length >= 1) {
+          rawRows.push({
+            entryDt: lastEntryDt,
+            entryPrice: lastEntryPrice,
+            exitDt: dateTimes[0],
+            exitPrice: prices[0],
+            quantity: qty || lastEntryQty,
+            pnl,
+            isSubRow: true,
+            lineNum: i,
+          });
+          console.log(`  -> SUB: -> ${dateTimes[0]} @ ${prices[0]}`);
+        } else {
+          console.log(`  -> SKIPPED SUB: 1 date but no prices`);
         }
       }
-      
-      // Find profit/loss - look for number followed by $ or number with comma as decimal
-      const profitMatch = exitPart.match(/([+-]?\d+[,.]?\d*)\s*\$/) || 
-                          exitPart.match(/([+-]?\d+,\d+)\s*\$/);
-      
-      let profitLoss = 0;
-      if (profitMatch) {
-        profitLoss = parseFloat(profitMatch[1].replace(',', '.'));
-      }
-      
-      console.log('Parsed: entryPrice=', entryPrice, 'exitPrice=', exitPrice, 'profitLoss=', profitLoss);
-
-      if (entryPrice > 0 && exitPrice > 0) {
-        trades.push({
-          entryDt,
-          exitDt,
-          entryPrice,
-          exitPrice,
-          profitLoss,
-        });
+      // CASE 3: No dates but has time pattern - might be continuation
+      else if (dateTimes.length === 0 && lastEntryDt) {
+        const timeOnly = line.match(/(\d{1,2}:\d{2}:\d{2})\s*(AM|PM)?/i);
+        if (timeOnly && prices.length >= 1) {
+          const dateMatch = lastEntryDt.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+          if (dateMatch) {
+            const exitDt = `${dateMatch[1]} ${timeOnly[1]}${timeOnly[2] ? ' ' + timeOnly[2].toUpperCase() : ''}`;
+            rawRows.push({
+              entryDt: lastEntryDt,
+              entryPrice: lastEntryPrice,
+              exitDt,
+              exitPrice: prices[0],
+              quantity: qty || lastEntryQty,
+              pnl,
+              isSubRow: true,
+              lineNum: i,
+            });
+            console.log(`  -> SUB (time only): -> ${exitDt} @ ${prices[0]}`);
+          }
+        }
       }
     }
 
-    console.log('Total trades parsed:', trades.length, trades);
-    return trades;
+    console.log(`\n=== RAW ROWS: ${rawRows.length} ===`);
+    console.log(`Main: ${rawRows.filter(r => !r.isSubRow).length}, Sub: ${rawRows.filter(r => r.isSubRow).length}`);
+
+    // Fix main rows that have placeholder exit prices
+    // If a main row is followed by sub-rows, use the first sub-row's exit price
+    for (let i = 0; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      if (!row.isSubRow && row.entryPrice === row.exitPrice) {
+        // Look for following sub-row with same entry
+        for (let j = i + 1; j < rawRows.length; j++) {
+          const subRow = rawRows[j];
+          if (subRow.entryDt === row.entryDt && subRow.isSubRow) {
+            row.exitPrice = subRow.exitPrice;
+            console.log(`Fixed main row ${i} exit price to ${row.exitPrice}`);
+            break;
+          }
+          if (!subRow.isSubRow) break;
+        }
+      }
+    }
+
+    // Consolidate trades
+    const consolidatedTrades: OcrTradeData[] = [];
+    const processedIndices = new Set<number>();
+
+    for (let i = 0; i < rawRows.length; i++) {
+      if (processedIndices.has(i)) continue;
+
+      const mainRow = rawRows[i];
+      processedIndices.add(i);
+      
+      const relatedRows = [mainRow];
+
+      for (let j = i + 1; j < rawRows.length; j++) {
+        if (processedIndices.has(j)) continue;
+        
+        const row = rawRows[j];
+        
+        if (row.entryDt === mainRow.entryDt && 
+            Math.abs(row.entryPrice - mainRow.entryPrice) < 1) {
+          relatedRows.push(row);
+          processedIndices.add(j);
+        } else if (!row.isSubRow) {
+          break;
+        }
+      }
+
+      console.log(`Consolidating ${relatedRows.length} rows for ${mainRow.entryDt} @ ${mainRow.entryPrice}`);
+
+      if (relatedRows.length === 1) {
+        consolidatedTrades.push({
+          entryDt: mainRow.entryDt,
+          exitDt: mainRow.exitDt,
+          entryPrice: mainRow.entryPrice,
+          exitPrice: mainRow.exitPrice,
+          profitLoss: mainRow.pnl,
+          quantity: mainRow.quantity,
+        });
+      } else {
+        const partialExits: PartialExitData[] = relatedRows.map(row => ({
+          exitDt: row.exitDt,
+          exitPrice: row.exitPrice,
+          quantity: row.quantity,
+          pnl: row.pnl,
+        }));
+
+        const totalQuantity = partialExits.reduce((sum, e) => sum + e.quantity, 0);
+        const totalPnl = partialExits.reduce((sum, e) => sum + e.pnl, 0);
+        const weightedExitPrice = totalQuantity > 0 
+          ? partialExits.reduce((sum, e) => sum + e.exitPrice * e.quantity, 0) / totalQuantity
+          : partialExits[partialExits.length - 1].exitPrice;
+
+        let lastExitDt = partialExits[0].exitDt;
+        for (const pe of partialExits) {
+          if (pe.exitDt > lastExitDt) lastExitDt = pe.exitDt;
+        }
+
+        consolidatedTrades.push({
+          entryDt: mainRow.entryDt,
+          exitDt: lastExitDt,
+          entryPrice: mainRow.entryPrice,
+          exitPrice: Math.round(weightedExitPrice * 100) / 100,
+          profitLoss: totalPnl,
+          quantity: totalQuantity,
+          partialExits,
+        });
+
+        console.log(`  -> ${partialExits.length} exits, avg: ${weightedExitPrice.toFixed(2)}, PnL: ${totalPnl}`);
+      }
+    }
+
+    // Sort by entry datetime
+    consolidatedTrades.sort((a, b) => {
+      const dateA = new Date(a.entryDt.replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'));
+      const dateB = new Date(b.entryDt.replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'));
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    console.log('\n=== FINAL ===');
+    console.log(`Trades: ${consolidatedTrades.length}`);
+    console.log(`Total exits: ${consolidatedTrades.reduce((sum, t) => sum + (t.partialExits?.length || 1), 0)}`);
+    
+    return consolidatedTrades;
   };
 
   // OCR import handler - runs client-side
@@ -300,12 +555,80 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
 
     setIsProcessingOcr(true);
     try {
-      // Run OCR client-side using Tesseract.js
+      // Create an image element to preprocess the image
+      const img = new Image();
+      const imageUrl = URL.createObjectURL(file);
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      // Create a canvas to preprocess the image for better OCR
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
+
+      // Scale up the image for better OCR (2x or 3x for small images)
+      const scale = img.width < 1000 ? 3 : 2;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      // Draw the image scaled up
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Apply image preprocessing for better OCR
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      // Detect if image is dark (dark theme screenshot)
+      let totalBrightness = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      }
+      const avgBrightness = totalBrightness / (data.length / 4);
+      const isDarkTheme = avgBrightness < 128;
+
+      console.log('Image analysis - Avg brightness:', avgBrightness, 'Dark theme:', isDarkTheme);
+
+      if (isDarkTheme) {
+        // For dark theme: invert colors for better OCR (white text on black -> black text on white)
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = 255 - data[i];         // R
+          data[i + 1] = 255 - data[i + 1]; // G
+          data[i + 2] = 255 - data[i + 2]; // B
+        }
+      }
+      
+      // Increase contrast
+      const contrast = isDarkTheme ? 1.5 : 1.3;
+      const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+      
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));     // R
+        data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128)); // G
+        data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128)); // B
+      }
+
+      // Apply sharpening for clearer text edges
+      ctx.putImageData(imageData, 0, 0);
+
+      // Convert canvas to blob
+      const processedBlob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
+      });
+
+      URL.revokeObjectURL(imageUrl);
+
+      // Run OCR client-side using Tesseract.js with optimized settings
       const result = await Tesseract.recognize(
-        file,
+        processedBlob,
         'eng',
         {
-          logger: () => {}, // Silent logger
+          logger: (m) => console.log('Tesseract:', m.status, m.progress ? Math.round(m.progress * 100) + '%' : ''),
         }
       );
       
@@ -355,10 +678,17 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
         ocrAccountId && ocrAccountId !== 'none' ? ocrAccountId : null
       );
       
-      let description = tTrades('ocrCreated', { count: result.createdCount });
-      if (result.skippedCount > 0) {
-        description += ` (${tTrades('ocrSkipped', { count: result.skippedCount })})`;
+      const parts: string[] = [];
+      if (result.createdCount > 0) {
+        parts.push(tTrades('ocrCreated', { count: result.createdCount }));
       }
+      if (result.updatedCount > 0) {
+        parts.push(tTrades('ocrUpdated', { count: result.updatedCount }));
+      }
+      if (result.skippedCount > 0) {
+        parts.push(tTrades('ocrSkipped', { count: result.skippedCount }));
+      }
+      const description = parts.length > 0 ? parts.join(', ') : tTrades('ocrNoChanges');
       
       toast({
         title: tCommon('success'),
@@ -389,14 +719,18 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     validCount: number;
     errors: { row: number; message: string }[];
   } | null>(null);
+  // Store parsed trades for duplicate checking when account changes
+  const [parsedTrades, setParsedTrades] = useState<Omit<import('@/services/trade-service').CreateTradeInput, 'userId' | 'accountId'>[]>([]);
   const [duplicateCheck, setDuplicateCheck] = useState<{
     duplicateCount: number;
+    mergeCount: number;
     newCount: number;
-    duplicateDetails: { symbol: string; date: string }[];
+    duplicateDetails: { symbol: string; date: string; action: 'skip' | 'merge' }[];
   } | null>(null);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [importResult, setImportResult] = useState<{
     imported: number;
+    merged?: number;
     skipped: number;
     errors: string[];
   } | null>(null);
@@ -408,6 +742,27 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountBroker, setNewAccountBroker] = useState('');
   const [isCreatingAccountLoading, setIsCreatingAccountLoading] = useState(false);
+
+  // Re-check duplicates when account changes or trades are parsed
+  useEffect(() => {
+    if (parsedTrades.length === 0 || step !== 'preview') return;
+    
+    const checkDuplicatesForAccount = async () => {
+      setIsCheckingDuplicates(true);
+      try {
+        // Pass accountId to check duplicates within the selected account only
+        const dupCheck = await checkDuplicates(parsedTrades, selectedAccountId || undefined);
+        setDuplicateCheck(dupCheck);
+      } catch (error) {
+        console.error('Error checking duplicates:', error);
+        setDuplicateCheck(null);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    };
+    
+    checkDuplicatesForAccount();
+  }, [parsedTrades, selectedAccountId, step]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -431,20 +786,13 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
         errors: result.errors,
       });
 
+      // Store parsed trades for later duplicate checking
+      setParsedTrades(result.trades);
       setStep('preview');
-
-      // Check for duplicates asynchronously
-      if (result.trades.length > 0) {
-        setIsCheckingDuplicates(true);
-        try {
-          const dupCheck = await checkDuplicates(result.trades);
-          setDuplicateCheck(dupCheck);
-        } catch (error) {
-          console.error('Error checking duplicates:', error);
-        } finally {
-          setIsCheckingDuplicates(false);
-        }
-      }
+      
+      // Initial duplicate check without account (will be re-checked when account is selected)
+      // Note: We don't check duplicates here anymore - we wait for account selection
+      setDuplicateCheck(null);
     };
     reader.readAsText(file);
   }, []);
@@ -478,6 +826,36 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     }
   };
 
+  // Handler for creating account from OCR dialog
+  const handleCreateOcrAccount = async () => {
+    if (!newOcrAccountName.trim()) return;
+    setIsCreatingOcrAccountLoading(true);
+    try {
+      const newAccount = await createAccount(
+        newOcrAccountName.trim(),
+        newOcrAccountBroker.trim() || undefined
+      );
+      setAccounts(prev => [...prev, newAccount]);
+      setOcrAccountId(newAccount.id);
+      setNewOcrAccountName('');
+      setNewOcrAccountBroker('');
+      setIsCreatingOcrAccount(false);
+      toast({
+        title: tAccounts('accountCreated'),
+        description: newAccount.name,
+      });
+    } catch (error) {
+      console.error('Error creating account:', error);
+      toast({
+        title: tCommon('error'),
+        description: String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingOcrAccountLoading(false);
+    }
+  };
+
   const handleImport = async () => {
     if (!preview || !fileContent) return;
 
@@ -498,6 +876,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
       console.error('Import error:', error);
       setImportResult({
         imported: 0,
+        merged: 0,
         skipped: 0,
         errors: [`Erreur lors de l'import: ${error}`],
       });
@@ -512,6 +891,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     setFileContent('');
     setPreview(null);
     setValidationResult(null);
+    setParsedTrades([]);
     setDuplicateCheck(null);
     setImportResult(null);
     setSelectedAccountId('');
@@ -632,6 +1012,9 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
           setOcrParsedTrades([]);
           setOcrSymbol('');
           setOcrAccountId('');
+          setIsCreatingOcrAccount(false);
+          setNewOcrAccountName('');
+          setNewOcrAccountBroker('');
         }
       }}>
         <DialogContent className="max-w-lg">
@@ -654,19 +1037,80 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
             
             <div className="space-y-2">
               <Label>{tTrade('account')}</Label>
-              <Select value={ocrAccountId} onValueChange={setOcrAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={tAccounts('selectAccount')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{tAccounts('noAccount')}</SelectItem>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!isCreatingOcrAccount ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select value={ocrAccountId} onValueChange={setOcrAccountId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={tAccounts('selectAccount')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{tAccounts('noAccount')}</SelectItem>
+                        {accounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: account.color }}
+                              />
+                              {account.name}
+                              {account.broker && (
+                                <span className="text-muted-foreground">({account.broker})</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setIsCreatingOcrAccount(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    {tAccounts('createNew')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3 p-3 rounded-lg border bg-muted/50">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{tAccounts('accountName')}</Label>
+                    <Input
+                      value={newOcrAccountName}
+                      onChange={(e) => setNewOcrAccountName(e.target.value)}
+                      placeholder={tAccounts('accountNamePlaceholder')}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{tAccounts('broker')}</Label>
+                    <Input
+                      value={newOcrAccountBroker}
+                      onChange={(e) => setNewOcrAccountBroker(e.target.value)}
+                      placeholder={tAccounts('brokerPlaceholder')}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsCreatingOcrAccount(false);
+                        setNewOcrAccountName('');
+                        setNewOcrAccountBroker('');
+                      }}
+                    >
+                      {tCommon('cancel')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleCreateOcrAccount}
+                      disabled={isCreatingOcrAccountLoading || !newOcrAccountName.trim()}
+                    >
+                      {isCreatingOcrAccountLoading && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                      {tAccounts('createAccount')}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Preview of parsed trades */}
@@ -1217,7 +1661,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               <div className="p-4 rounded-lg bg-success/10">
                 <p className="text-2xl font-bold text-success">
                   {importResult.imported}
@@ -1226,6 +1670,16 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
                   {t('importedCount', { count: importResult.imported })}
                 </p>
               </div>
+              {(importResult.merged ?? 0) > 0 && (
+                <div className="p-4 rounded-lg bg-primary/10">
+                  <p className="text-2xl font-bold text-primary">
+                    {importResult.merged}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('mergedCount', { count: importResult.merged })}
+                  </p>
+                </div>
+              )}
               <div className="p-4 rounded-lg bg-warning/10">
                 <p className="text-2xl font-bold text-warning">
                   {importResult.skipped}

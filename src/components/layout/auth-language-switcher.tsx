@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react';
 import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,10 +21,12 @@ const languages = [
 export function AuthLanguageSwitcher() {
   const [isPending, startTransition] = useTransition();
   const currentLocale = useLocale();
+  const router = useRouter();
 
-  const handleLanguageChange = (locale: string) => {
-    startTransition(() => {
-      setLocale(locale);
+  const handleLanguageChange = async (locale: string) => {
+    startTransition(async () => {
+      await setLocale(locale);
+      router.refresh();
     });
   };
 

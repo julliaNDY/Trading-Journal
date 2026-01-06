@@ -56,6 +56,14 @@ import { toggleTradeReviewed } from '@/app/actions/trades';
 import type { Trade, Account } from '@prisma/client';
 import { CheckCircle, Circle } from 'lucide-react';
 
+interface PartialExit {
+  id: string;
+  exitPrice: number;
+  quantity: number;
+  exitedAt: Date;
+  pnl: number;
+}
+
 interface TradeWithRelations extends Trade {
   account: { id: string; name: string; color: string } | null;
   tags: { tag: { id: string; name: string; color: string } }[];
@@ -66,6 +74,8 @@ interface TradeWithRelations extends Trade {
   }[];
   timesManuallySet: boolean;
   reviewed: boolean;
+  hasPartialExits: boolean;
+  partialExits: PartialExit[];
 }
 
 interface PlaybookForSelection {
@@ -604,9 +614,49 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">{t('exitPrice')}</p>
-                  <p className="font-semibold">{exitPrice.toFixed(2)}</p>
+                  <p className="font-semibold">
+                    {exitPrice.toFixed(2)}
+                    {trade.hasPartialExits && (
+                      <span className="text-xs text-muted-foreground ml-1">({t('avgPrice')})</span>
+                    )}
+                  </p>
                 </div>
               </div>
+
+              {/* Partial Exits Section */}
+              {trade.hasPartialExits && trade.partialExits && trade.partialExits.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('partialExits')}</p>
+                  <div className="space-y-2">
+                    {trade.partialExits.map((exit, index) => (
+                      <div key={exit.id} className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              #{index + 1}
+                            </Badge>
+                            <span className="font-medium">{Number(exit.exitPrice).toFixed(2)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              × {Number(exit.quantity)} {t('contracts')}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className={cn(
+                              "font-semibold",
+                              Number(exit.pnl) >= 0 ? "text-green-500" : "text-red-500"
+                            )}>
+                              {formatCurrency(Number(exit.pnl))}
+                            </span>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(exit.exitedAt).toLocaleTimeString(dateLocale)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <Button onClick={handleSaveDetails} disabled={isSaving} className="w-full">
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

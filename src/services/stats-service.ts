@@ -1,10 +1,8 @@
 import type { Trade } from '@prisma/client';
 import { getDurationSeconds } from '@/lib/utils';
 
-// Extended Trade type with timesManuallySet
-interface TradeWithTimes extends Trade {
-  timesManuallySet?: boolean;
-}
+// Trade type alias (timesManuallySet is already part of Trade)
+type TradeWithTimes = Trade;
 
 export interface GlobalStats {
   totalTrades: number;

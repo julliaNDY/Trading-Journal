@@ -1,123 +1,190 @@
-'use server';
+'use server'
 
-import { redirect } from 'next/navigation';
-import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import {
-  hashPassword,
-  verifyPassword,
-  createSession,
-  destroySession,
-} from '@/lib/auth';
+import { redirect } from 'next/navigation'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  discordUsername: z.string().optional(),
-  password: z.string().min(8),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+const registerSchema = z
+  .object({
+    email: z.string().email('Email invalide'),
+    discordUsername: z.string().optional(),
+    password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Les mots de passe ne correspondent pas',
+    path: ['confirmPassword'],
+  })
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+  email: z.string().email('Email invalide'),
+  password: z.string().min(1, 'Mot de passe requis'),
+})
 
-export async function register(formData: FormData): Promise<{ error?: string; success?: boolean }> {
+export async function register(
+  formData: FormData
+): Promise<{ error?: string; success?: boolean; message?: string; needsEmailConfirmation?: boolean }> {
   const rawData = {
     email: formData.get('email') as string,
-    discordUsername: formData.get('discordUsername') as string || undefined,
+    discordUsername: (formData.get('discordUsername') as string) || undefined,
     password: formData.get('password') as string,
     confirmPassword: formData.get('confirmPassword') as string,
-  };
+  }
 
-  const validatedData = registerSchema.safeParse(rawData);
+  const validatedData = registerSchema.safeParse(rawData)
 
   if (!validatedData.success) {
-    return { error: validatedData.error.errors[0].message };
+    return { error: validatedData.error.errors[0].message }
   }
 
-  const { email, discordUsername, password } = validatedData.data;
+  const { email, password, discordUsername } = validatedData.data
 
   try {
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const supabase = await createClient()
 
-    if (existingUser) {
-      return { error: 'Email already exists' };
+    // Créer user dans Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        data: {
+          discordUsername,
+        },
+      },
+    })
+
+    if (error) {
+      // Traduire les erreurs Supabase courantes
+      if (error.message.includes('already registered')) {
+        return { error: 'Cet email est déjà utilisé' }
+      }
+      if (error.message.includes('Password should be')) {
+        return { error: 'Le mot de passe doit contenir au moins 6 caractères' }
+      }
+      return { error: error.message }
     }
 
-    // Create user
-    const passwordHash = await hashPassword(password);
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        discordUsername: discordUsername || null,
-      },
-    });
+    if (!data.user) {
+      return { error: "Erreur lors de l'inscription" }
+    }
 
-    // Create session
-    await createSession(user.id, user.email);
+    // Note: L'user sera créé dans public.users via le callback
+    // après confirmation de l'email
+
+    return {
+      success: true,
+      needsEmailConfirmation: true,
+    }
   } catch (error) {
-    console.error('Register error:', error);
-    return { error: 'Une erreur est survenue lors de l\'inscription' };
+    console.error('Register error:', error)
+    return { error: "Une erreur est survenue lors de l'inscription" }
   }
-
-  redirect('/dashboard');
 }
 
-export async function login(formData: FormData): Promise<{ error?: string; success?: boolean }> {
+export async function login(
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
   const rawData = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
-  };
+  }
 
-  const validatedData = loginSchema.safeParse(rawData);
+  const validatedData = loginSchema.safeParse(rawData)
 
   if (!validatedData.success) {
-    return { error: validatedData.error.errors[0].message };
+    return { error: validatedData.error.errors[0].message }
   }
 
-  const { email, password } = validatedData.data;
+  const { email, password } = validatedData.data
 
   try {
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Vérifier si user est bloqué avant auth
+    const publicUser = await prisma.user.findFirst({
       where: { email },
-    });
+      select: { isBlocked: true },
+    })
 
-    if (!user) {
-      return { error: 'Invalid email or password' };
+    if (publicUser?.isBlocked) {
+      return { error: 'Votre compte a été bloqué. Contactez un administrateur.' }
     }
 
-    // Check if user is blocked
-    if (user.isBlocked) {
-      return { error: 'Your account has been blocked. Please contact an administrator.' };
+    const supabase = await createClient()
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      // Traduire les erreurs Supabase courantes
+      if (error.message.includes('Invalid login credentials')) {
+        return { error: 'Email ou mot de passe incorrect' }
+      }
+      if (error.message.includes('Email not confirmed')) {
+        return { error: 'Veuillez confirmer votre email avant de vous connecter' }
+      }
+      return { error: error.message }
     }
-
-    // Verify password
-    const isValid = await verifyPassword(password, user.passwordHash);
-
-    if (!isValid) {
-      return { error: 'Invalid email or password' };
-    }
-
-    // Create session
-    await createSession(user.id, user.email);
   } catch (error) {
-    console.error('Login error:', error);
-    return { error: 'Une erreur est survenue lors de la connexion' };
+    console.error('Login error:', error)
+    return { error: 'Une erreur est survenue lors de la connexion' }
   }
 
-  redirect('/dashboard');
+  redirect('/dashboard')
 }
 
 export async function logout() {
-  await destroySession();
-  redirect('/login');
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/login')
+}
+
+export async function requestPasswordReset(
+  email: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const supabase = await createClient()
+
+    // Utiliser un chemin dédié pour le recovery
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback/recovery`,
+    })
+
+    if (error) {
+      console.error('Password reset error:', error)
+    }
+
+    // Toujours retourner success pour éviter l'énumération d'emails
+    return { success: true }
+  } catch (error) {
+    console.error('Password reset request error:', error)
+    return { success: true } // Ne pas révéler d'erreur
+  }
+}
+
+export async function updatePassword(
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (newPassword.length < 8) {
+      return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' }
+    }
+
+    const supabase = await createClient()
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Update password error:', error)
+    return { success: false, error: 'Une erreur est survenue' }
+  }
 }

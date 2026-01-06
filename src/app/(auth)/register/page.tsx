@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
 
 function SubmitButton() {
@@ -34,12 +34,16 @@ function SubmitButton() {
 export default function RegisterPage() {
   const t = useTranslations('auth');
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setError(null);
+    setShowConfirmation(false);
     const result = await register(formData);
     if (result?.error) {
       setError(result.error);
+    } else if (result?.success && result?.needsEmailConfirmation) {
+      setShowConfirmation(true);
     }
   }
 
@@ -73,7 +77,20 @@ export default function RegisterPage() {
           </div>
         </CardHeader>
 
-        <form action={handleSubmit}>
+        {showConfirmation ? (
+          <CardContent className="space-y-4">
+            <div className="p-4 text-sm text-success bg-success/10 rounded-lg animate-fade-in flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 mt-0.5 shrink-0" />
+              <span>{t('checkEmailConfirmation')}</span>
+            </div>
+            <Link href="/login">
+              <Button variant="outline" className="w-full">
+                {t('backToLogin')}
+              </Button>
+            </Link>
+          </CardContent>
+        ) : (
+          <form action={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg animate-fade-in">
@@ -143,6 +160,7 @@ export default function RegisterPage() {
             </p>
           </CardFooter>
         </form>
+        )}
       </Card>
     </div>
   );

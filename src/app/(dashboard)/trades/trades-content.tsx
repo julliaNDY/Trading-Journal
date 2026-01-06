@@ -86,6 +86,7 @@ interface TradeWithRelations extends Trade {
   }[];
   timesManuallySet: boolean;
   reviewed: boolean;
+  hasPartialExits: boolean;
 }
 
 interface Prerequisite {
@@ -222,6 +223,7 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
         tags: [],
         screenshots: [],
         tradePlaybooks: [],
+        hasPartialExits: false,
       };
       setTrades([tradeWithRelations as TradeWithRelations, ...trades]);
       
@@ -1144,6 +1146,9 @@ function TradeRow({
                 </span>
                 <span>
                   {tTrade('exitPrice')}: {Number(trade.exitPrice).toFixed(2)}
+                  {trade.hasPartialExits && (
+                    <span className="ml-1 text-xs text-muted-foreground">(avg)</span>
+                  )}
                   {hasStopLoss && trade.realizedRMultiple && (
                     <span className="ml-2 text-primary font-medium">
                       (R/R: {Number(trade.realizedRMultiple).toFixed(2)})
