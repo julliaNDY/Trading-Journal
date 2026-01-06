@@ -154,9 +154,9 @@ export async function requestPasswordReset(
   try {
     const supabase = await createClient()
 
-    // Rediriger directement vers /reset-password (gère les hash fragments côté client)
+    // Rediriger vers le callback serveur qui échangera le code PKCE
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/reset-password`,
+      redirectTo: `${getAppUrl()}/auth/callback/recovery`,
     })
 
     if (error) {

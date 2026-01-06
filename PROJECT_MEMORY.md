@@ -9,6 +9,34 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-07 14:00] - Audit complet et fix flow password reset Supabase
+
+### 📝 Demande utilisateur
+> Le reset password redirige toujours vers /login malgré les précédents fix
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/app/actions/auth.ts` — Redirige vers `/auth/callback/recovery` au lieu de `/reset-password` directement
+  - `src/app/auth/callback/recovery/route.ts` — Gestion complète du PKCE flow avec logs détaillés
+  - `src/middleware.ts` — Exclut `/auth/` du matcher pour ne pas interférer avec les callbacks
+  - `src/app/reset-password/page.tsx` — Gère à la fois hash fragments (implicit) ET code PKCE (fallback)
+
+### 💡 Pourquoi (Raison du changement)
+**Problème identifié** : Supabase utilise le PKCE flow par défaut. Le lien de reset redirige avec un `?code=xxx` dans les query params. Le middleware interceptait `/auth/callback/recovery` et appelait `getUser()` avant que le code soit échangé → pas de session → problèmes.
+
+**Solution complète** :
+1. Exclure `/auth/` du middleware matcher
+2. Le callback recovery échange le code côté serveur
+3. La page reset-password gère aussi le code côté client (fallback)
+4. Utilisation de `APP_URL` pour tous les redirects
+
+### 🔗 Contexte additionnel
+- PKCE flow : code dans query params, doit être échangé côté serveur
+- Implicit flow : tokens dans hash fragments, gérés côté client
+- Le middleware ne doit JAMAIS traiter les routes `/auth/callback/*`
+
+---
+
 ## [2026-01-07 12:30] - Fix URL emails Supabase (runtime vs build-time)
 
 ### 📝 Demande utilisateur

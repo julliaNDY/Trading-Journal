@@ -40,30 +40,40 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
 
-  // Gérer les hash fragments de Supabase (implicit flow) au chargement
+  // Gérer l'authentification au chargement (hash fragments, code PKCE, ou session existante)
   useEffect(() => {
-    const handleHashParams = async () => {
-      // Vérifier si on a des hash params de Supabase
+    const handleAuth = async () => {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      // 1. Vérifier les hash fragments (implicit flow) - ex: #access_token=xxx&type=recovery
       if (typeof window !== 'undefined' && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
+        const errorParam = hashParams.get('error');
+        const errorDesc = hashParams.get('error_description');
+
+        console.log('[ResetPassword] Hash params detected:', { type, hasToken: !!accessToken, error: errorParam });
+
+        if (errorParam) {
+          console.error('[ResetPassword] Error in hash:', errorParam, errorDesc);
+          setError(errorDesc || t('sessionExpired') || 'Session expired. Please request a new reset link.');
+          setIsValidSession(false);
+          return;
+        }
 
         if (accessToken && type === 'recovery') {
-          // On a un token de recovery dans le hash - établir la session
-          const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          );
-
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || '',
           });
 
           if (error) {
-            console.error('Error setting session from hash:', error);
+            console.error('[ResetPassword] Error setting session from hash:', error);
             setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
             setIsValidSession(false);
             return;
@@ -76,24 +86,45 @@ export default function ResetPasswordPage() {
         }
       }
 
-      // Pas de hash params - vérifier si on a déjà une session valide
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      // 2. Vérifier le code PKCE dans l'URL (fallback si le callback n'a pas fonctionné)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (code) {
+          console.log('[ResetPassword] PKCE code detected, exchanging...');
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
+          if (error) {
+            console.error('[ResetPassword] Error exchanging code:', error);
+            setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
+            setIsValidSession(false);
+            return;
+          }
+
+          if (data?.session) {
+            // Nettoyer l'URL
+            window.history.replaceState(null, '', window.location.pathname);
+            setIsValidSession(true);
+            return;
+          }
+        }
+      }
+
+      // 3. Vérifier si on a déjà une session valide (via cookies)
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ResetPassword] Existing session check:', !!session);
       
       if (session) {
         setIsValidSession(true);
       } else {
-        // Pas de session - rediriger vers forgot-password
+        // Pas de session - afficher erreur
         setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
         setIsValidSession(false);
       }
     };
 
-    handleHashParams();
+    handleAuth();
   }, [t]);
 
   async function handleSubmit(formData: FormData) {
