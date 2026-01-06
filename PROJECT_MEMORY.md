@@ -9,6 +9,30 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-07 12:30] - Fix URL emails Supabase (runtime vs build-time)
+
+### 📝 Demande utilisateur
+> Le lien de reset password dans les emails redirige vers `0.0.0.0:3000` au lieu de `tradingpathjournal.com`
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/app/actions/auth.ts` — Ajout fonction `getAppUrl()` qui utilise `APP_URL` (runtime) avec fallback sur `NEXT_PUBLIC_APP_URL`
+  - `env.example` — Ajout de `APP_URL` (variable serveur pure)
+  - `scripts/setup-production-env.sh` — Génère maintenant `APP_URL` en plus de `NEXT_PUBLIC_APP_URL`
+
+### 💡 Pourquoi (Raison du changement)
+**Bug critique** : Les variables `NEXT_PUBLIC_*` peuvent être "inlinées" au moment du build par Next.js, même dans les server actions. Si le build est fait avec `NEXT_PUBLIC_APP_URL=localhost:3000`, cette valeur sera hardcodée dans le bundle.
+
+**Solution** :
+1. Créer une variable `APP_URL` (sans préfixe NEXT_PUBLIC)
+2. Cette variable est garantie d'être lue à runtime côté serveur
+3. Fonction `getAppUrl()` avec fallback : `APP_URL` → `NEXT_PUBLIC_APP_URL` → `localhost:3000`
+
+### 🔗 Contexte additionnel
+Sur le VPS, il faut ajouter `APP_URL="https://tradingpathjournal.com"` dans `.env.local` puis rebuild.
+
+---
+
 ## [2026-01-06 21:45] - Fix bug critique doublons à l'import CSV (118/120 faux doublons)
 
 ### 📝 Demande utilisateur

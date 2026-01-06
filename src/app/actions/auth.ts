@@ -5,6 +5,13 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 
+// Helper pour obtenir l'URL de l'app côté serveur (runtime, pas build-time)
+function getAppUrl(): string {
+  // Priorité à APP_URL (variable serveur pure, lue à runtime)
+  // Fallback sur NEXT_PUBLIC_APP_URL si défini
+  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+}
+
 const registerSchema = z
   .object({
     email: z.string().email('Email invalide'),
@@ -48,7 +55,7 @@ export async function register(
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
         data: {
           discordUsername,
         },
@@ -149,7 +156,7 @@ export async function requestPasswordReset(
 
     // Utiliser un chemin dédié pour le recovery
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback/recovery`,
+      redirectTo: `${getAppUrl()}/auth/callback/recovery`,
     })
 
     if (error) {
