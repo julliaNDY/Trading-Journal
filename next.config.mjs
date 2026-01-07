@@ -1,7 +1,7 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 
-// Use default path: i18n.ts at project root
-const withNextIntl = createNextIntlPlugin();
+// Explicitly specify path to i18n config
+const withNextIntl = createNextIntlPlugin('./i18n.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
