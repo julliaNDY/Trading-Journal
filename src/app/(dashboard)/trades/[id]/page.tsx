@@ -3,6 +3,7 @@ import { getUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { TradeDetailContent } from './trade-detail-content';
 import { getPlaybooksForSelection } from '@/app/actions/trades';
+import { getVoiceNotes } from '@/app/actions/voice-notes';
 import { serializeTrade } from '@/services/trade-service';
 
 interface TradeDetailPageProps {
@@ -41,6 +42,23 @@ async function getTrade(tradeId: string, userId: string) {
   return serializeTrade(trade);
 }
 
+async function getBrokerConnection(accountId: string | null, userId: string) {
+  if (!accountId) return null;
+  
+  const connection = await prisma.brokerConnection.findFirst({
+    where: {
+      userId,
+      accountId,
+      status: 'CONNECTED',
+    },
+    select: {
+      brokerType: true,
+    },
+  });
+  
+  return connection;
+}
+
 export default async function TradeDetailPage({ params }: TradeDetailPageProps) {
   const user = await getUser();
   if (!user) {
@@ -54,8 +72,22 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
     return null;
   }
 
-  const playbooks = await getPlaybooksForSelection();
+  const [playbooks, voiceNotes, brokerConnection] = await Promise.all([
+    getPlaybooksForSelection(),
+    getVoiceNotes(params.id),
+    getBrokerConnection(trade.accountId, user.id),
+  ]);
 
-  return <TradeDetailContent trade={trade} playbooks={playbooks} />;
+  return (
+    <TradeDetailContent 
+      trade={trade} 
+      playbooks={playbooks} 
+      voiceNotes={voiceNotes}
+      brokerConnection={brokerConnection ? {
+        hasBrokerConnection: true,
+        brokerType: brokerConnection.brokerType,
+      } : undefined}
+    />
+  );
 }
 

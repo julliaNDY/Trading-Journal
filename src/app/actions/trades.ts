@@ -211,54 +211,15 @@ export async function toggleTradeReviewed(tradeId: string) {
   return { reviewed: updatedTrade.reviewed };
 }
 
-// Partial exit data
-export interface PartialExitData {
-  exitDt: string;
-  exitPrice: number;
-  quantity: number;
-  pnl: number;
-}
+// Import types from centralized OCR service
+import { 
+  type PartialExitData, 
+  type OcrTradeData,
+  parseOcrDateTime as parseOcrDate 
+} from '@/services/ocr-service';
 
-// OCR trade data from screenshot
-export interface OcrTradeData {
-  entryDt: string; // "12/30/2025 10:09:48 AM"
-  exitDt: string;  // "12/30/2025 10:12:05 AM"
-  entryPrice: number;
-  exitPrice: number;  // Average exit price if multiple exits
-  profitLoss: number; // Total PnL
-  quantity?: number;  // Total quantity
-  partialExits?: PartialExitData[]; // Individual exits if multiple
-}
-
-// Parse dates from OCR format: "12/30/2025 10:09:48 AM"
-function parseOcrDate(dateStr: string): Date | null {
-  try {
-    // Format: MM/DD/YYYY HH:MM:SS AM/PM (AM/PM might be missing or partial)
-    const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M?)?/i);
-    if (!match) return null;
-    
-    const [, month, day, year, hours, minutes, seconds, ampm] = match;
-    let hour = parseInt(hours);
-    
-    // Handle AM/PM if present
-    if (ampm) {
-      const ampmUpper = ampm.toUpperCase();
-      if ((ampmUpper === 'PM' || ampmUpper === 'P') && hour !== 12) hour += 12;
-      if ((ampmUpper === 'AM' || ampmUpper === 'A') && hour === 12) hour = 0;
-    }
-    
-    return new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      hour,
-      parseInt(minutes),
-      parseInt(seconds)
-    );
-  } catch {
-    return null;
-  }
-}
+// Re-export types for backwards compatibility
+export type { PartialExitData, OcrTradeData };
 
 /**
  * Create or merge trades from OCR data
@@ -349,6 +310,9 @@ export async function createTradesFromOcr(
         accountId,
         partialExits,
         timesManuallySet: true,
+        // Pass Drawdown/Runup (MAE/MFE) if extracted from OCR
+        floatingDrawdownUsd: data.drawdown ?? null,
+        floatingRunupUsd: data.runup ?? null,
       });
 
       // Update counters based on result

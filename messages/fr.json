@@ -82,7 +82,76 @@
     "passwordResetSuccess": "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
     "invalidResetToken": "Ce lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",
     "resetEmailSubject": "Réinitialisez votre mot de passe Trading Journal",
-    "resetEmailBody": "Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe. Ce lien expirera dans 1 heure."
+    "resetEmailBody": "Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe. Ce lien expirera dans 1 heure.",
+    "orContinueWith": "ou continuer avec",
+    "continueWithGoogle": "Continuer avec Google",
+    "continueWithApple": "Continuer avec Apple",
+    "continueWithDiscord": "Continuer avec Discord",
+    "socialLoginError": "Erreur de connexion. Veuillez réessayer."
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez votre profil et vos préférences",
+    "profileInfo": "Informations du profil",
+    "profileDescription": "Vos informations de compte et préférences personnelles",
+    "email": "Adresse email",
+    "discordUsername": "Pseudo Discord",
+    "memberSince": "Membre depuis",
+    "notSet": "Non défini",
+    "language": "Langue",
+    "linkedAccounts": "Comptes liés",
+    "linkedAccountsDescription": "Connectez vos comptes sociaux pour vous connecter plus facilement",
+    "linked": "Lié",
+    "notLinked": "Non lié",
+    "link": "Lier",
+    "unlink": "Délier",
+    "linkSuccess": "Compte lié avec succès",
+    "unlinkSuccess": "Compte délié avec succès",
+    "cannotUnlinkLast": "Impossible de délier votre dernière méthode de connexion",
+    "cannotUnlinkWarning": "Vous devez avoir au moins une méthode de connexion active. Liez un autre compte avant de délier celui-ci.",
+    "unlinkConfirmTitle": "Délier ce compte ?",
+    "unlinkConfirmDescription": "Vous ne pourrez plus vous connecter avec {provider}. Vous pourrez le reconnecter plus tard.",
+    "socialLoginError": "Erreur de connexion sociale",
+    "changeAvatar": "Changer l'avatar",
+    "removeAvatar": "Supprimer",
+    "avatarHint": "JPG, PNG, WebP ou GIF. Max 2 Mo.",
+    "avatarUpdated": "Avatar mis à jour",
+    "avatarDeleted": "Avatar supprimé",
+    "subscription": "Abonnement",
+    "freePlan": "Plan gratuit",
+    "statusActive": "Actif",
+    "statusTrial": "Période d'essai",
+    "noSubscription": "Aucun abonnement actif",
+    "manageBilling": "Gérer la facturation",
+    "upgradeToPro": "Passer à Pro",
+    "subscriptionSuccess": "Abonnement activé !",
+    "subscriptionSuccessDesc": "Bienvenue parmi les membres Pro !",
+    "changeEmail": "Modifier l'email",
+    "changeEmailDescription": "Un email de confirmation sera envoyé à la nouvelle adresse.",
+    "currentEmail": "Email actuel",
+    "newEmail": "Nouvel email",
+    "sendConfirmation": "Envoyer la confirmation",
+    "emailUpdateSent": "Email de confirmation envoyé",
+    "emailUpdateSentDesc": "Vérifiez votre boîte de réception pour confirmer le changement.",
+    "changePassword": "Changer le mot de passe",
+    "changePasswordDescription": "Choisissez un mot de passe sécurisé d'au moins 8 caractères.",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "updatePassword": "Mettre à jour",
+    "passwordUpdated": "Mot de passe mis à jour",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "languageUpdated": "Langue mise à jour",
+    "dangerZone": "Zone de danger",
+    "dangerZoneDescription": "Actions irréversibles sur votre compte",
+    "deleteAccount": "Supprimer mon compte",
+    "deleteAccountTitle": "Supprimer définitivement votre compte ?",
+    "deleteAccountWarning": "Cette action est irréversible. Toutes vos données seront définitivement supprimées, incluant :",
+    "deleteAccountDataList": "Tous vos playbooks, notes, screenshots et notes vocales",
+    "deleteAccountConfirmText": "Tapez votre email pour confirmer :",
+    "confirmEmail": "Confirmer avec votre email",
+    "deleteAccountConfirm": "Supprimer définitivement",
+    "accountDeleted": "Compte supprimé"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -334,7 +403,45 @@
     "tradesCount": "Trades",
     "viewTrades": "Voir les trades",
     "checkedPrerequisites": "Prérequis respectés",
-    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce playbook ?"
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce playbook ?",
+    "share": "Partager",
+    "sharing": "Partage",
+    "visibility": "Visibilité",
+    "visibilityPrivate": "Privé",
+    "visibilityPrivateDesc": "Seul vous pouvez voir ce playbook",
+    "visibilityUnlisted": "Non répertorié",
+    "visibilityUnlistedDesc": "Accessible via le lien de partage uniquement",
+    "visibilityPublic": "Public",
+    "visibilityPublicDesc": "Visible par tous les utilisateurs",
+    "shareLink": "Lien de partage",
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien copié !",
+    "views": "vues",
+    "imports": "imports",
+    "importedFrom": "Importé de",
+    "discover": "Découvrir",
+    "discoverTitle": "Découvrir des Playbooks",
+    "discoverSubtitle": "Explorez les stratégies partagées par la communauté",
+    "searchPlaceholder": "Rechercher un playbook...",
+    "sortByRecent": "Plus récents",
+    "sortByPopular": "Plus populaires",
+    "sortByImports": "Plus importés",
+    "noPublicPlaybooks": "Aucun playbook public trouvé",
+    "noPublicPlaybooksDesc": "Soyez le premier à partager une stratégie !",
+    "by": "par",
+    "groupsCount": "{count} groupe(s)",
+    "prerequisitesCount": "{count} prérequis",
+    "import": "Importer",
+    "importPlaybook": "Importer ce playbook",
+    "importConfirm": "Voulez-vous importer ce playbook dans votre collection ?",
+    "importConfirmDesc": "Une copie sera créée dans vos playbooks. Vous pourrez la modifier librement.",
+    "importSuccess": "Playbook importé avec succès !",
+    "importError": "Erreur lors de l'import",
+    "alreadyImported": "Déjà importé",
+    "cannotImportOwn": "Vous ne pouvez pas importer votre propre playbook",
+    "viewPlaybook": "Voir le playbook",
+    "backToDiscover": "Retour à la découverte",
+    "anonymous": "Trader Anonyme"
   },
   "trades": {
     "title": "Trades",
@@ -397,6 +504,17 @@
     "importTrades": "Importer {count} trade(s)",
     "importing": "Import en cours..."
   },
+  "tradeChart": {
+    "title": "Graphique du Trade",
+    "entry": "Entrée",
+    "exit": "Sortie",
+    "simulatedDataNote": "Données simulées à titre illustratif. Connectez un broker pour obtenir des données de prix réelles.",
+    "brokerConnectedNote": "{broker} connecté. Les données historiques seront disponibles dans une future mise à jour.",
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "fitContent": "Ajuster à la vue",
+    "timeframe": "Timeframe"
+  },
   "tradeDetail": {
     "netPnl": "PnL Net",
     "side": "Direction",
@@ -433,7 +551,72 @@
     "editTimes": "Modifier les horaires",
     "partialExits": "Sorties partielles",
     "avgPrice": "moy",
-    "contracts": "contrats"
+    "contracts": "contrats",
+    "drawdown": "Drawdown (DD)",
+    "runup": "Runup (RU)",
+    "drawdownTooltip": "Perte latente maximale pendant le trade (en $)",
+    "runupTooltip": "Gain latent maximum pendant le trade (en $)"
+  },
+  "voiceNotes": {
+    "title": "Notes vocales",
+    "record": "Enregistrer",
+    "recording": "Enregistrement...",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "stop": "Arrêter",
+    "play": "Lecture",
+    "preview": "Prévisualisation",
+    "save": "Sauvegarder",
+    "discard": "Supprimer",
+    "delete": "Supprimer cette note",
+    "deleteConfirm": "Supprimer cette note vocale ?",
+    "deleteConfirmDesc": "Cette action est irréversible.",
+    "cancel": "Annuler",
+    "uploading": "Upload en cours...",
+    "uploaded": "Note vocale sauvegardée",
+    "deleted": "Note vocale supprimée",
+    "transcription": {
+      "title": "Transcription",
+      "inProgress": "Transcription en cours...",
+      "completed": "Transcription terminée",
+      "failed": "Échec de la transcription",
+      "retry": "Réessayer",
+      "transcribe": "Transcrire",
+      "edit": "Modifier",
+      "save": "Sauvegarder",
+      "cancel": "Annuler",
+      "edited": "Transcription modifiée",
+      "noContent": "Aucune transcription",
+      "notConfigured": "Service de transcription non configuré",
+      "show": "Voir la transcription",
+      "hide": "Masquer la transcription"
+    },
+    "summary": {
+      "title": "Synthèse IA",
+      "generating": "Génération de la synthèse...",
+      "generated": "Synthèse générée",
+      "regenerate": "Régénérer",
+      "generate": "Générer synthèse",
+      "keyPoints": "Points clés",
+      "mistakes": "Erreurs identifiées",
+      "lessons": "Leçons",
+      "actions": "Actions à prendre",
+      "rawSummary": "Résumé",
+      "empty": "Aucune synthèse disponible",
+      "failed": "Échec de la génération",
+      "noTranscription": "Transcription requise",
+      "show": "Voir la synthèse",
+      "hide": "Masquer la synthèse"
+    },
+    "error": {
+      "title": "Erreur",
+      "microphoneDenied": "Accès au microphone refusé",
+      "notSupported": "Enregistrement audio non supporté sur ce navigateur",
+      "uploadFailed": "Échec de l'upload",
+      "deleteFailed": "Échec de la suppression",
+      "transcriptionFailed": "Échec de la transcription",
+      "unknown": "Erreur inconnue"
+    }
   },
   "accounts": {
     "title": "Comptes",
@@ -467,6 +650,85 @@
     "currentBalance": "Balance actuelle",
     "roi": "ROI"
   },
+  "brokers": {
+    "title": "Connexions Broker",
+    "description": "Synchronisez automatiquement vos trades depuis votre broker",
+    "addConnection": "Ajouter une connexion",
+    "noConnections": "Aucune connexion broker",
+    "noConnectionsDescription": "Connectez votre broker pour importer automatiquement vos trades",
+    "connectBroker": "Connecter un broker",
+    "connectBrokerDescription": "Entrez vos identifiants API pour connecter votre compte broker",
+    "selectBroker": "Sélectionner un broker",
+    "environment": "Environnement",
+    "envLive": "Production (Live)",
+    "envDemo": "Démo (Simulation)",
+    "apiKey": "Clé API",
+    "apiKeyPlaceholder": "Votre clé API",
+    "apiSecret": "Secret API",
+    "apiSecretPlaceholder": "Votre secret API",
+    "linkToAccount": "Lier à un compte",
+    "selectAccount": "Sélectionner un compte",
+    "createNewAccount": "Créer un nouveau compte",
+    "noAccount": "Aucun compte",
+    "apiKeyHelp": "Vous pouvez générer vos clés API dans les paramètres de votre compte Tradovate. Assurez-vous d'avoir l'add-on 'API Access' activé.",
+    "flexToken": "Token Flex Web Service",
+    "flexTokenPlaceholder": "Votre token de 32 caractères",
+    "flexQueryId": "Query ID",
+    "flexQueryIdPlaceholder": "Votre numéro de Query (6 chiffres)",
+    "ibkrSetupTitle": "Configuration IBKR Flex Query :",
+    "ibkrStep1": "Connectez-vous à IBKR Account Management",
+    "ibkrStep2": "Allez dans Reports → Flex Queries → Trade Confirmation Flex Query → Create",
+    "ibkrStep3": "Configurez la query avec tous les champs de trades et notez le Query ID",
+    "ibkrStep4": "Allez dans Settings → Flex Web Service et générez un token",
+    "ibkrTutorialTitle": "📖 Comment obtenir vos identifiants IBKR ?",
+    "ibkrTutorial": {
+      "step1Title": "Connectez-vous au portail IBKR",
+      "step1Desc": "Accédez à votre compte Interactive Brokers via le Client Portal.",
+      "openPortal": "Ouvrir le Client Portal IBKR",
+      "step2Title": "Accédez aux Flex Queries",
+      "step2Desc": "Dans le menu principal, naviguez vers la section des rapports flexibles.",
+      "step3Title": "Créez une nouvelle Flex Query",
+      "step3Desc": "Cliquez sur le bouton '+' ou 'Create' pour créer une nouvelle query de type 'Trade Confirmation'.",
+      "step3Item1": "Choisissez 'Trade Confirmation Flex Query'",
+      "step3Item2": "Donnez un nom à votre query (ex: 'Trading Journal Sync')",
+      "step3Item3": "Sélectionnez le format de sortie XML",
+      "step4Title": "Configurez les champs à exporter",
+      "step4Desc": "Sélectionnez tous les champs nécessaires pour l'import des trades :",
+      "step4Fields": "Champs obligatoires :",
+      "step5Title": "Sauvegardez et notez le Query ID",
+      "step5Desc": "Après avoir sauvegardé, IBKR vous attribuera un numéro unique (Query ID).",
+      "step5Note": "Le Query ID est un nombre à 6 chiffres. Notez-le précieusement !",
+      "step6Title": "Activez le Flex Web Service",
+      "step6Desc": "Retournez dans les paramètres de votre compte pour activer l'API.",
+      "step7Title": "Générez votre Token",
+      "step7Desc": "Cliquez sur 'Generate Token' pour créer votre clé d'accès API.",
+      "step7Warning": "Le token n'est affiché qu'une seule fois ! Copiez-le immédiatement."
+    },
+    "connect": "Connecter",
+    "disconnect": "Déconnecter",
+    "syncNow": "Synchroniser",
+    "lastSync": "Dernière sync",
+    "never": "Jamais",
+    "linkedAccount": "Compte lié",
+    "recentSyncs": "Syncs récentes",
+    "statusConnected": "Connecté",
+    "statusError": "Erreur",
+    "statusDisconnected": "Déconnecté",
+    "connected": "Broker connecté",
+    "connectedDescription": "Votre broker a été connecté avec succès",
+    "disconnected": "Broker déconnecté",
+    "disconnectedDescription": "La connexion broker a été supprimée",
+    "connectionFailed": "Échec de connexion",
+    "credentialsRequired": "La clé API et le secret sont requis",
+    "syncComplete": "Synchronisation terminée",
+    "syncCompleteDescription": "{imported} trades importés, {skipped} ignorés (doublons)",
+    "syncFailed": "Échec de synchronisation",
+    "accountLinked": "Compte lié",
+    "accountLinkedDescription": "Le compte a été lié à la connexion broker",
+    "confirmDisconnect": "Déconnecter le broker ?",
+    "confirmDisconnectDescription": "Cette action supprimera la connexion et les identifiants associés. Les trades déjà importés ne seront pas supprimés.",
+    "error": "Erreur"
+  },
   "admin": {
     "title": "Administration",
     "subtitle": "Gérez les utilisateurs et les paramètres de la plateforme",
@@ -495,5 +757,280 @@
     "validationError": "Erreur de validation",
     "fileTooBig": "Fichier trop volumineux",
     "invalidFileType": "Type de fichier invalide"
+  },
+  "legal": {
+    "title": "Informations légales",
+    "backToHome": "Retour à l'accueil",
+    "lastUpdated": "Dernière mise à jour",
+    "cgv": {
+      "title": "Conditions Générales de Vente",
+      "description": "Les présentes conditions générales de vente régissent l'utilisation des services payants de Trading Journal.",
+      "article1": {
+        "title": "Article 1 - Objet",
+        "content": "Les présentes Conditions Générales de Vente (CGV) ont pour objet de définir les droits et obligations des parties dans le cadre de la vente en ligne des services proposés par Trading Journal."
+      },
+      "article2": {
+        "title": "Article 2 - Prix",
+        "content": "Les prix de nos services sont indiqués en euros toutes taxes comprises. Trading Journal se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix figurant au moment de la commande sera le seul applicable au Client."
+      },
+      "article3": {
+        "title": "Article 3 - Paiement",
+        "content": "Le paiement est exigible immédiatement à la commande. Le Client peut effectuer le règlement par carte bancaire. Les paiements effectués par le Client ne seront considérés comme définitifs qu'après encaissement effectif des sommes dues."
+      },
+      "article4": {
+        "title": "Article 4 - Abonnements",
+        "content": "Les abonnements sont conclus pour la durée choisie par le Client (mensuel, trimestriel, semestriel ou annuel). Ils sont renouvelés automatiquement à l'issue de chaque période, sauf résiliation par le Client avant la date d'échéance."
+      },
+      "article5": {
+        "title": "Article 5 - Droit de rétractation",
+        "content": "Conformément à l'article L221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les contrats de fourniture de contenus numériques non fournis sur un support matériel dont l'exécution a commencé avec l'accord du consommateur."
+      },
+      "article6": {
+        "title": "Article 6 - Résiliation",
+        "content": "Le Client peut résilier son abonnement à tout moment depuis son espace personnel. La résiliation prend effet à la fin de la période d'abonnement en cours."
+      },
+      "article7": {
+        "title": "Article 7 - Responsabilité",
+        "content": "Trading Journal ne pourra être tenu responsable des dommages directs ou indirects causés au Client ou à des tiers du fait de l'utilisation des services. L'outil est fourni à titre informatif et ne constitue pas un conseil en investissement."
+      },
+      "article8": {
+        "title": "Article 8 - Droit applicable",
+        "content": "Les présentes CGV sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents."
+      }
+    },
+    "cgu": {
+      "title": "Conditions Générales d'Utilisation",
+      "description": "Les présentes conditions générales d'utilisation régissent l'accès et l'utilisation du site Trading Journal.",
+      "article1": {
+        "title": "Article 1 - Acceptation des conditions",
+        "content": "L'accès et l'utilisation du site Trading Journal sont soumis à l'acceptation et au respect des présentes Conditions Générales d'Utilisation. En utilisant le site, vous acceptez sans réserve ces conditions."
+      },
+      "article2": {
+        "title": "Article 2 - Description des services",
+        "content": "Trading Journal est une application web permettant aux utilisateurs de suivre et analyser leurs performances de trading. Le service inclut l'import de trades, la gestion de journal, l'affichage de statistiques et autres fonctionnalités connexes."
+      },
+      "article3": {
+        "title": "Article 3 - Inscription",
+        "content": "L'utilisation des services nécessite la création d'un compte. L'utilisateur s'engage à fournir des informations exactes et à maintenir la confidentialité de ses identifiants. Il est responsable de toutes les activités effectuées depuis son compte."
+      },
+      "article4": {
+        "title": "Article 4 - Données personnelles",
+        "content": "Trading Journal collecte et traite les données personnelles conformément au RGPD. Les données de trading importées restent la propriété de l'utilisateur et peuvent être supprimées à tout moment depuis l'espace personnel."
+      },
+      "article5": {
+        "title": "Article 5 - Propriété intellectuelle",
+        "content": "Tous les éléments du site Trading Journal (textes, graphiques, logiciels, etc.) sont protégés par le droit de la propriété intellectuelle. Toute reproduction ou représentation, totale ou partielle, est interdite sans autorisation préalable."
+      },
+      "article6": {
+        "title": "Article 6 - Comportement de l'utilisateur",
+        "content": "L'utilisateur s'engage à utiliser le service de manière conforme à sa destination. Il est interdit de tenter d'accéder de manière non autorisée aux systèmes, de perturber le fonctionnement du service ou d'utiliser celui-ci à des fins illégales."
+      },
+      "article7": {
+        "title": "Article 7 - Avertissement sur les risques",
+        "content": "Le trading comporte des risques significatifs de perte en capital. Trading Journal est un outil de suivi et ne fournit aucun conseil en investissement. Les décisions de trading restent de la seule responsabilité de l'utilisateur."
+      },
+      "article8": {
+        "title": "Article 8 - Modification des CGU",
+        "content": "Trading Journal se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications importantes. L'utilisation continue du service après modification vaut acceptation des nouvelles conditions."
+      }
+    },
+    "mentions": {
+      "title": "Mentions Légales",
+      "description": "Informations légales obligatoires concernant le site Trading Journal.",
+      "editor": {
+        "title": "Éditeur du site",
+        "name": "Trading Journal",
+        "status": "Entreprise individuelle - SIREN 841 365 539",
+        "address": "39 Chemin des Fins Nord, 74000 Annecy, France",
+        "email": "contact@tradingpathjournal.com",
+        "tva": "TVA Intracommunautaire : FR71841365539"
+      },
+      "hosting": {
+        "title": "Hébergement",
+        "name": "OVH SAS",
+        "address": "2 rue Kellermann, 59100 Roubaix, France",
+        "phone": "+33 9 72 10 10 07"
+      },
+      "director": {
+        "title": "Directeur de la publication",
+        "content": "Le directeur de la publication est le représentant légal de l'entreprise individuelle éditrice."
+      },
+      "intellectual": {
+        "title": "Propriété intellectuelle",
+        "content": "L'ensemble du contenu du site Trading Journal (textes, images, vidéos, logos, etc.) est protégé par le droit d'auteur. Toute reproduction ou représentation, totale ou partielle, du site ou de l'un de ses éléments, sans autorisation expresse, est interdite."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "Le site utilise des cookies essentiels au fonctionnement de l'application (session, préférences utilisateur). Aucun cookie publicitaire n'est utilisé. En poursuivant votre navigation, vous acceptez l'utilisation de ces cookies."
+      },
+      "gdpr": {
+        "title": "Protection des données (RGPD)",
+        "content": "Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification, de suppression et de portabilité de vos données personnelles. Pour exercer ces droits, contactez-nous à l'adresse indiquée ci-dessus."
+      },
+      "pricing": {
+        "title": "Tarification",
+        "content": "Les tarifs des abonnements (Mensuel 10€, Trimestriel 20€, Semestriel 50€, Annuel 70€) sont susceptibles d'évoluer. Les abonnements en cours conservent leur tarif jusqu'au renouvellement suivant. Les prix sont indiqués TTC."
+      }
+    }
+  },
+  "contact": {
+    "title": "Contactez-nous",
+    "subtitle": "Une question, une suggestion ou un problème ? N'hésitez pas à nous contacter.",
+    "form": {
+      "name": "Votre nom",
+      "namePlaceholder": "Jean Dupont",
+      "email": "Votre email",
+      "emailPlaceholder": "jean@exemple.com",
+      "subject": "Sujet",
+      "subjectPlaceholder": "Ex: Question sur l'abonnement",
+      "message": "Votre message",
+      "messagePlaceholder": "Décrivez votre demande en détail...",
+      "submit": "Envoyer le message",
+      "sending": "Envoi en cours..."
+    },
+    "success": {
+      "title": "Message envoyé !",
+      "description": "Nous avons bien reçu votre message et vous répondrons dans les plus brefs délais."
+    },
+    "error": {
+      "title": "Erreur d'envoi",
+      "description": "Une erreur est survenue lors de l'envoi. Veuillez réessayer ou nous contacter directement par email."
+    },
+    "info": {
+      "title": "Autres moyens de contact",
+      "email": "Email direct",
+      "discord": "Discord",
+      "response": "Délai de réponse habituel : 24-48h"
+    },
+    "subjects": {
+      "general": "Question générale",
+      "technical": "Problème technique",
+      "billing": "Facturation / Abonnement",
+      "feature": "Suggestion de fonctionnalité",
+      "other": "Autre"
+    }
+  },
+  "footer": {
+    "legal": "Légal",
+    "cgv": "CGV",
+    "cgu": "CGU",
+    "mentions": "Mentions légales",
+    "contact": "Contact",
+    "copyright": "© {year} Trading Journal. Tous droits réservés.",
+    "madeWith": "Fait avec ❤️ pour les traders"
+  },
+  "coach": {
+    "title": "Coach IA",
+    "subtitle": "Votre assistant trading personnel",
+    "open": "Ouvrir le coach",
+    "close": "Fermer le coach",
+    "tooltip": "Demander conseil à l'IA",
+    "welcome": "Bonjour ! Je suis votre coach trading",
+    "welcomeDescription": "Je peux analyser vos performances, vous donner des conseils personnalisés et vous aider à améliorer votre trading.",
+    "suggestions": "Essayez :",
+    "suggestionLabels": {
+      "analyzeStats": "📊 Analyser mes stats",
+      "improveTips": "💡 Conseils d'amélioration",
+      "mistakesHelp": "🎯 Erreurs fréquentes"
+    },
+    "suggestionPrompts": {
+      "analyzeStats": "Peux-tu analyser mes statistiques de trading et me donner un aperçu de ma performance ?",
+      "improveTips": "Quels conseils peux-tu me donner pour améliorer mes résultats de trading ?",
+      "mistakesHelp": "Quelles sont les erreurs que je fais le plus souvent et comment les éviter ?"
+    },
+    "inputPlaceholder": "Posez votre question...",
+    "history": "Historique",
+    "newConversation": "Nouvelle conversation",
+    "recentConversations": "Conversations récentes",
+    "noConversations": "Aucune conversation",
+    "untitledConversation": "Conversation sans titre",
+    "backToChat": "Retour au chat",
+    "conversationDeleted": "Conversation supprimée",
+    "error": "Erreur"
+  },
+  "feedback": {
+    "button": "Feedback",
+    "title": "Envoyer un feedback",
+    "description": "Partagez vos suggestions, signalez un bug ou donnez-nous votre avis.",
+    "categoryLabel": "Catégorie",
+    "categories": {
+      "suggestion": "Suggestion",
+      "bug": "Bug",
+      "general": "Général"
+    },
+    "titleLabel": "Titre (optionnel)",
+    "titlePlaceholder": "Résumé court de votre feedback",
+    "contentLabel": "Description",
+    "contentPlaceholder": "Décrivez votre suggestion, le bug rencontré ou votre feedback en détail...",
+    "cancel": "Annuler",
+    "submit": "Envoyer",
+    "success": "Feedback envoyé !",
+    "successDescription": "Merci pour votre retour, nous l'examinerons attentivement.",
+    "error": "Erreur",
+    "errorDescription": "Impossible d'envoyer le feedback. Veuillez réessayer."
+  },
+  "pricing": {
+    "title": "Tarifs simples et transparents",
+    "subtitle": "Choisissez le plan qui vous convient. Tous les plans incluent un essai gratuit de 7 jours.",
+    "trialBadge": "7 jours d'essai gratuit",
+    "mostPopular": "Le plus populaire",
+    "save": "Économisez",
+    "startTrial": "Commencer l'essai gratuit",
+    "processing": "Redirection...",
+    "trialInfo": "Essai gratuit de 7 jours, sans engagement. Carte bancaire requise. Annulez à tout moment.",
+    "pricesMayChange": "Ces tarifs sont susceptibles d'évoluer. Les abonnements en cours conservent leur tarif.",
+    "canceled": "Abonnement annulé",
+    "canceledDescription": "Votre processus d'abonnement a été annulé.",
+    "error": "Erreur",
+    "errorLoadingPlans": "Impossible de charger les plans. Veuillez réessayer.",
+    "errorCreatingCheckout": "Impossible de créer la session de paiement.",
+    "faqTitle": "Questions fréquentes",
+    "faq1Question": "Puis-je annuler à tout moment ?",
+    "faq1Answer": "Oui, vous pouvez annuler votre abonnement à tout moment depuis les paramètres de votre compte. Vous conserverez l'accès jusqu'à la fin de votre période de facturation.",
+    "faq2Question": "Que se passe-t-il après l'essai gratuit ?",
+    "faq2Answer": "Si vous ne souhaitez pas continuer, annulez avant la fin des 7 jours. Sinon, votre carte sera débitée automatiquement selon le plan choisi.",
+    "faq3Question": "Puis-je changer de plan ?",
+    "faq3Answer": "Oui, vous pouvez changer de plan à tout moment. Le changement prendra effet à votre prochaine période de facturation."
+  },
+  "subscriptionGate": {
+    "title": "Fonctionnalité Premium",
+    "description": "Cette fonctionnalité est réservée aux abonnés Pro.",
+    "featureDescription": "La fonctionnalité \"{feature}\" est réservée aux abonnés Pro.",
+    "feature1": "Import illimité de trades",
+    "feature2": "Notes vocales & Coach IA",
+    "feature3": "Synchronisation brokers",
+    "upgrade": "Passer à Pro",
+    "upgradeBadge": "Pro",
+    "trialInfo": "Essai gratuit de 7 jours"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "currentPlan": "Plan actuel",
+    "status": "Statut",
+    "nextBilling": "Prochaine facturation",
+    "trialEnds": "Fin de l'essai",
+    "active": "Actif",
+    "trial": "Période d'essai",
+    "pastDue": "Paiement en retard",
+    "canceled": "Annulé",
+    "expired": "Expiré",
+    "cancelAtPeriodEnd": "Se termine le {date}",
+    "manageBilling": "Gérer la facturation",
+    "cancelSubscription": "Annuler l'abonnement",
+    "reactivate": "Réactiver",
+    "upgrade": "Passer à Pro",
+    "invoiceHistory": "Historique des factures",
+    "noInvoices": "Aucune facture",
+    "downloadInvoice": "Télécharger",
+    "viewInvoice": "Voir",
+    "confirmCancel": "Annuler l'abonnement ?",
+    "confirmCancelDescription": "Vous conserverez l'accès jusqu'à la fin de votre période de facturation actuelle.",
+    "cancelSuccess": "Abonnement annulé",
+    "cancelSuccessDescription": "Votre abonnement sera désactivé à la fin de la période en cours.",
+    "reactivateSuccess": "Abonnement réactivé",
+    "reactivateSuccessDescription": "Votre abonnement a été réactivé avec succès.",
+    "error": "Erreur",
+    "free": "Gratuit",
+    "noPlan": "Aucun abonnement actif"
   }
 }

@@ -104,6 +104,21 @@ export async function getDayJournal(dateStr: string, timezoneOffset: number = 0)
           originalName: true,
         },
       },
+      voiceNotes: {
+        select: {
+          id: true,
+          dayJournalId: true,
+          filePath: true,
+          duration: true,
+          transcription: true,
+          transcriptionHash: true,
+          summary: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
     },
   });
 }

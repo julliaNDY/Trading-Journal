@@ -12,6 +12,15 @@ import {
   Loader2,
   BarChart3,
   ListChecks,
+  Share2,
+  Globe,
+  Link as LinkIcon,
+  Lock,
+  Copy,
+  Check,
+  Eye,
+  Download,
+  Compass,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +61,17 @@ import {
   updatePrerequisite,
   deletePrerequisite,
   getPlaybooks,
+  setPlaybookVisibility,
+  getShareLink,
 } from '@/app/actions/playbooks';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface PlaybookStats {
   totalPnl: number;
@@ -81,6 +100,13 @@ interface Playbook {
   description: string | null;
   groups: PlaybookGroup[];
   stats: PlaybookStats;
+  // Sharing fields
+  visibility?: 'PRIVATE' | 'UNLISTED' | 'PUBLIC';
+  shareToken?: string | null;
+  viewCount?: number;
+  importCount?: number;
+  originalPlaybookId?: string | null;
+  originalAuthorId?: string | null;
 }
 
 interface PlaybooksContentProps {
@@ -188,10 +214,16 @@ export function PlaybooksContent({ playbooks: initialPlaybooks }: PlaybooksConte
           <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <Button onClick={() => setIsCreating(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('createPlaybook')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push('/playbooks/discover')}>
+            <Compass className="h-4 w-4 mr-2" />
+            {t('discover')}
+          </Button>
+          <Button onClick={() => setIsCreating(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t('createPlaybook')}
+          </Button>
+        </div>
       </div>
 
       {/* Playbooks List */}
@@ -336,11 +368,55 @@ function PlaybookCard({
   onPlaybookChange: () => Promise<void>;
 }) {
   const t = useTranslations('playbooks');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const [groups, setGroups] = useState(playbook.groups);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Sharing state
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [visibility, setVisibility] = useState<'PRIVATE' | 'UNLISTED' | 'PUBLIC'>(
+    playbook.visibility || 'PRIVATE'
+  );
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Load share link when opening dialog
+  const handleOpenShare = async () => {
+    setIsShareOpen(true);
+    const result = await getShareLink(playbook.id);
+    setShareUrl(result.shareUrl);
+    setVisibility(result.visibility);
+  };
+
+  // Handle visibility change
+  const handleVisibilityChange = async (newVisibility: 'PRIVATE' | 'UNLISTED' | 'PUBLIC') => {
+    setIsUpdatingVisibility(true);
+    try {
+      const result = await setPlaybookVisibility(playbook.id, newVisibility);
+      if (result.success) {
+        setVisibility(newVisibility);
+        // Update share URL
+        const linkResult = await getShareLink(playbook.id);
+        setShareUrl(linkResult.shareUrl);
+        await onPlaybookChange();
+      }
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  // Copy link to clipboard
+  const handleCopyLink = () => {
+    if (shareUrl) {
+      navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
 
   const handleAddGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -394,6 +470,30 @@ function PlaybookCard({
               </button>
             </CollapsibleTrigger>
             <div className="flex items-center gap-2">
+              {/* Visibility badge */}
+              {visibility !== 'PRIVATE' && (
+                <Badge variant={visibility === 'PUBLIC' ? 'default' : 'secondary'} className="text-xs">
+                  {visibility === 'PUBLIC' ? (
+                    <><Globe className="h-3 w-3 mr-1" />{t('visibilityPublic')}</>
+                  ) : (
+                    <><LinkIcon className="h-3 w-3 mr-1" />{t('visibilityUnlisted')}</>
+                  )}
+                </Badge>
+              )}
+              {/* Stats badges */}
+              {(playbook.viewCount || 0) > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  <Eye className="h-3 w-3 mr-1" />{playbook.viewCount}
+                </Badge>
+              )}
+              {(playbook.importCount || 0) > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  <Download className="h-3 w-3 mr-1" />{playbook.importCount}
+                </Badge>
+              )}
+              <Button variant="ghost" size="icon" onClick={handleOpenShare}>
+                <Share2 className="h-4 w-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={onEdit}>
                 <Edit2 className="h-4 w-4" />
               </Button>
@@ -516,6 +616,109 @@ function PlaybookCard({
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Share Dialog */}
+      <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              {t('sharing')} - {playbook.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Visibility selector */}
+            <div className="space-y-2">
+              <Label>{t('visibility')}</Label>
+              <Select
+                value={visibility}
+                onValueChange={(v) => handleVisibilityChange(v as 'PRIVATE' | 'UNLISTED' | 'PUBLIC')}
+                disabled={isUpdatingVisibility}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PRIVATE">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      <div>
+                        <p className="font-medium">{t('visibilityPrivate')}</p>
+                        <p className="text-xs text-muted-foreground">{t('visibilityPrivateDesc')}</p>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="UNLISTED">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      <div>
+                        <p className="font-medium">{t('visibilityUnlisted')}</p>
+                        <p className="text-xs text-muted-foreground">{t('visibilityUnlistedDesc')}</p>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="PUBLIC">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      <div>
+                        <p className="font-medium">{t('visibilityPublic')}</p>
+                        <p className="text-xs text-muted-foreground">{t('visibilityPublicDesc')}</p>
+                      </div>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Share link (only if not private) */}
+            {visibility !== 'PRIVATE' && shareUrl && (
+              <div className="space-y-2">
+                <Label>{t('shareLink')}</Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={shareUrl} 
+                    readOnly 
+                    className="flex-1 text-sm"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handleCopyLink}
+                  >
+                    {linkCopied ? (
+                      <Check className="h-4 w-4 text-success" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {linkCopied && (
+                  <p className="text-sm text-success">{t('linkCopied')}</p>
+                )}
+              </div>
+            )}
+
+            {/* Stats */}
+            {visibility !== 'PRIVATE' && (
+              <div className="flex items-center gap-4 pt-2 border-t text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Eye className="h-4 w-4" />
+                  {playbook.viewCount || 0} {t('views')}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Download className="h-4 w-4" />
+                  {playbook.importCount || 0} {t('imports')}
+                </span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsShareOpen(false)}>
+              {tCommon('close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

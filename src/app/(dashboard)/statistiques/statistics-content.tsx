@@ -23,9 +23,11 @@ import {
   calculateHourlyStats,
   getDistribution,
 } from '@/services/stats-service';
-import { EquityChart } from '@/components/charts/equity-chart';
-import { HourlyChart } from '@/components/charts/hourly-chart';
-import { DistributionChart } from '@/components/charts/distribution-chart';
+import {
+  LazyEquityChart as EquityChart,
+  LazyHourlyChart as HourlyChart,
+  LazyDistributionChart as DistributionChart,
+} from '@/components/charts/lazy';
 import type { Trade, Tag } from '@prisma/client';
 
 interface TradeWithTags extends Trade {

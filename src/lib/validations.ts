@@ -42,12 +42,45 @@ export const csvMappingSchema = z.object({
   floatingDrawdownUsd: z.string().optional(),
 });
 
+// ==================== PLAYBOOK SHARING SCHEMAS ====================
+
+export const playbookVisibilityValues = ['PRIVATE', 'UNLISTED', 'PUBLIC'] as const;
+export type PlaybookVisibilityType = typeof playbookVisibilityValues[number];
+
+export const setPlaybookVisibilitySchema = z.object({
+  playbookId: z.string().uuid('Invalid playbook ID'),
+  visibility: z.enum(playbookVisibilityValues, {
+    errorMap: () => ({ message: 'Visibility must be PRIVATE, UNLISTED, or PUBLIC' }),
+  }),
+});
+
+export const getPublicPlaybooksSchema = z.object({
+  search: z.string().max(100, 'Search query too long').optional(),
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(50).default(12),
+  sortBy: z.enum(['recent', 'popular', 'imports']).default('recent'),
+});
+
+export const importPlaybookSchema = z.object({
+  playbookId: z.string().uuid('Invalid playbook ID'),
+});
+
+export const shareTokenSchema = z.object({
+  token: z.string().uuid('Invalid share token'),
+});
+
+// ==================== TYPE EXPORTS ====================
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type TagInput = z.infer<typeof tagSchema>;
 export type DayNoteInput = z.infer<typeof dayNoteSchema>;
 export type StopLossInput = z.infer<typeof stopLossSchema>;
 export type CsvMappingInput = z.infer<typeof csvMappingSchema>;
+export type SetPlaybookVisibilityInput = z.infer<typeof setPlaybookVisibilitySchema>;
+export type GetPublicPlaybooksInput = z.infer<typeof getPublicPlaybooksSchema>;
+export type ImportPlaybookInput = z.infer<typeof importPlaybookSchema>;
+export type ShareTokenInput = z.infer<typeof shareTokenSchema>;
 
 
 

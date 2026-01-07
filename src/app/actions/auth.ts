@@ -4,24 +4,19 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
+import { authLogger } from '@/lib/logger'
 
 // Helper pour obtenir l'URL de l'app côté serveur (runtime, pas build-time)
 function getAppUrl(): string {
   const appUrl = process.env.APP_URL
   const nextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
   
-  // Log pour debugging
-  console.log('[getAppUrl] APP_URL:', appUrl)
-  console.log('[getAppUrl] NEXT_PUBLIC_APP_URL:', nextPublicAppUrl)
-  
   // Priorité à APP_URL (variable serveur pure, lue à runtime)
   let url = appUrl || nextPublicAppUrl || 'http://localhost:3000'
   
   // Validation : rejeter les URLs invalides
   if (url.includes('0.0.0.0') || url.includes('localhost')) {
-    console.warn('[getAppUrl] WARNING: Using localhost/0.0.0.0 URL in production!')
-    // En production, on devrait avoir une vraie URL
-    // Mais on continue pour ne pas casser l'app
+    authLogger.warn('Using localhost/0.0.0.0 URL - ensure APP_URL is set in production')
   }
   
   // S'assurer que l'URL a un protocole
@@ -32,7 +27,6 @@ function getAppUrl(): string {
   // Enlever le trailing slash
   url = url.replace(/\/$/, '')
   
-  console.log('[getAppUrl] Final URL:', url)
   return url
 }
 
@@ -109,7 +103,7 @@ export async function register(
       needsEmailConfirmation: true,
     }
   } catch (error) {
-    console.error('Register error:', error)
+    authLogger.error('Register error', error)
     return { error: "Une erreur est survenue lors de l'inscription" }
   }
 }
@@ -159,7 +153,7 @@ export async function login(
       return { error: error.message }
     }
   } catch (error) {
-    console.error('Login error:', error)
+    authLogger.error('Login error', error)
     return { error: 'Une erreur est survenue lors de la connexion' }
   }
 
@@ -180,24 +174,19 @@ export async function requestPasswordReset(
     // Utiliser le callback route pour que le code soit échangé côté serveur
     // où les cookies (code_verifier PKCE) sont accessibles
     const redirectUrl = `${getAppUrl()}/auth/callback?type=recovery`
-    
-    console.log('[requestPasswordReset] Sending reset email to:', email)
-    console.log('[requestPasswordReset] Redirect URL:', redirectUrl)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     })
 
     if (error) {
-      console.error('[requestPasswordReset] Supabase error:', error)
-    } else {
-      console.log('[requestPasswordReset] Email sent successfully')
+      authLogger.error('Password reset error', error)
     }
 
     // Toujours retourner success pour éviter l'énumération d'emails
     return { success: true }
   } catch (error) {
-    console.error('[requestPasswordReset] Exception:', error)
+    authLogger.error('Password reset exception', error)
     return { success: true } // Ne pas révéler d'erreur
   }
 }
@@ -222,7 +211,7 @@ export async function updatePassword(
 
     return { success: true }
   } catch (error) {
-    console.error('Update password error:', error)
+    authLogger.error('Update password error', error)
     return { success: false, error: 'Une erreur est survenue' }
   }
 }

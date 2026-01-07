@@ -44,6 +44,7 @@ import {
   deleteScreenshot,
   getDailyPnlMap,
 } from '@/app/actions/journal';
+import { JournalVoiceNotesSection } from '@/components/audio';
 
 interface Account {
   id: string;
@@ -64,12 +65,24 @@ interface TradeWithTags extends Trade {
   timesManuallySet: boolean;
 }
 
+interface DayVoiceNoteData {
+  id: string;
+  dayJournalId: string;
+  filePath: string;
+  duration: number;
+  transcription: string | null;
+  transcriptionHash: string | null;
+  summary: string | null;
+  createdAt: Date;
+}
+
 interface DayJournalData {
   id: string;
   note: string | null;
   youtubeUrl: string | null;
   tags: { tag: { id: string; name: string; color: string } }[];
   screenshots: { id: string; filePath: string; originalName: string }[];
+  voiceNotes: DayVoiceNoteData[];
 }
 
 function capitalizeFirst(str: string): string {
@@ -111,6 +124,7 @@ export function JournalContent({ userId, tags, accounts, symbols }: JournalConte
   const [trades, setTrades] = useState<TradeWithTags[]>([]);
   const [dayJournal, setDayJournal] = useState<DayJournalData | null>(null);
   const [dayScreenshots, setDayScreenshots] = useState<{ id: string; filePath: string; originalName: string }[]>([]);
+  const [dayVoiceNotes, setDayVoiceNotes] = useState<DayVoiceNoteData[]>([]);
   const [note, setNote] = useState('');
   const [dayYoutubeUrl, setDayYoutubeUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +182,7 @@ export function JournalContent({ userId, tags, accounts, symbols }: JournalConte
         setNote(journalData?.note || '');
         setDayYoutubeUrl(journalData?.youtubeUrl || '');
         setDayScreenshots(journalData?.screenshots || []);
+        setDayVoiceNotes(journalData?.voiceNotes || []);
       } catch (error) {
         console.error('Error loading journal data:', error);
       } finally {
@@ -448,6 +463,13 @@ export function JournalContent({ userId, tags, accounts, symbols }: JournalConte
             onScreenshotsChange={setDayScreenshots}
             isSaving={isSaving}
             onSave={handleSaveNote}
+          />
+          
+          {/* Voice Notes */}
+          <JournalVoiceNotesSection
+            dateStr={formatDateForServer(selectedDate)}
+            timezoneOffset={getTimezoneOffset()}
+            initialVoiceNotes={dayVoiceNotes}
           />
         </div>
       </div>

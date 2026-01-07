@@ -33,6 +33,7 @@ const navItems = [
   { href: '/playbooks', icon: ListChecks, labelKey: 'playbooks' },
   { href: '/importer', icon: Upload, labelKey: 'import' },
   { href: '/comptes', icon: Wallet, labelKey: 'accounts' },
+  { href: '/settings', icon: Settings, labelKey: 'settings' },
 ];
 
 export function Sidebar() {

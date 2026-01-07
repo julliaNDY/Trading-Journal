@@ -11,6 +11,8 @@ export async function updateTradeDetails(
   data: {
     stopLossPriceInitial?: number | null;
     profitTarget?: number | null;
+    floatingDrawdownUsd?: number | null;
+    floatingRunupUsd?: number | null;
   }
 ) {
   const user = await getUser();
@@ -56,6 +58,8 @@ export async function updateTradeDetails(
       profitTarget: data.profitTarget,
       plannedRMultiple,
       realizedRMultiple,
+      floatingDrawdownUsd: data.floatingDrawdownUsd,
+      floatingRunupUsd: data.floatingRunupUsd,
     },
   });
 

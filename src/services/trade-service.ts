@@ -298,6 +298,9 @@ export interface MergeTradeInput {
   accountId?: string | null;
   partialExits?: PartialExitInput[];
   timesManuallySet?: boolean;
+  // Drawdown/Runup (MAE/MFE) from OCR
+  floatingDrawdownUsd?: number | null;
+  floatingRunupUsd?: number | null;
 }
 
 /**
@@ -442,7 +445,17 @@ export async function mergeTradeData(
     needsUpdate = true;
   }
   
-  // 4. Apply updates if needed
+  // 4. Drawdown/Runup enrichment (only if existing has none and new has values)
+  if (existingTrade.floatingDrawdownUsd === null && newData.floatingDrawdownUsd !== undefined && newData.floatingDrawdownUsd !== null) {
+    updates.floatingDrawdownUsd = newData.floatingDrawdownUsd;
+    needsUpdate = true;
+  }
+  if (existingTrade.floatingRunupUsd === null && newData.floatingRunupUsd !== undefined && newData.floatingRunupUsd !== null) {
+    updates.floatingRunupUsd = newData.floatingRunupUsd;
+    needsUpdate = true;
+  }
+  
+  // 5. Apply updates if needed
   if (needsUpdate) {
     const updatedTrade = await prisma.trade.update({
       where: { id: existingTrade.id },
@@ -518,6 +531,9 @@ export async function createOrMergeTrade(input: MergeTradeInput): Promise<MergeR
       tradeSignature,
       timesManuallySet: input.timesManuallySet ?? false,
       hasPartialExits: (input.partialExits?.length ?? 0) > 1,
+      // Drawdown/Runup from OCR (MAE/MFE)
+      floatingDrawdownUsd: input.floatingDrawdownUsd,
+      floatingRunupUsd: input.floatingRunupUsd,
     },
   });
   

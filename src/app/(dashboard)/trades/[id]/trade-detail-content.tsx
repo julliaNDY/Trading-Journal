@@ -55,6 +55,9 @@ import {
 import { toggleTradeReviewed } from '@/app/actions/trades';
 import type { Trade, Account } from '@prisma/client';
 import { CheckCircle, Circle } from 'lucide-react';
+import { VoiceNotesSection } from '@/components/audio';
+import { LazyTradeChart as TradeChart } from '@/components/charts/lazy';
+import type { VoiceNoteData } from '@/app/actions/voice-notes';
 
 interface PartialExit {
   id: string;
@@ -91,9 +94,14 @@ interface PlaybookForSelection {
 interface TradeDetailContentProps {
   trade: TradeWithRelations;
   playbooks: PlaybookForSelection[];
+  voiceNotes: VoiceNoteData[];
+  brokerConnection?: {
+    hasBrokerConnection: boolean;
+    brokerType: string;
+  };
 }
 
-export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDetailContentProps) {
+export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes: initialVoiceNotes, brokerConnection }: TradeDetailContentProps) {
   const t = useTranslations('tradeDetail');
   const tTrade = useTranslations('trade');
   const tCommon = useTranslations('common');
@@ -119,6 +127,8 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
   const [rating, setRating] = useState(trade.rating || 0);
   const [stopLoss, setStopLoss] = useState(trade.stopLossPriceInitial ? Number(trade.stopLossPriceInitial).toString() : '');
   const [profitTarget, setProfitTarget] = useState(trade.profitTarget ? Number(trade.profitTarget).toString() : '');
+  const [drawdown, setDrawdown] = useState(trade.floatingDrawdownUsd ? Number(trade.floatingDrawdownUsd).toString() : '');
+  const [runup, setRunup] = useState(trade.floatingRunupUsd ? Number(trade.floatingRunupUsd).toString() : '');
   
   // Local state for R multiples (to update immediately after save)
   const [localRealizedRMultiple, setLocalRealizedRMultiple] = useState<number | null>(
@@ -210,10 +220,14 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
     try {
       const stopLossValue = stopLoss ? parseFloat(stopLoss) : null;
       const profitTargetValue = profitTarget ? parseFloat(profitTarget) : null;
+      const drawdownValue = drawdown ? parseFloat(drawdown) : null;
+      const runupValue = runup ? parseFloat(runup) : null;
       
       await updateTradeDetails(trade.id, {
         stopLossPriceInitial: stopLossValue,
         profitTarget: profitTargetValue,
+        floatingDrawdownUsd: drawdownValue,
+        floatingRunupUsd: runupValue,
       });
       
       // Calculate R multiples locally for immediate UI update
@@ -433,6 +447,24 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
         </div>
       </div>
 
+      {/* Trade Chart */}
+      <TradeChart
+        symbol={trade.symbol}
+        direction={trade.direction as 'LONG' | 'SHORT'}
+        entryPrice={entryPrice}
+        exitPrice={exitPrice}
+        stopLoss={trade.stopLossPriceInitial ? Number(trade.stopLossPriceInitial) : null}
+        profitTarget={trade.profitTarget ? Number(trade.profitTarget) : null}
+        openedAt={new Date(trade.openedAt)}
+        closedAt={new Date(trade.closedAt)}
+        partialExits={trade.partialExits?.map(exit => ({
+          exitPrice: Number(exit.exitPrice),
+          exitedAt: new Date(exit.exitedAt),
+        }))}
+        hasBrokerConnection={brokerConnection?.hasBrokerConnection}
+        brokerType={brokerConnection?.brokerType}
+      />
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column - Trade Info */}
         <div className="space-y-6">
@@ -620,6 +652,38 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
                       <span className="text-xs text-muted-foreground ml-1">({t('avgPrice')})</span>
                     )}
                   </p>
+                </div>
+              </div>
+
+              {/* Drawdown & Runup */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    {t('drawdown')}
+                    <span className="text-xs text-muted-foreground" title={t('drawdownTooltip')}>($)</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={drawdown}
+                    onChange={(e) => setDrawdown(e.target.value)}
+                    placeholder="0.00"
+                    className="text-red-400"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    {t('runup')}
+                    <span className="text-xs text-muted-foreground" title={t('runupTooltip')}>($)</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={runup}
+                    onChange={(e) => setRunup(e.target.value)}
+                    placeholder="0.00"
+                    className="text-green-400"
+                  />
                 </div>
               </div>
 
@@ -842,6 +906,9 @@ export function TradeDetailContent({ trade: initialTrade, playbooks }: TradeDeta
               </div>
             </CardContent>
           </Card>
+
+          {/* Voice Notes */}
+          <VoiceNotesSection tradeId={trade.id} initialVoiceNotes={initialVoiceNotes} />
 
           {/* Tags */}
           {trade.tags.length > 0 && (

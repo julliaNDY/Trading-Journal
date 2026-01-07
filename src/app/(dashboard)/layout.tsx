@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
+import { AICoachButton } from '@/components/coach';
 
 export default async function DashboardLayout({
   children,
@@ -21,6 +22,7 @@ export default async function DashboardLayout({
         <Topbar email={user.email} />
         <main className="p-6 lg:p-8">{children}</main>
       </div>
+      <AICoachButton />
     </div>
   );
 }

@@ -12,6 +12,12 @@ const mimeTypes: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
+  // Audio types for voice notes
+  '.webm': 'audio/webm',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
 };
 
 export async function GET(

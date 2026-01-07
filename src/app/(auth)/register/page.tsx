@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle } from 'lucide-react';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
+import { SocialLoginButtons } from '@/components/auth/social-login-buttons';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -152,6 +153,9 @@ export default function RegisterPage() {
 
           <CardFooter className="flex flex-col gap-4">
             <SubmitButton />
+            
+            <SocialLoginButtons />
+            
             <p className="text-sm text-muted-foreground text-center">
               {t('hasAccount')}{' '}
               <Link href="/login" className="text-primary hover:underline font-medium">

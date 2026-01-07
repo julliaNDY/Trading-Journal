@@ -16,8 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency, formatNumber, formatPercent, formatDurationWithSeconds } from '@/lib/utils';
 import type { GlobalStats, EquityPoint, HourlyStats, FiveMinuteStats } from '@/services/stats-service';
 import type { Trade } from '@prisma/client';
-import { EquityChart } from '@/components/charts/equity-chart';
-import { HourlyChart } from '@/components/charts/hourly-chart';
+import { LazyEquityChart as EquityChart, LazyHourlyChart as HourlyChart } from '@/components/charts/lazy';
 import { cn } from '@/lib/utils';
 
 interface DashboardContentProps {
