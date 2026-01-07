@@ -4,6 +4,8 @@ import { getUniqueSymbols } from '@/services/trade-service';
 import prisma from '@/lib/prisma';
 import { TradesContent } from './trades-content';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TradesPage() {
   const user = await requireAuth();
   const [trades, playbooks, symbols, accounts] = await Promise.all([

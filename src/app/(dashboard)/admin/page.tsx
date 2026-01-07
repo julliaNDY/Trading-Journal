@@ -3,6 +3,8 @@ import { getUser } from '@/lib/auth';
 import { isAdmin, getAllUsers } from '@/app/actions/admin';
 import { AdminContent } from './admin-content';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   const user = await getUser();
   if (!user) {

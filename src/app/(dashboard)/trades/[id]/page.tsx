@@ -6,6 +6,8 @@ import { getPlaybooksForSelection } from '@/app/actions/trades';
 import { getVoiceNotes } from '@/app/actions/voice-notes';
 import { serializeTrade } from '@/services/trade-service';
 
+export const dynamic = 'force-dynamic';
+
 interface TradeDetailPageProps {
   params: Promise<{ id: string }>;
 }

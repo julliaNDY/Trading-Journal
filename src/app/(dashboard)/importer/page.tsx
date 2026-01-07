@@ -4,6 +4,8 @@ import { ImportContent } from './import-content';
 import { getAccountsForSelection } from '@/app/actions/accounts';
 import { Loader2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 async function ImportData() {
   const user = await getUser();
   if (!user) return null;

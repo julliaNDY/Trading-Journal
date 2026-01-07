@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getPublicPlaybook, canImportPlaybook } from '@/app/actions/playbooks';
 import { SharedPlaybookContent } from '../../shared/[token]/shared-playbook-content';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PublicPlaybookPage({
   params,
 }: {

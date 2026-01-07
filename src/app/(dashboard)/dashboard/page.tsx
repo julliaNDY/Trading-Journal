@@ -10,6 +10,8 @@ import {
 import { DashboardContent } from './dashboard-content';
 import { Loader2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 async function DashboardData() {
   const user = await getUser();
   if (!user) return null;

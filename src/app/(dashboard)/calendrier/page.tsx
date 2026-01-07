@@ -5,6 +5,8 @@ import { calculateDailyPnl } from '@/services/stats-service';
 import { CalendarContent } from './calendar-content';
 import { Loader2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 async function CalendarData() {
   const user = await getUser();
   if (!user) return null;

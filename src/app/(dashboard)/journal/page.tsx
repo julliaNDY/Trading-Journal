@@ -5,6 +5,8 @@ import { getUniqueSymbols } from '@/services/trade-service';
 import { JournalContent } from './journal-content';
 import { Loader2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 async function JournalData() {
   const user = await getUser();
   if (!user) return null;
