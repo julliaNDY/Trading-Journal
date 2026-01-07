@@ -154,9 +154,10 @@ export async function requestPasswordReset(
   try {
     const supabase = await createClient()
 
-    // Rediriger vers le callback serveur qui échangera le code PKCE
+    // Note: PKCE doit être désactivé dans Supabase Dashboard pour que ça fonctionne
+    // Dashboard > Authentication > Providers > Email > Désactiver "Use PKCE"
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/auth/callback/recovery`,
+      redirectTo: `${getAppUrl()}/reset-password`,
     })
 
     if (error) {
