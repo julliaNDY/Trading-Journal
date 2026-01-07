@@ -9,6 +9,45 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-07 08:35] - Fix i18n: English as Default + Hardcoded Text Audit
+
+### 📝 Demande utilisateur
+> Fix login button not working, pricing page buttons not working, and change default language from French to English. Audit all hardcoded French texts.
+
+### 🔧 Modifications techniques
+
+**Fichiers créés :**
+- `src/app/error.tsx` — Global error boundary component
+- `src/app/global-error.tsx` — Root layout error boundary
+- `prisma/seed-plans.ts` — Script to seed subscription plans
+
+**Fichiers modifiés :**
+- `i18n.ts` — Changed default locale from 'fr' to 'en'
+- `src/i18n/config.ts` — Updated defaultLocale to 'en'
+- `src/middleware.ts` — Updated default locale detection
+- `src/app/actions/auth.ts` — All error messages translated to English
+- `src/app/actions/profile.ts` — All error messages translated to English
+- `src/app/actions/subscription.ts` — All error messages translated to English
+- `src/lib/validations.ts` — All validation messages translated to English
+- `src/app/not-found.tsx` — Text changed to English
+- `src/app/(auth)/login/login-content.tsx` — Fallback text in English
+- `src/app/reset-password/reset-password-content.tsx` — Fallback text in English
+- `src/components/layout/topbar.tsx` — Fixed Profile/Settings navigation links
+- `messages/en.json` — Added nav.profile and nav.personalAccount keys
+- `messages/fr.json` — Added nav.profile and nav.personalAccount keys
+
+### 💡 Pourquoi
+- Default language was French but users expected English
+- Navigation links in topbar weren't working
+- Server action error messages were hardcoded in French
+- Added error boundary components for better error handling
+
+### 🔗 Contexte additionnel
+- Subscription plans seed script ready for VPS deployment
+- Build successful with 0 errors
+
+---
+
 ## [2026-01-07 07:00] - Epic 1 : Refactoring & Modularisation - ✅ COMPLETE
 
 ### 📝 Demande utilisateur
