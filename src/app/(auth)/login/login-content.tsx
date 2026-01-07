@@ -38,11 +38,11 @@ export function LoginContent() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
-  // Gérer les erreurs de callback auth
+  // Handle auth callback errors
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam === 'auth_callback_error') {
-      setError(t('authCallbackError') || 'Erreur de confirmation. Veuillez réessayer.');
+      setError(t('authCallbackError') || 'Confirmation error. Please try again.');
     }
   }, [searchParams, t]);
 

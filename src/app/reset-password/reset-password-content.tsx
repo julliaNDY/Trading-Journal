@@ -40,7 +40,7 @@ export function ResetPasswordContent() {
   const [success, setSuccess] = useState(false);
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
 
-  // Gérer l'authentification au chargement (hash fragments, code PKCE, ou session existante)
+  // Handle authentication on load (hash fragments, PKCE code, or existing session)
   useEffect(() => {
     const handleAuth = async () => {
       const supabase = createBrowserClient(
@@ -48,7 +48,7 @@ export function ResetPasswordContent() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
 
-      // 1. Vérifier les hash fragments (implicit flow) - ex: #access_token=xxx&type=recovery
+      // 1. Check hash fragments (implicit flow) - e.g.: #access_token=xxx&type=recovery
       if (typeof window !== 'undefined' && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
@@ -75,14 +75,14 @@ export function ResetPasswordContent() {
             return;
           }
 
-          // Session établie - nettoyer le hash de l'URL
+          // Session established - clean URL hash
           window.history.replaceState(null, '', window.location.pathname);
           setIsValidSession(true);
           return;
         }
       }
 
-      // 2. Vérifier le code PKCE dans l'URL (fallback si le callback n'a pas fonctionné)
+      // 2. Check PKCE code in URL (fallback if callback didn't work)
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -97,7 +97,7 @@ export function ResetPasswordContent() {
           }
 
           if (data?.session) {
-            // Nettoyer l'URL
+            // Clean URL
             window.history.replaceState(null, '', window.location.pathname);
             setIsValidSession(true);
             return;
@@ -105,13 +105,13 @@ export function ResetPasswordContent() {
         }
       }
 
-      // 3. Vérifier si on a déjà une session valide (via cookies)
+      // 3. Check if we already have a valid session (via cookies)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
         setIsValidSession(true);
       } else {
-        // Pas de session - afficher erreur
+        // No session - show error
         setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
         setIsValidSession(false);
       }
@@ -126,12 +126,12 @@ export function ResetPasswordContent() {
     const confirmPassword = formData.get('confirmPassword') as string;
     
     if (password.length < 8) {
-      setError(t('passwordTooShort') || 'Le mot de passe doit contenir au moins 8 caractères');
+      setError(t('passwordTooShort') || 'Password must be at least 8 characters');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError(t('passwordMismatch') || 'Les mots de passe ne correspondent pas');
+      setError(t('passwordMismatch') || 'Passwords do not match');
       return;
     }
 
@@ -139,12 +139,12 @@ export function ResetPasswordContent() {
     
     if (result.success) {
       setSuccess(true);
-      // Rediriger vers le dashboard après 2 secondes
+      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
     } else {
-      setError(result.error || 'Une erreur est survenue');
+      setError(result.error || 'An error occurred');
     }
   }
 
@@ -224,10 +224,10 @@ export function ResetPasswordContent() {
           <CardContent className="space-y-4">
             <div className="p-4 text-sm text-success bg-success/10 rounded-lg animate-fade-in flex items-start gap-3">
               <CheckCircle className="h-5 w-5 mt-0.5 shrink-0" />
-              <span>{t('passwordResetSuccess') || 'Mot de passe mis à jour avec succès!'}</span>
+              <span>{t('passwordResetSuccess') || 'Password updated successfully!'}</span>
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              {t('redirectingToDashboard') || 'Redirection vers le tableau de bord...'}
+              {t('redirectingToDashboard') || 'Redirecting to dashboard...'}
             </p>
           </CardContent>
         ) : (

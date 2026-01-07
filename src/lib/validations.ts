@@ -1,43 +1,43 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  email: z.string().email('Email invalide'),
-  password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+  email: z.string().email('Invalid email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: 'Les mots de passe ne correspondent pas',
+  message: 'Passwords do not match',
   path: ['confirmPassword'],
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
+  email: z.string().email('Invalid email'),
+  password: z.string().min(1, 'Password required'),
 });
 
 export const tagSchema = z.object({
-  name: z.string().min(1, 'Nom requis').max(50, 'Nom trop long'),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur invalide'),
+  name: z.string().min(1, 'Name required').max(50, 'Name too long'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color'),
 });
 
 export const dayNoteSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide'),
-  note: z.string().max(10000, 'Note trop longue'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  note: z.string().max(10000, 'Note too long'),
 });
 
 export const stopLossSchema = z.object({
   tradeId: z.string().min(1),
-  stopLossPrice: z.number().positive('Le stop loss doit être positif').nullable(),
+  stopLossPrice: z.number().positive('Stop loss must be positive').nullable(),
 });
 
 export const csvMappingSchema = z.object({
-  symbol: z.string().min(1, 'Mapping symbol requis'),
-  openedAt: z.string().min(1, 'Mapping date ouverture requis'),
-  closedAt: z.string().min(1, 'Mapping date fermeture requis'),
+  symbol: z.string().min(1, 'Symbol mapping required'),
+  openedAt: z.string().min(1, 'Open date mapping required'),
+  closedAt: z.string().min(1, 'Close date mapping required'),
   direction: z.string().optional(),
-  entryPrice: z.string().min(1, 'Mapping prix entrée requis'),
-  exitPrice: z.string().min(1, 'Mapping prix sortie requis'),
-  quantity: z.string().min(1, 'Mapping quantité requis'),
-  realizedPnlUsd: z.string().min(1, 'Mapping PnL requis'),
+  entryPrice: z.string().min(1, 'Entry price mapping required'),
+  exitPrice: z.string().min(1, 'Exit price mapping required'),
+  quantity: z.string().min(1, 'Quantity mapping required'),
+  realizedPnlUsd: z.string().min(1, 'PnL mapping required'),
   floatingRunupUsd: z.string().optional(),
   floatingDrawdownUsd: z.string().optional(),
 });
@@ -81,9 +81,3 @@ export type SetPlaybookVisibilityInput = z.infer<typeof setPlaybookVisibilitySch
 export type GetPublicPlaybooksInput = z.infer<typeof getPublicPlaybooksSchema>;
 export type ImportPlaybookInput = z.infer<typeof importPlaybookSchema>;
 export type ShareTokenInput = z.infer<typeof shareTokenSchema>;
-
-
-
-
-
-

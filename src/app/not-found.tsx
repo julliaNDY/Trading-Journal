@@ -12,9 +12,9 @@ export default function NotFound() {
       <div className="relative z-10 text-center space-y-6 max-w-md">
         <div className="space-y-2">
           <h1 className="text-8xl font-bold text-primary">404</h1>
-          <h2 className="text-2xl font-semibold">Page non trouvée</h2>
+          <h2 className="text-2xl font-semibold">Page Not Found</h2>
           <p className="text-muted-foreground">
-            La page que vous recherchez n&apos;existe pas ou a été déplacée.
+            The page you are looking for does not exist or has been moved.
           </p>
         </div>
         
@@ -28,7 +28,7 @@ export default function NotFound() {
           <Button variant="outline" asChild>
             <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Accueil
+              Home
             </Link>
           </Button>
         </div>
@@ -36,4 +36,3 @@ export default function NotFound() {
     </div>
   );
 }
-

@@ -6,25 +6,25 @@ import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { authLogger } from '@/lib/logger'
 
-// Helper pour obtenir l'URL de l'app côté serveur (runtime, pas build-time)
+// Helper to get the app URL server-side (runtime, not build-time)
 function getAppUrl(): string {
   const appUrl = process.env.APP_URL
   const nextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
   
-  // Priorité à APP_URL (variable serveur pure, lue à runtime)
+  // Priority to APP_URL (pure server variable, read at runtime)
   let url = appUrl || nextPublicAppUrl || 'http://localhost:3000'
   
-  // Validation : rejeter les URLs invalides
+  // Validation: reject invalid URLs
   if (url.includes('0.0.0.0') || url.includes('localhost')) {
     authLogger.warn('Using localhost/0.0.0.0 URL - ensure APP_URL is set in production')
   }
   
-  // S'assurer que l'URL a un protocole
+  // Ensure URL has a protocol
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`
   }
   
-  // Enlever le trailing slash
+  // Remove trailing slash
   url = url.replace(/\/$/, '')
   
   return url
@@ -32,19 +32,19 @@ function getAppUrl(): string {
 
 const registerSchema = z
   .object({
-    email: z.string().email('Email invalide'),
+    email: z.string().email('Invalid email'),
     discordUsername: z.string().optional(),
-    password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Les mots de passe ne correspondent pas',
+    message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
 
 const loginSchema = z.object({
-  email: z.string().email('Email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
+  email: z.string().email('Invalid email'),
+  password: z.string().min(1, 'Password is required'),
 })
 
 export async function register(
@@ -68,7 +68,7 @@ export async function register(
   try {
     const supabase = await createClient()
 
-    // Créer user dans Supabase Auth
+    // Create user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -81,22 +81,22 @@ export async function register(
     })
 
     if (error) {
-      // Traduire les erreurs Supabase courantes
+      // Translate common Supabase errors
       if (error.message.includes('already registered')) {
-        return { error: 'Cet email est déjà utilisé' }
+        return { error: 'This email is already registered' }
       }
       if (error.message.includes('Password should be')) {
-        return { error: 'Le mot de passe doit contenir au moins 6 caractères' }
+        return { error: 'Password must be at least 6 characters' }
       }
       return { error: error.message }
     }
 
     if (!data.user) {
-      return { error: "Erreur lors de l'inscription" }
+      return { error: 'Registration failed' }
     }
 
-    // Note: L'user sera créé dans public.users via le callback
-    // après confirmation de l'email
+    // Note: User will be created in public.users via the callback
+    // after email confirmation
 
     return {
       success: true,
@@ -104,7 +104,7 @@ export async function register(
     }
   } catch (error) {
     authLogger.error('Register error', error)
-    return { error: "Une erreur est survenue lors de l'inscription" }
+    return { error: 'An error occurred during registration' }
   }
 }
 
@@ -125,14 +125,14 @@ export async function login(
   const { email, password } = validatedData.data
 
   try {
-    // Vérifier si user est bloqué avant auth
+    // Check if user is blocked before auth
     const publicUser = await prisma.user.findFirst({
       where: { email },
       select: { isBlocked: true },
     })
 
     if (publicUser?.isBlocked) {
-      return { error: 'Votre compte a été bloqué. Contactez un administrateur.' }
+      return { error: 'Your account has been blocked. Please contact an administrator.' }
     }
 
     const supabase = await createClient()
@@ -143,18 +143,18 @@ export async function login(
     })
 
     if (error) {
-      // Traduire les erreurs Supabase courantes
+      // Translate common Supabase errors
       if (error.message.includes('Invalid login credentials')) {
-        return { error: 'Email ou mot de passe incorrect' }
+        return { error: 'Invalid email or password' }
       }
       if (error.message.includes('Email not confirmed')) {
-        return { error: 'Veuillez confirmer votre email avant de vous connecter' }
+        return { error: 'Please confirm your email before logging in' }
       }
       return { error: error.message }
     }
   } catch (error) {
     authLogger.error('Login error', error)
-    return { error: 'Une erreur est survenue lors de la connexion' }
+    return { error: 'An error occurred while logging in' }
   }
 
   redirect('/dashboard')
@@ -171,8 +171,8 @@ export async function requestPasswordReset(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const supabase = await createClient()
-    // Utiliser le callback route pour que le code soit échangé côté serveur
-    // où les cookies (code_verifier PKCE) sont accessibles
+    // Use the callback route so the code is exchanged server-side
+    // where cookies (PKCE code_verifier) are accessible
     const redirectUrl = `${getAppUrl()}/auth/callback?type=recovery`
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -183,11 +183,11 @@ export async function requestPasswordReset(
       authLogger.error('Password reset error', error)
     }
 
-    // Toujours retourner success pour éviter l'énumération d'emails
+    // Always return success to prevent email enumeration
     return { success: true }
   } catch (error) {
     authLogger.error('Password reset exception', error)
-    return { success: true } // Ne pas révéler d'erreur
+    return { success: true } // Don't reveal errors
   }
 }
 
@@ -196,7 +196,7 @@ export async function updatePassword(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (newPassword.length < 8) {
-      return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' }
+      return { success: false, error: 'Password must be at least 8 characters' }
     }
 
     const supabase = await createClient()
@@ -212,6 +212,6 @@ export async function updatePassword(
     return { success: true }
   } catch (error) {
     authLogger.error('Update password error', error)
-    return { success: false, error: 'Une erreur est survenue' }
+    return { success: false, error: 'An error occurred' }
   }
 }

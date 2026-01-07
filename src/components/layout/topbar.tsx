@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,7 @@ interface TopbarProps {
 
 export function Topbar({ email }: TopbarProps) {
   const t = useTranslations('auth');
+  const tNav = useTranslations('nav');
 
   const handleLogout = async () => {
     await logout();
@@ -46,18 +48,22 @@ export function Topbar({ email }: TopbarProps) {
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{email}</p>
               <p className="text-xs leading-none text-muted-foreground">
-                Compte personnel
+                {tNav('personalAccount')}
               </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profil</span>
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <Link href="/settings">
+              <User className="mr-2 h-4 w-4" />
+              <span>{tNav('profile')}</span>
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Paramètres</span>
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <Link href="/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>{tNav('settings')}</span>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -72,9 +78,3 @@ export function Topbar({ email }: TopbarProps) {
     </header>
   );
 }
-
-
-
-
-
-

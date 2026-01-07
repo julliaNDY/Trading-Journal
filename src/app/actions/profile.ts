@@ -3,9 +3,9 @@
 /**
  * Profile Server Actions
  * 
- * Epic 10: Gestion de Profil Avancée
+ * Epic 10: Advanced Profile Management
  * - Avatar upload/delete
- * - Account deletion (RGPD)
+ * - Account deletion (GDPR)
  * - Email/password change
  * - Language preference
  * - Trading account archiving
@@ -48,23 +48,23 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult<{ a
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const file = formData.get('avatar') as File;
     if (!file || file.size === 0) {
-      return { success: false, error: 'Aucun fichier fourni' };
+      return { success: false, error: 'No file provided' };
     }
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
-      return { success: false, error: 'Type de fichier non supporté (JPG, PNG, WebP, GIF uniquement)' };
+      return { success: false, error: 'Unsupported file type (JPG, PNG, WebP, GIF only)' };
     }
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      return { success: false, error: 'Fichier trop volumineux (max 2 Mo)' };
+      return { success: false, error: 'File too large (max 2 MB)' };
     }
 
     const supabase = await createClient();
@@ -96,7 +96,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult<{ a
 
     if (error) {
       profileLogger.error('Storage upload error', error);
-      return { success: false, error: 'Erreur lors de l\'upload' };
+      return { success: false, error: 'Upload failed' };
     }
 
     // Get public URL
@@ -114,7 +114,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult<{ a
     return { success: true, data: { avatarUrl: publicUrl } };
   } catch (error) {
     profileLogger.error('Error uploading avatar', error);
-    return { success: false, error: 'Erreur lors de l\'upload de l\'avatar' };
+    return { success: false, error: 'Failed to upload avatar' };
   }
 }
 
@@ -125,7 +125,7 @@ export async function deleteAvatar(): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const user = await prisma.user.findUnique({
@@ -150,23 +150,23 @@ export async function deleteAvatar(): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     profileLogger.error('Error deleting avatar', error);
-    return { success: false, error: 'Erreur lors de la suppression de l\'avatar' };
+    return { success: false, error: 'Failed to delete avatar' };
   }
 }
 
 // ============================================================================
-// ACCOUNT DELETION (Story 10.2 - RGPD)
+// ACCOUNT DELETION (Story 10.2 - GDPR)
 // ============================================================================
 
 /**
  * Delete user account and all associated data
- * RGPD compliant - removes all personal data
+ * GDPR compliant - removes all personal data
  */
 export async function deleteAccount(confirmEmail: string): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     // Get user to verify email
@@ -176,12 +176,12 @@ export async function deleteAccount(confirmEmail: string): Promise<ActionResult>
     });
 
     if (!user) {
-      return { success: false, error: 'Utilisateur non trouvé' };
+      return { success: false, error: 'User not found' };
     }
 
     // Verify email confirmation
     if (user.email.toLowerCase() !== confirmEmail.toLowerCase()) {
-      return { success: false, error: 'L\'email de confirmation ne correspond pas' };
+      return { success: false, error: 'Confirmation email does not match' };
     }
 
     const supabase = await createClient();
@@ -242,7 +242,7 @@ export async function deleteAccount(confirmEmail: string): Promise<ActionResult>
     return { success: true };
   } catch (error) {
     profileLogger.error('Error deleting account', error);
-    return { success: false, error: 'Erreur lors de la suppression du compte' };
+    return { success: false, error: 'Failed to delete account' };
   }
 }
 
@@ -257,7 +257,7 @@ export async function archiveAccount(accountId: string): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     // Verify ownership
@@ -266,7 +266,7 @@ export async function archiveAccount(accountId: string): Promise<ActionResult> {
     });
 
     if (!account) {
-      return { success: false, error: 'Compte non trouvé' };
+      return { success: false, error: 'Account not found' };
     }
 
     // Update account name to indicate archived status
@@ -274,7 +274,7 @@ export async function archiveAccount(accountId: string): Promise<ActionResult> {
       where: { id: accountId },
       data: {
         name: `[ARCHIVED] ${account.name}`,
-        description: `Archivé le ${new Date().toLocaleDateString('fr-FR')}. ${account.description || ''}`,
+        description: `Archived on ${new Date().toLocaleDateString('en-US')}. ${account.description || ''}`,
       },
     });
 
@@ -282,7 +282,7 @@ export async function archiveAccount(accountId: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     profileLogger.error('Error archiving account', error);
-    return { success: false, error: 'Erreur lors de l\'archivage du compte' };
+    return { success: false, error: 'Failed to archive account' };
   }
 }
 
@@ -293,7 +293,7 @@ export async function restoreAccount(accountId: string): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const account = await prisma.account.findFirst({
@@ -301,7 +301,7 @@ export async function restoreAccount(accountId: string): Promise<ActionResult> {
     });
 
     if (!account) {
-      return { success: false, error: 'Compte non trouvé' };
+      return { success: false, error: 'Account not found' };
     }
 
     // Remove [ARCHIVED] prefix
@@ -311,7 +311,7 @@ export async function restoreAccount(accountId: string): Promise<ActionResult> {
       where: { id: accountId },
       data: {
         name: newName,
-        description: account.description?.replace(/Archivé le .+?\. /, '') || null,
+        description: account.description?.replace(/Archived on .+?\. /, '') || null,
       },
     });
 
@@ -319,7 +319,7 @@ export async function restoreAccount(accountId: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     profileLogger.error('Error restoring account', error);
-    return { success: false, error: 'Erreur lors de la restauration du compte' };
+    return { success: false, error: 'Failed to restore account' };
   }
 }
 
@@ -334,7 +334,7 @@ export async function updateEmail(newEmail: string): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const supabase = await createClient();
@@ -346,7 +346,7 @@ export async function updateEmail(newEmail: string): Promise<ActionResult> {
 
     if (error) {
       if (error.message.includes('already registered')) {
-        return { success: false, error: 'Cet email est déjà utilisé' };
+        return { success: false, error: 'This email is already in use' };
       }
       return { success: false, error: error.message };
     }
@@ -354,7 +354,7 @@ export async function updateEmail(newEmail: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     profileLogger.error('Error updating email', error);
-    return { success: false, error: 'Erreur lors de la mise à jour de l\'email' };
+    return { success: false, error: 'Failed to update email' };
   }
 }
 
@@ -368,12 +368,12 @@ export async function updatePassword(
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     // Validate new password
     if (newPassword.length < 8) {
-      return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' };
+      return { success: false, error: 'Password must be at least 8 characters' };
     }
 
     const supabase = await createClient();
@@ -381,7 +381,7 @@ export async function updatePassword(
     // Get current user email
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.email) {
-      return { success: false, error: 'Email non trouvé' };
+      return { success: false, error: 'Email not found' };
     }
 
     // Verify current password by re-authenticating
@@ -391,7 +391,7 @@ export async function updatePassword(
     });
 
     if (signInError) {
-      return { success: false, error: 'Mot de passe actuel incorrect' };
+      return { success: false, error: 'Current password is incorrect' };
     }
 
     // Update password
@@ -406,7 +406,7 @@ export async function updatePassword(
     return { success: true };
   } catch (error) {
     profileLogger.error('Error updating password', error);
-    return { success: false, error: 'Erreur lors de la mise à jour du mot de passe' };
+    return { success: false, error: 'Failed to update password' };
   }
 }
 
@@ -421,13 +421,13 @@ export async function updateLanguagePreference(locale: string): Promise<ActionRe
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     // Validate locale
     const validLocales = ['fr', 'en'];
     if (!validLocales.includes(locale)) {
-      return { success: false, error: 'Langue non supportée' };
+      return { success: false, error: 'Unsupported language' };
     }
 
     // Update in database
@@ -447,7 +447,7 @@ export async function updateLanguagePreference(locale: string): Promise<ActionRe
     return { success: true };
   } catch (error) {
     profileLogger.error('Error updating language preference', error);
-    return { success: false, error: 'Erreur lors de la mise à jour de la langue' };
+    return { success: false, error: 'Failed to update language' };
   }
 }
 
@@ -499,4 +499,3 @@ export async function getProfile() {
     return null;
   }
 }
-

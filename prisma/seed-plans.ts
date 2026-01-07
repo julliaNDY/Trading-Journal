@@ -1,144 +1,150 @@
 /**
- * Seed Plans Script
- * Story 11.1 - Architecture Subscription Backend
+ * Seed subscription plans in the database
  * 
- * Usage: npx tsx prisma/seed-plans.ts
+ * Run: npx tsx prisma/seed-plans.ts
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PlanInterval } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const FREE_FEATURES = {
-  maxTrades: 50,
-  maxAccounts: 1,
-  voiceNotes: false,
-  aiCoach: false,
-  advancedStats: false,
-  exportData: false,
-  prioritySupport: false,
-};
-
-const PRO_FEATURES = {
-  maxTrades: null, // unlimited
-  maxAccounts: 10,
-  voiceNotes: true,
-  aiCoach: true,
-  advancedStats: true,
-  exportData: true,
-  prioritySupport: true,
-};
-
-const PLANS = [
+const plans = [
   {
-    name: 'Free',
-    description: 'Perfect for getting started with trade journaling',
-    price: 0,
-    interval: 'MONTHLY' as const,
-    features: FREE_FEATURES,
-    isActive: true,
-    trialDays: 14,
+    name: 'monthly',
+    displayName: 'Monthly',
+    description: 'Full access to all features',
+    price: 10.00,
+    interval: PlanInterval.MONTHLY,
+    features: [
+      'Unlimited trades import',
+      'Advanced analytics',
+      'AI Coach & Insights',
+      'Voice notes transcription',
+      'Broker sync (Tradovate, IBKR)',
+      'TradingView integration',
+      'Playbook sharing',
+      'Priority support',
+    ],
+    trialDays: 7,
+    sortOrder: 1,
+    savings: null,
   },
   {
-    name: 'Pro Monthly',
-    description: 'Full access billed monthly',
-    price: 19,
-    interval: 'MONTHLY' as const,
-    features: PRO_FEATURES,
-    isActive: true,
-    trialDays: 0,
+    name: 'quarterly',
+    displayName: 'Quarterly',
+    description: '3 months - Save 33%',
+    price: 20.00,
+    interval: PlanInterval.QUARTERLY,
+    features: [
+      'Unlimited trades import',
+      'Advanced analytics',
+      'AI Coach & Insights',
+      'Voice notes transcription',
+      'Broker sync (Tradovate, IBKR)',
+      'TradingView integration',
+      'Playbook sharing',
+      'Priority support',
+    ],
+    trialDays: 7,
+    sortOrder: 2,
+    savings: 'Save 33%',
   },
   {
-    name: 'Pro Quarterly',
-    description: 'Full access billed every 3 months - Save 14%',
-    price: 49,
-    interval: 'QUARTERLY' as const,
-    features: PRO_FEATURES,
-    isActive: true,
-    trialDays: 0,
+    name: 'biannual',
+    displayName: 'Semi-Annual',
+    description: '6 months - Save 17%',
+    price: 50.00,
+    interval: PlanInterval.BIANNUAL,
+    features: [
+      'Unlimited trades import',
+      'Advanced analytics',
+      'AI Coach & Insights',
+      'Voice notes transcription',
+      'Broker sync (Tradovate, IBKR)',
+      'TradingView integration',
+      'Playbook sharing',
+      'Priority support',
+    ],
+    trialDays: 7,
+    sortOrder: 3,
+    savings: 'Save 17%',
   },
   {
-    name: 'Pro Biannual',
-    description: 'Full access billed every 6 months - Save 22%',
-    price: 89,
-    interval: 'BIANNUAL' as const,
-    features: PRO_FEATURES,
-    isActive: true,
-    trialDays: 0,
-  },
-  {
-    name: 'Pro Annual',
-    description: 'Full access billed yearly - Save 35%',
-    price: 149,
-    interval: 'ANNUAL' as const,
-    features: PRO_FEATURES,
-    isActive: true,
-    trialDays: 0,
+    name: 'annual',
+    displayName: 'Annual',
+    description: '12 months - Best value!',
+    price: 70.00,
+    interval: PlanInterval.ANNUAL,
+    features: [
+      'Unlimited trades import',
+      'Advanced analytics',
+      'AI Coach & Insights',
+      'Voice notes transcription',
+      'Broker sync (Tradovate, IBKR)',
+      'TradingView integration',
+      'Playbook sharing',
+      'Priority support',
+      'Early access to new features',
+    ],
+    trialDays: 7,
+    sortOrder: 4,
+    savings: 'Save 42%',
   },
 ];
 
-async function seedPlans() {
-  console.log('🌱 Seeding plans...\n');
+async function main() {
+  console.log('🌱 Seeding subscription plans...');
 
-  for (const plan of PLANS) {
-    const existing = await prisma.plan.findUnique({
+  for (const plan of plans) {
+    const existingPlan = await prisma.plan.findUnique({
       where: { name: plan.name },
     });
 
-    if (existing) {
-      console.log(`  ⏭️  Plan "${plan.name}" already exists, updating...`);
+    if (existingPlan) {
+      // Update existing plan
       await prisma.plan.update({
         where: { name: plan.name },
         data: {
+          displayName: plan.displayName,
           description: plan.description,
           price: plan.price,
           interval: plan.interval,
           features: plan.features,
-          isActive: plan.isActive,
           trialDays: plan.trialDays,
+          sortOrder: plan.sortOrder,
+          savings: plan.savings,
+          isActive: true,
         },
       });
+      console.log(`  ✅ Updated plan: ${plan.displayName}`);
     } else {
-      console.log(`  ✅ Creating plan "${plan.name}"...`);
+      // Create new plan
       await prisma.plan.create({
         data: {
           name: plan.name,
+          displayName: plan.displayName,
           description: plan.description,
           price: plan.price,
           interval: plan.interval,
           features: plan.features,
-          isActive: plan.isActive,
           trialDays: plan.trialDays,
+          sortOrder: plan.sortOrder,
+          savings: plan.savings,
+          isActive: true,
         },
       });
+      console.log(`  ✅ Created plan: ${plan.displayName}`);
     }
   }
 
-  console.log('\n✅ Plans seeded successfully!\n');
-
-  // List all plans
-  const allPlans = await prisma.plan.findMany({
-    orderBy: { price: 'asc' },
-  });
-
-  console.log('📋 Current plans:');
-  console.table(
-    allPlans.map((p) => ({
-      Name: p.name,
-      Price: `${p.price}€`,
-      Interval: p.interval,
-      Trial: p.trialDays > 0 ? `${p.trialDays} days` : '-',
-      Active: p.isActive ? '✅' : '❌',
-    }))
-  );
+  console.log('✨ Subscription plans seeded successfully!');
 }
 
-seedPlans()
-  .catch((error) => {
-    console.error('❌ Error seeding plans:', error);
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding plans:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
-

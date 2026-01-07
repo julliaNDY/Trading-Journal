@@ -162,7 +162,9 @@
     "accounts": "Comptes",
     "settings": "Paramètres",
     "playbooks": "Playbooks",
-    "trades": "Trades"
+    "trades": "Trades",
+    "profile": "Profil",
+    "personalAccount": "Compte personnel"
   },
   "dashboard": {
     "title": "Tableau de bord",

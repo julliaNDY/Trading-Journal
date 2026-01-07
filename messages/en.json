@@ -162,7 +162,9 @@
     "accounts": "Accounts",
     "settings": "Settings",
     "playbooks": "Playbooks",
-    "trades": "Trades"
+    "trades": "Trades",
+    "profile": "Profile",
+    "personalAccount": "Personal account"
   },
   "dashboard": {
     "title": "Dashboard",

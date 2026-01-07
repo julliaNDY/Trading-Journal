@@ -16,6 +16,9 @@ import {
   getSubscriptionStatus,
 } from '@/services/stripe-service';
 import { PlanInterval } from '@prisma/client';
+import { logger } from '@/lib/logger';
+
+const subscriptionLogger = logger.child('Subscription');
 
 // ============================================================================
 // TYPES
@@ -75,7 +78,7 @@ export async function createCheckoutSessionAction(
     const userId = await getCurrentUserId();
     
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const appUrl = getAppUrl();
@@ -89,10 +92,10 @@ export async function createCheckoutSessionAction(
 
     return { success: true, data: { url: checkoutUrl } };
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    subscriptionLogger.error('Error creating checkout session:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erreur lors de la création du paiement' 
+      error: error instanceof Error ? error.message : 'Failed to create payment session' 
     };
   }
 }
@@ -105,7 +108,7 @@ export async function createBillingPortalAction(): Promise<ActionResult<{ url: s
     const userId = await getCurrentUserId();
     
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     const appUrl = getAppUrl();
@@ -113,10 +116,10 @@ export async function createBillingPortalAction(): Promise<ActionResult<{ url: s
 
     return { success: true, data: { url: portalUrl } };
   } catch (error) {
-    console.error('Error creating billing portal session:', error);
+    subscriptionLogger.error('Error creating billing portal session:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erreur lors de l\'accès au portail' 
+      error: error instanceof Error ? error.message : 'Failed to access billing portal' 
     };
   }
 }
@@ -129,16 +132,16 @@ export async function cancelSubscriptionAction(): Promise<ActionResult> {
     const userId = await getCurrentUserId();
     
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     await cancelSubscription(userId);
     return { success: true };
   } catch (error) {
-    console.error('Error canceling subscription:', error);
+    subscriptionLogger.error('Error canceling subscription:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erreur lors de l\'annulation' 
+      error: error instanceof Error ? error.message : 'Failed to cancel subscription' 
     };
   }
 }
@@ -151,16 +154,16 @@ export async function reactivateSubscriptionAction(): Promise<ActionResult> {
     const userId = await getCurrentUserId();
     
     if (!userId) {
-      return { success: false, error: 'Non authentifié' };
+      return { success: false, error: 'Not authenticated' };
     }
 
     await reactivateSubscription(userId);
     return { success: true };
   } catch (error) {
-    console.error('Error reactivating subscription:', error);
+    subscriptionLogger.error('Error reactivating subscription:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Erreur lors de la réactivation' 
+      error: error instanceof Error ? error.message : 'Failed to reactivate subscription' 
     };
   }
 }
@@ -185,7 +188,7 @@ export async function getSubscriptionStatusAction() {
 
     return await getSubscriptionStatus(userId);
   } catch (error) {
-    console.error('Error getting subscription status:', error);
+    subscriptionLogger.error('Error getting subscription status:', error);
     return {
       hasActiveSubscription: false,
       isTrialing: false,
@@ -232,7 +235,7 @@ export async function getInvoiceHistory() {
       invoicePdfUrl: invoice.invoicePdfUrl,
     }));
   } catch (error) {
-    console.error('Error getting invoice history:', error);
+    subscriptionLogger.error('Error getting invoice history:', error);
     return [];
   }
 }
@@ -251,7 +254,7 @@ export async function checkPremiumAccess(): Promise<boolean> {
     const status = await getSubscriptionStatus(userId);
     return status.hasActiveSubscription;
   } catch (error) {
-    console.error('Error checking premium access:', error);
+    subscriptionLogger.error('Error checking premium access:', error);
     return false;
   }
 }
