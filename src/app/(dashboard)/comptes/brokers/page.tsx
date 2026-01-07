@@ -4,6 +4,9 @@ import { getUserBrokerConnections } from '@/app/actions/broker';
 import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 
+// Force dynamic rendering (required for next-intl in server components)
+export const dynamic = 'force-dynamic';
+
 export default async function BrokersPage() {
   const t = await getTranslations('brokers');
   const user = await getUser();
