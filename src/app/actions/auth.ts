@@ -7,9 +7,33 @@ import prisma from '@/lib/prisma'
 
 // Helper pour obtenir l'URL de l'app côté serveur (runtime, pas build-time)
 function getAppUrl(): string {
+  const appUrl = process.env.APP_URL
+  const nextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  
+  // Log pour debugging
+  console.log('[getAppUrl] APP_URL:', appUrl)
+  console.log('[getAppUrl] NEXT_PUBLIC_APP_URL:', nextPublicAppUrl)
+  
   // Priorité à APP_URL (variable serveur pure, lue à runtime)
-  // Fallback sur NEXT_PUBLIC_APP_URL si défini
-  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  let url = appUrl || nextPublicAppUrl || 'http://localhost:3000'
+  
+  // Validation : rejeter les URLs invalides
+  if (url.includes('0.0.0.0') || url.includes('localhost')) {
+    console.warn('[getAppUrl] WARNING: Using localhost/0.0.0.0 URL in production!')
+    // En production, on devrait avoir une vraie URL
+    // Mais on continue pour ne pas casser l'app
+  }
+  
+  // S'assurer que l'URL a un protocole
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`
+  }
+  
+  // Enlever le trailing slash
+  url = url.replace(/\/$/, '')
+  
+  console.log('[getAppUrl] Final URL:', url)
+  return url
 }
 
 const registerSchema = z
@@ -153,21 +177,25 @@ export async function requestPasswordReset(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const supabase = await createClient()
+    const redirectUrl = `${getAppUrl()}/reset-password`
+    
+    console.log('[requestPasswordReset] Sending reset email to:', email)
+    console.log('[requestPasswordReset] Redirect URL:', redirectUrl)
 
-    // Note: PKCE doit être désactivé dans Supabase Dashboard pour que ça fonctionne
-    // Dashboard > Authentication > Providers > Email > Désactiver "Use PKCE"
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/reset-password`,
+      redirectTo: redirectUrl,
     })
 
     if (error) {
-      console.error('Password reset error:', error)
+      console.error('[requestPasswordReset] Supabase error:', error)
+    } else {
+      console.log('[requestPasswordReset] Email sent successfully')
     }
 
     // Toujours retourner success pour éviter l'énumération d'emails
     return { success: true }
   } catch (error) {
-    console.error('Password reset request error:', error)
+    console.error('[requestPasswordReset] Exception:', error)
     return { success: true } // Ne pas révéler d'erreur
   }
 }
