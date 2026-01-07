@@ -1,6 +1,10 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies, headers } from 'next/headers';
-import { locales, defaultLocale, type Locale } from './src/i18n/config';
+
+// Locale configuration
+const locales = ['fr', 'en'] as const;
+type Locale = (typeof locales)[number];
+const defaultLocale: Locale = 'fr';
 
 function detectBrowserLanguage(acceptLanguage: string | null): Locale | null {
   if (!acceptLanguage) return null;
@@ -54,4 +58,3 @@ export default getRequestConfig(async () => {
     messages: (await import(`./messages/${defaultLocale}.json`)).default,
   };
 });
-
