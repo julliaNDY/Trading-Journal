@@ -7,7 +7,7 @@ import { getVoiceNotes } from '@/app/actions/voice-notes';
 import { serializeTrade } from '@/services/trade-service';
 
 interface TradeDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 async function getTrade(tradeId: string, userId: string) {
@@ -60,13 +60,15 @@ async function getBrokerConnection(accountId: string | null, userId: string) {
 }
 
 export default async function TradeDetailPage({ params }: TradeDetailPageProps) {
+  const { id } = await params;
+  
   const user = await getUser();
   if (!user) {
     redirect('/login');
     return null;
   }
 
-  const trade = await getTrade(params.id, user.id);
+  const trade = await getTrade(id, user.id);
   if (!trade) {
     redirect('/trades');
     return null;
@@ -74,7 +76,7 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
 
   const [playbooks, voiceNotes, brokerConnection] = await Promise.all([
     getPlaybooksForSelection(),
-    getVoiceNotes(params.id),
+    getVoiceNotes(id),
     getBrokerConnection(trade.accountId, user.id),
   ]);
 
