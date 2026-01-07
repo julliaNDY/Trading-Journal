@@ -177,7 +177,9 @@ export async function requestPasswordReset(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const supabase = await createClient()
-    const redirectUrl = `${getAppUrl()}/reset-password`
+    // Utiliser le callback route pour que le code soit échangé côté serveur
+    // où les cookies (code_verifier PKCE) sont accessibles
+    const redirectUrl = `${getAppUrl()}/auth/callback?type=recovery`
     
     console.log('[requestPasswordReset] Sending reset email to:', email)
     console.log('[requestPasswordReset] Redirect URL:', redirectUrl)
