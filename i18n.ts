@@ -1,60 +1,21 @@
 import { getRequestConfig } from 'next-intl/server';
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
 
-// Locale configuration
-const locales = ['fr', 'en'] as const;
-type Locale = (typeof locales)[number];
-const defaultLocale: Locale = 'fr';
-
-function detectBrowserLanguage(acceptLanguage: string | null): Locale | null {
-  if (!acceptLanguage) return null;
-  
-  const languages = acceptLanguage
-    .split(',')
-    .map(lang => {
-      const [code, qValue] = lang.trim().split(';q=');
-      return {
-        code: code.split('-')[0].toLowerCase(),
-        quality: qValue ? parseFloat(qValue) : 1.0,
-      };
-    })
-    .sort((a, b) => b.quality - a.quality);
-
-  for (const lang of languages) {
-    if (locales.includes(lang.code as Locale)) {
-      return lang.code as Locale;
-    }
-  }
-  
-  return null;
-}
+// Supported locales
+export const locales = ['fr', 'en'] as const;
+export type Locale = (typeof locales)[number];
+export const defaultLocale: Locale = 'fr';
 
 export default getRequestConfig(async () => {
-  const cookieStore = await cookies();
-  const headerStore = await headers();
+  // Get locale from middleware header or use default
+  const headersList = await headers();
+  const locale = headersList.get('x-next-intl-locale') || defaultLocale;
   
-  // 1. Cookie priority (explicit user choice)
-  const localeCookie = cookieStore.get('locale')?.value;
-  if (localeCookie && locales.includes(localeCookie as Locale)) {
-    return {
-      locale: localeCookie as Locale,
-      messages: (await import(`./messages/${localeCookie}.json`)).default,
-    };
-  }
-  
-  // 2. Browser language detection
-  const acceptLanguage = headerStore.get('accept-language');
-  const browserLocale = detectBrowserLanguage(acceptLanguage);
-  if (browserLocale) {
-    return {
-      locale: browserLocale,
-      messages: (await import(`./messages/${browserLocale}.json`)).default,
-    };
-  }
-  
-  // 3. Fallback to FR
+  // Validate locale
+  const validLocale = locales.includes(locale as Locale) ? locale : defaultLocale;
+
   return {
-    locale: defaultLocale,
-    messages: (await import(`./messages/${defaultLocale}.json`)).default,
+    locale: validLocale,
+    messages: (await import(`./messages/${validLocale}.json`)).default,
   };
 });

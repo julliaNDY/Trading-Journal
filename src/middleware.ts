@@ -1,9 +1,58 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Supported locales
+const locales = ['fr', 'en'] as const;
+type Locale = (typeof locales)[number];
+const defaultLocale: Locale = 'fr';
+
+function detectBrowserLocale(acceptLanguage: string | null): Locale {
+  if (!acceptLanguage) return defaultLocale;
+  
+  const languages = acceptLanguage
+    .split(',')
+    .map(lang => {
+      const [code, qValue] = lang.trim().split(';q=');
+      return {
+        code: code.split('-')[0].toLowerCase(),
+        quality: qValue ? parseFloat(qValue) : 1.0,
+      };
+    })
+    .sort((a, b) => b.quality - a.quality);
+
+  for (const lang of languages) {
+    if (locales.includes(lang.code as Locale)) {
+      return lang.code as Locale;
+    }
+  }
+  
+  return defaultLocale;
+}
+
 export async function middleware(request: NextRequest) {
+  // ========================================
+  // 1. LOCALE HANDLING
+  // ========================================
+  const localeCookie = request.cookies.get('locale')?.value;
+  let locale: Locale;
+  
+  if (localeCookie && locales.includes(localeCookie as Locale)) {
+    locale = localeCookie as Locale;
+  } else {
+    locale = detectBrowserLocale(request.headers.get('accept-language'));
+  }
+  
+  // Set locale header for next-intl
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-next-intl-locale', locale);
+
+  // ========================================
+  // 2. SUPABASE AUTH HANDLING
+  // ========================================
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: requestHeaders,
+    },
   })
 
   const supabase = createServerClient(
@@ -19,7 +68,9 @@ export async function middleware(request: NextRequest) {
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({
-            request,
+            request: {
+              headers: requestHeaders,
+            },
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -29,12 +80,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Ne pas supprimer cette ligne - elle rafraîchit la session
+  // Refresh session
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Routes protégées (dashboard et sous-pages)
+  // ========================================
+  // 3. ROUTE PROTECTION
+  // ========================================
   const protectedPaths = [
     '/dashboard',
     '/journal',
@@ -45,25 +98,24 @@ export async function middleware(request: NextRequest) {
     '/comptes',
     '/playbooks',
     '/admin',
+    '/settings',
   ]
 
   const isProtectedRoute = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   )
 
-  // Rediriger vers login si non authentifié sur route protégée
+  // Redirect to login if not authenticated on protected route
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Routes auth (login, register, forgot-password)
-  // Note: /reset-password est autorisé même si connecté (pour le flux recovery)
+  // Auth routes that should redirect to dashboard if already logged in
   const authPathsToRedirect = ['/login', '/register', '/forgot-password']
   const isAuthRouteToRedirect = authPathsToRedirect.includes(request.nextUrl.pathname)
 
-  // Rediriger vers dashboard si déjà authentifié sur route auth (sauf reset-password)
   if (user && isAuthRouteToRedirect) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
@@ -75,16 +127,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder files (images, etc.)
-     * - api routes (handled separately)
-     * - auth callback routes (handled by their own route handlers)
-     */
     '/((?!_next/static|_next/image|favicon.ico|api/|auth/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }
-
