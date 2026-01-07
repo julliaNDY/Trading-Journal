@@ -5,34 +5,34 @@ import type { GlobalStats } from './stats-service';
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
-// System prompt for AI Trading Coach
-const SYSTEM_PROMPT = `Tu es un coach de trading expert et bienveillant. Tu aides les traders à améliorer leurs performances.
+// System prompt for AI Trading Coach (English)
+const SYSTEM_PROMPT = `You are an expert and supportive trading coach. You help traders improve their performance.
 
-Tu as accès aux statistiques de trading de l'utilisateur et tu dois les utiliser pour personnaliser tes conseils.
+You have access to the user's trading statistics and must use them to personalize your advice.
 
-Règles importantes:
-1. Réponds TOUJOURS dans la même langue que l'utilisateur (français ou anglais)
-2. Sois constructif et encourageant, même face à des résultats négatifs
-3. Base tes conseils sur les données concrètes fournies
-4. Propose des actions spécifiques et mesurables
-5. Ne fais pas de promesses de gains ou de résultats
-6. Rappelle l'importance de la gestion du risque
-7. Sois concis mais complet (2-4 paragraphes max par réponse)
+Important rules:
+1. ALWAYS respond in the same language as the user (English or French)
+2. Be constructive and encouraging, even when facing negative results
+3. Base your advice on the concrete data provided
+4. Suggest specific and measurable actions
+5. Never promise gains or results
+6. Remind the importance of risk management
+7. Be concise but complete (2-4 paragraphs max per response)
 
-Tu peux:
-- Analyser les statistiques de performance
-- Identifier les forces et faiblesses
-- Suggérer des améliorations de stratégie
-- Répondre aux questions sur le trading
-- Aider à comprendre les métriques (Profit Factor, Win Rate, R:R, etc.)
-- Proposer des exercices de journalisation
-- Aider à gérer les émotions liées au trading
+You can:
+- Analyze performance statistics
+- Identify strengths and weaknesses
+- Suggest strategy improvements
+- Answer questions about trading
+- Help understand metrics (Profit Factor, Win Rate, R:R, etc.)
+- Propose journaling exercises
+- Help manage emotions related to trading
 
-Tu ne peux PAS:
-- Donner des conseils financiers spécifiques (acheter/vendre X)
-- Prédire les marchés
-- Garantir des résultats
-- Recommander des montants à investir`;
+You CANNOT:
+- Give specific financial advice (buy/sell X)
+- Predict markets
+- Guarantee results
+- Recommend amounts to invest`;
 
 export interface CoachContext {
   stats: GlobalStats | null;
@@ -66,46 +66,46 @@ export interface CoachError {
  */
 function formatContext(context: CoachContext): string {
   if (!context.stats) {
-    return "L'utilisateur n'a pas encore de trades enregistrés.";
+    return "The user hasn't recorded any trades yet.";
   }
 
   const stats = context.stats;
   const lines = [
-    '## Statistiques de trading actuelles:',
-    `- Nombre total de trades: ${stats.totalTrades}`,
+    '## Current trading statistics:',
+    `- Total trades: ${stats.totalTrades}`,
     `- Win Rate: ${(stats.winRate * 100).toFixed(1)}%`,
     `- Profit Factor: ${stats.profitFactor.toFixed(2)}`,
-    `- PnL Total: $${stats.totalPnl.toFixed(2)}`,
-    `- Moyenne gain: $${stats.averageWin.toFixed(2)}`,
-    `- Moyenne perte: $${stats.averageLoss.toFixed(2)}`,
+    `- Total PnL: $${stats.totalPnl.toFixed(2)}`,
+    `- Average win: $${stats.averageWin.toFixed(2)}`,
+    `- Average loss: $${stats.averageLoss.toFixed(2)}`,
   ];
 
   if (stats.averageRR !== null) {
-    lines.push(`- Risk/Reward moyen: ${stats.averageRR.toFixed(2)}`);
+    lines.push(`- Average Risk/Reward: ${stats.averageRR.toFixed(2)}`);
   }
 
   if (stats.bestDay) {
-    lines.push(`- Meilleur jour: ${stats.bestDay.date} ($${stats.bestDay.pnl.toFixed(2)})`);
+    lines.push(`- Best day: ${stats.bestDay.date} ($${stats.bestDay.pnl.toFixed(2)})`);
   }
 
   if (stats.worstDay) {
-    lines.push(`- Pire jour: ${stats.worstDay.date} ($${stats.worstDay.pnl.toFixed(2)})`);
+    lines.push(`- Worst day: ${stats.worstDay.date} ($${stats.worstDay.pnl.toFixed(2)})`);
   }
 
   if (stats.averageDurationSeconds) {
     const minutes = Math.floor(stats.averageDurationSeconds / 60);
-    lines.push(`- Durée moyenne des trades: ${minutes} min`);
+    lines.push(`- Average trade duration: ${minutes} min`);
   }
 
   if (context.preferredSymbols.length > 0) {
-    lines.push(`- Symboles tradés: ${context.preferredSymbols.slice(0, 5).join(', ')}`);
+    lines.push(`- Traded symbols: ${context.preferredSymbols.slice(0, 5).join(', ')}`);
   }
 
   if (context.lastTradeDate) {
-    lines.push(`- Dernier trade: ${context.lastTradeDate}`);
+    lines.push(`- Last trade: ${context.lastTradeDate}`);
   }
 
-  lines.push(`- Ancienneté du compte: ${context.accountAge}`);
+  lines.push(`- Account age: ${context.accountAge}`);
 
   return lines.join('\n');
 }
@@ -147,7 +147,7 @@ export async function generateCoachResponse(
   // Build messages array for OpenAI
   const openaiMessages = [
     { role: 'system' as const, content: SYSTEM_PROMPT },
-    { role: 'system' as const, content: `## Contexte utilisateur:\n${contextString}` },
+    { role: 'system' as const, content: `## User context:\n${contextString}` },
     ...messages.map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
@@ -230,7 +230,7 @@ export async function generateInitialAnalysis(context: CoachContext): Promise<Co
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: 'Bonjour ! Peux-tu analyser mes statistiques de trading et me donner un bref aperçu de ma performance avec des suggestions d\'amélioration ?',
+      content: 'Hello! Can you analyze my trading statistics and give me a brief overview of my performance with improvement suggestions?',
     },
   ];
 
@@ -243,4 +243,3 @@ export async function generateInitialAnalysis(context: CoachContext): Promise<Co
 export function isCoachAvailable(): boolean {
   return isOpenAIConfigured();
 }
-

@@ -5,33 +5,33 @@ import { createHash } from 'crypto';
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
-// System prompt for trading journal analysis
-const SYSTEM_PROMPT = `Tu es un assistant spécialisé dans l'analyse de journaux de trading. 
-Tu reçois la transcription d'une note vocale d'un trader après un trade.
+// System prompt for trading journal analysis (English)
+const SYSTEM_PROMPT = `You are an assistant specialized in trading journal analysis. 
+You receive the transcription of a trader's voice note after a trade.
 
-Ton rôle est d'extraire et structurer les informations clés SANS JAMAIS perdre d'information importante.
+Your role is to extract and structure key information WITHOUT EVER losing important details.
 
-Réponds TOUJOURS dans la même langue que la transcription (français ou anglais).
+ALWAYS respond in the same language as the transcription (English or French).
 
-Génère une réponse JSON avec cette structure exacte:
+Generate a JSON response with this exact structure:
 {
-  "keyPoints": ["Point clé 1", "Point clé 2", ...],
-  "mistakes": ["Erreur 1", "Erreur 2", ...],
-  "lessons": ["Leçon 1", "Leçon 2", ...],
+  "keyPoints": ["Key point 1", "Key point 2", ...],
+  "mistakes": ["Mistake 1", "Mistake 2", ...],
+  "lessons": ["Lesson 1", "Lesson 2", ...],
   "actions": ["Action 1", "Action 2", ...],
-  "rawSummary": "Résumé narratif complet en 2-3 phrases"
+  "rawSummary": "Complete narrative summary in 2-3 sentences"
 }
 
-Règles:
-- keyPoints: Faits objectifs mentionnés (prix d'entrée, setup, contexte marché, résultat)
-- mistakes: Erreurs que le trader reconnaît avoir commises
-- lessons: Enseignements tirés de ce trade
-- actions: Actions concrètes à prendre pour le futur
-- rawSummary: Résumé concis mais complet du trade
-- Si une catégorie est vide, retourne un tableau vide []
-- Préserve le contexte technique (noms d'indicateurs, niveaux de prix, symboles)
-- Ne déduis PAS d'informations non mentionnées explicitement
-- Sois exhaustif: capture TOUS les points mentionnés`;
+Rules:
+- keyPoints: Objective facts mentioned (entry price, setup, market context, result)
+- mistakes: Errors the trader acknowledges making
+- lessons: Learnings from this trade
+- actions: Concrete actions to take for the future
+- rawSummary: Concise but complete trade summary
+- If a category is empty, return an empty array []
+- Preserve technical context (indicator names, price levels, symbols)
+- Do NOT infer information not explicitly mentioned
+- Be exhaustive: capture ALL mentioned points`;
 
 export interface Summary {
   keyPoints: string[];
@@ -202,4 +202,3 @@ export function needsRegeneration(
   const newHash = hashTranscription(newTranscription);
   return currentTranscriptionHash !== newHash;
 }
-

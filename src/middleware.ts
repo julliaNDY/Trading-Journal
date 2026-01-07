@@ -1,10 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Supported locales
-const locales = ['fr', 'en'] as const;
+// Supported locales - English is default
+const locales = ['en', 'fr'] as const;
 type Locale = (typeof locales)[number];
-const defaultLocale: Locale = 'fr';
+const defaultLocale: Locale = 'en';
 
 function detectBrowserLocale(acceptLanguage: string | null): Locale {
   if (!acceptLanguage) return defaultLocale;
