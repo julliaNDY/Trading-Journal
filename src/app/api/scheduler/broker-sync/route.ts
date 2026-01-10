@@ -25,6 +25,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runScheduledSync, getSchedulerStatus } from '@/services/broker/scheduler';
+import { brokerLogger } from '@/lib/logger';
 
 // ============================================================================
 // AUTH HELPER
@@ -67,14 +68,14 @@ function validateRequest(request: NextRequest): boolean {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Validate request
   if (!validateRequest(request)) {
-    console.log('[Scheduler API] Unauthorized request');
+    brokerLogger.debug('[Scheduler API] Unauthorized request');
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
     );
   }
   
-  console.log('[Scheduler API] Starting scheduled sync...');
+  brokerLogger.debug('[Scheduler API] Starting scheduled sync...');
   
   try {
     const result = await runScheduledSync();
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     
   } catch (error) {
-    console.error('[Scheduler API] Error:', error);
+    brokerLogger.error('[Scheduler API] Error:', error);
     
     return NextResponse.json(
       { 
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Validate request
   if (!validateRequest(request)) {
-    console.log('[Scheduler API] Unauthorized request');
+    brokerLogger.debug('[Scheduler API] Unauthorized request');
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     
   } catch (error) {
-    console.error('[Scheduler API] Error:', error);
+    brokerLogger.error('[Scheduler API] Error:', error);
     
     return NextResponse.json(
       { 

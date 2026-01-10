@@ -83,7 +83,7 @@ export function VoiceNotesSection({ tradeId, initialVoiceNotes }: VoiceNotesSect
       const extension = getExtensionForMimeType(mimeType || blob.type);
       const fileName = `voice-note.${extension}`;
       
-      console.log(`[VoiceNotes] Uploading: ${fileName}, MIME: ${blob.type}, size: ${blob.size}`);
+      if (process.env.NODE_ENV === 'development') console.log(`[VoiceNotes] Uploading: ${fileName}, MIME: ${blob.type}, size: ${blob.size}`);
       
       const formData = new FormData();
       formData.append('file', blob, fileName);

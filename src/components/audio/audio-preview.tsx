@@ -112,7 +112,7 @@ export function AudioPreview({
       return;
     }
     
-    console.log(`[AudioPreview] Creating URL for blob: ${audioBlob.size} bytes, type: ${audioBlob.type || 'unknown'}`);
+    if (process.env.NODE_ENV === 'development') console.log(`[AudioPreview] Creating URL for blob: ${audioBlob.size} bytes, type: ${audioBlob.type || 'unknown'}`);
     
     // Reset state
     setAudioError(null);
@@ -164,7 +164,7 @@ export function AudioPreview({
     };
     
     const handleCanPlay = () => {
-      console.log('[AudioPreview] Audio is ready to play');
+      if (process.env.NODE_ENV === 'development') console.log('[AudioPreview] Audio is ready to play');
       setIsAudioReady(true);
       setAudioError(null);
     };
@@ -202,7 +202,7 @@ export function AudioPreview({
     };
     
     const handleLoadStart = () => {
-      console.log('[AudioPreview] Audio loading started');
+      if (process.env.NODE_ENV === 'development') console.log('[AudioPreview] Audio loading started');
     };
     
     audio.addEventListener('timeupdate', handleTimeUpdate);

@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 import { updateStopLoss, serializeTrades, serializeTrade } from '@/services/trade-service';
 import { storage, isValidImageType, isValidFileSize } from '@/services/storage-service';
+import { tradeLogger } from '@/lib/logger';
 
 /**
  * Get trades for a specific date in the user's timezone
@@ -207,9 +208,9 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
   const parsedOpenedAt = new Date(openedAt);
   const parsedClosedAt = new Date(closedAt);
 
-  console.log('[updateTradeTimes] Updating trade:', tradeId);
-  console.log('[updateTradeTimes] openedAt received:', openedAt, 'parsed:', parsedOpenedAt);
-  console.log('[updateTradeTimes] closedAt received:', closedAt, 'parsed:', parsedClosedAt);
+  tradeLogger.debug('[updateTradeTimes] Updating trade:', tradeId);
+  tradeLogger.debug('[updateTradeTimes] openedAt received:', openedAt, 'parsed:', parsedOpenedAt);
+  tradeLogger.debug('[updateTradeTimes] closedAt received:', closedAt, 'parsed:', parsedClosedAt);
 
   const result = await prisma.trade.update({
     where: { id: tradeId },
@@ -220,7 +221,7 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
     },
   });
 
-  console.log('[updateTradeTimes] Update result - timesManuallySet:', result.timesManuallySet, 'openedAt:', result.openedAt, 'closedAt:', result.closedAt);
+  tradeLogger.debug('[updateTradeTimes] Update result - timesManuallySet:', result.timesManuallySet, 'openedAt:', result.openedAt, 'closedAt:', result.closedAt);
 
   revalidatePath('/journal');
   revalidatePath('/dashboard');

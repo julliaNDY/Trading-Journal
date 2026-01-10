@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 import { storage, isValidImageType, isValidFileSize } from '@/services/storage-service';
 import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
+import { tradeLogger } from '@/lib/logger';
 
 export async function updateTradeDetails(
   tradeId: string,
@@ -204,9 +205,9 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
   const parsedOpenedAt = new Date(openedAt);
   const parsedClosedAt = new Date(closedAt);
 
-  console.log('[trade-detail updateTradeTimes] Updating trade:', tradeId);
-  console.log('[trade-detail updateTradeTimes] openedAt received:', openedAt, '-> parsed:', parsedOpenedAt.toISOString());
-  console.log('[trade-detail updateTradeTimes] closedAt received:', closedAt, '-> parsed:', parsedClosedAt.toISOString());
+  tradeLogger.debug('[trade-detail updateTradeTimes] Updating trade:', tradeId);
+  tradeLogger.debug('[trade-detail updateTradeTimes] openedAt received:', openedAt, '-> parsed:', parsedOpenedAt.toISOString());
+  tradeLogger.debug('[trade-detail updateTradeTimes] closedAt received:', closedAt, '-> parsed:', parsedClosedAt.toISOString());
 
   const result = await prisma.trade.update({
     where: { id: tradeId },
@@ -217,7 +218,7 @@ export async function updateTradeTimes(tradeId: string, openedAt: Date, closedAt
     },
   });
 
-  console.log('[trade-detail updateTradeTimes] Result - timesManuallySet:', result.timesManuallySet);
+  tradeLogger.debug('[trade-detail updateTradeTimes] Result - timesManuallySet:', result.timesManuallySet);
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath('/trades');

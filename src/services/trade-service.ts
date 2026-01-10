@@ -5,6 +5,7 @@ import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
 
 export interface TradeWithTags extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
+  tradePlaybooks: { playbook: { id: string; name: string } }[];
 }
 
 // Serialized trade type for client components (Decimal -> number)
@@ -754,6 +755,16 @@ export async function getTrades(filters: TradeFilters): Promise<TradeWithTags[]>
           },
         },
       },
+      tradePlaybooks: {
+        include: {
+          playbook: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { closedAt: 'asc' },
   }) as Promise<TradeWithTags[]>;
@@ -785,6 +796,16 @@ export async function getTradesByDate(
               id: true,
               name: true,
               color: true,
+            },
+          },
+        },
+      },
+      tradePlaybooks: {
+        include: {
+          playbook: {
+            select: {
+              id: true,
+              name: true,
             },
           },
         },

@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { BrokerType, BrokerConnectionStatus, SyncStatus } from '@prisma/client';
 import { createTradovateProvider } from './tradovate-provider';
 import { createIBKRFlexQueryProvider } from './ibkr-flex-query-provider';
+import { brokerLogger } from '@/lib/logger';
 import { 
   BrokerProvider, 
   BrokerCredentials, 
@@ -197,7 +198,7 @@ export async function disconnectBroker(connectionId: string, userId: string): Pr
     where: { id: connectionId },
   });
   
-  console.log(`[Broker] Deleted broker connection ${connectionId} for user ${userId}`);
+  brokerLogger.debug(`[Broker] Deleted broker connection ${connectionId} for user ${userId}`);
 }
 
 export async function getBrokerConnections(userId: string) {

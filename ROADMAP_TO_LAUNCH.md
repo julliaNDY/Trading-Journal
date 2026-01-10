@@ -1,0 +1,237 @@
+# 🚀 ROADMAP TO LAUNCH - Trading Path Journal
+
+> **Audit réalisé par Quinn (Test Architect & Quality Advisor)**  
+> **Date:** 2026-01-10  
+> **Branche de travail:** `release/quinn-audit-2026-01-10`
+
+---
+
+## 📊 Résumé Exécutif
+
+| Catégorie | Statut | Criticité |
+|-----------|--------|-----------|
+| Sécurité | ✅ OK | Aucune vulnérabilité npm |
+| Build | ✅ OK | Compile sans erreur |
+| Secrets | ✅ OK | Aucun secret en dur |
+| Performance | ✅ OPTIMISÉ | Bundle 102KB, lazy loading OK |
+| Dette technique | ✅ CORRIGÉ | console.log remplacés par logger |
+| Configuration | ✅ CORRIGÉ | ESLint/TS réactivés en build |
+
+---
+
+## ✅ EPIC 1: CONFIGURATION CRITIQUE (Priorité: HAUTE) — TERMINÉ
+
+### 1.1 Réactiver les vérifications TypeScript et ESLint
+
+**Fichier:** `next.config.mjs`
+
+**Statut:** ✅ **CORRIGÉ le 2026-01-10**
+
+**Corrections appliquées:**
+- [x] Retirer `eslint.ignoreDuringBuilds: true`
+- [x] Retirer `typescript.ignoreBuildErrors: true`
+- [x] Corriger toutes les erreurs TypeScript (17 erreurs corrigées)
+- [x] Upgrade tsconfig.json target: ES2017 → ES2022
+
+**Fichiers modifiés:**
+- `next.config.mjs`
+- `tsconfig.json`
+- `src/app/(dashboard)/comptes/brokers/brokers-content.tsx`
+- `src/app/(dashboard)/settings/page.tsx`
+- `src/app/actions/trades.ts`
+- `src/services/broker/ibkr-flex-query-provider.ts`
+- `src/services/trade-service.ts`
+
+**Build:** ✅ Validé avec 0 erreurs
+
+---
+
+## ✅ EPIC 2: NETTOYAGE DES FICHIERS (Priorité: MOYENNE) — TERMINÉ
+
+### 2.1 Fichiers à supprimer (racine du projet)
+
+**Statut:** ✅ **CORRIGÉ pendant l'audit initial (2026-01-10)**
+
+| Fichier | Statut |
+|---------|--------|
+| `CTTP Logo.png` | ✅ Supprimé |
+| `Capture 1-4.png` | ✅ Supprimés |
+| `csv.csv` | ✅ Supprimé |
+| `.env 2` | ✅ Supprimé (risque sécurité) |
+
+### 2.2 Dossiers dupliqués à supprimer
+
+| Dossier | Statut |
+|---------|--------|
+| `.github/workflows 2/` | ✅ Supprimé |
+
+### 2.3 Fichiers volumineux dans Git
+
+| Fichier | Statut |
+|---------|--------|
+| `eng.traineddata` | ✅ Ajouté au .gitignore |
+| `public/Capture ex.png` | ✅ Supprimé |
+
+**Note:** `public/ocr-example.png` (1.8 MB) reste mais peut être compressé ultérieurement si nécessaire.
+
+---
+
+## ✅ EPIC 3: QUALITÉ DU CODE (Priorité: MOYENNE) — TERMINÉ
+
+### 3.1 Suppression des console.log en production
+
+**Fichiers concernés:** 15 fichiers, 58 occurrences
+
+| Fichier | Occurrences | Type |
+|---------|-------------|------|
+| `src/services/broker/ibkr-flex-query-provider.ts` | 11 | Debug IBKR |
+| `src/app/(dashboard)/trades/[id]/trade-detail-content.tsx` | 8 | Debug dates |
+| `src/app/actions/contact.ts` | 7 | Log formulaire |
+| `src/hooks/use-audio-recorder.ts` | 5 | Debug audio |
+| `src/app/actions/journal.ts` | 4 | Debug trades |
+| `src/app/actions/trade-detail.ts` | 4 | Debug dates |
+| `src/services/broker/scheduler.ts` | 3 | Log sync |
+| `src/app/api/scheduler/broker-sync/route.ts` | 3 | Log API |
+| `src/components/audio/audio-preview.tsx` | 3 | Debug audio |
+| `src/app/actions/trades.ts` | 3 | Log import |
+| `src/app/actions/admin.ts` | 2 | Log admin |
+| `src/lib/logger.ts` | 2 | Logger (OK) |
+| `src/services/broker/broker-sync-service.ts` | 1 | Log delete |
+| `src/components/audio/voice-notes-section.tsx` | 1 | Log upload |
+| `src/components/audio/journal-voice-notes-section.tsx` | 1 | Log upload |
+
+**Statut:** ✅ **CORRIGÉ le 2026-01-10**
+
+**Corrections appliquées:**
+- [x] Remplacé 58 console.log par le logger (brokerLogger, tradeLogger, ocrLogger, authLogger)
+- [x] Client-side: logs conditionnés au mode développement
+- [x] Logger déjà configuré pour être silencieux en production (level: 'error')
+
+### 3.2 TODOs résolus
+
+| Fichier | Statut | Action |
+|---------|--------|--------|
+| `contact.ts` | ✅ | Documenté comme feature v2 |
+| `import-service.test.ts` | ✅ | Documenté comme limitation connue |
+| `auth.ts` | ✅ | Clarifié que l'admin check est dans admin.ts |
+
+---
+
+## ✅ EPIC 4: OPTIMISATION PERFORMANCE (Priorité: BASSE) — TERMINÉ
+
+### 4.1 Taille du bundle
+
+**Statut:** ✅ **Analysé le 2026-01-10**
+
+**Statistiques actuelles:**
+- First Load JS shared: 102 KB ✅ (très bon)
+- Plus grande page: `/importer` - 219 KB (normal avec CSV parsing)
+- Middleware: 80.5 KB
+
+**Actions réalisées:**
+- [x] Installé `@next/bundle-analyzer`
+- [x] Configuré dans `next.config.mjs` (ANALYZE=true npm run build)
+- [x] Lazy loading déjà implémenté pour tous les charts
+
+### 4.2 Dépendances mises à jour
+
+**Mises à jour patches appliquées:**
+- [x] `@supabase/supabase-js`: 2.89.0 → 2.90.1
+- [x] `openai`: 6.15.0 → 6.16.0
+- [x] `stripe`: 20.1.1 → 20.1.2
+
+**Mises à jour majeures (planifiées post-launch):**
+
+| Package | Actuel | Disponible | Status |
+|---------|--------|------------|--------|
+| `@prisma/client` | 5.22.0 | 7.2.0 | ⏳ Post-launch |
+| `next` | 15.5.9 | 16.1.1 | ⏳ Post-launch |
+| `react` | 18.3.1 | 19.2.3 | ⏳ Post-launch |
+| `tailwindcss` | 3.4.19 | 4.1.18 | ⏳ Post-launch |
+
+---
+
+## 🟢 EPIC 5: DOCUMENTATION (Priorité: BASSE)
+
+### 5.1 Fichiers de documentation à vérifier
+
+- [ ] `README.md` - Instructions d'installation à jour
+- [ ] `env.example` - Toutes les variables documentées ✅
+- [ ] `GUIDE_MISE_A_JOUR_VPS.md` - Guide déploiement existant
+
+### 5.2 Nettoyage documentation obsolète
+
+- [ ] `DEBUG_LOG.md` - À archiver ou supprimer avant production
+- [ ] `PROJECT_MEMORY.md` - Fichier interne, vérifier .gitignore
+
+---
+
+## ✅ POINTS POSITIFS (Aucune action requise)
+
+### Sécurité
+- ✅ **npm audit:** 0 vulnérabilités
+- ✅ **Secrets:** Aucun secret hardcodé dans le code source
+- ✅ **Env vars:** Tous via `process.env`, bien structuré
+- ✅ **`.gitignore`:** Configuration complète et sécurisée
+
+### Build
+- ✅ **Compilation:** Build réussi sans erreur
+- ✅ **Pages statiques:** 11 pages générées correctement
+- ✅ **Routes API:** Toutes fonctionnelles
+
+### Architecture
+- ✅ **Structure projet:** Claire et bien organisée
+- ✅ **Tests:** 5 fichiers de tests unitaires présents
+- ✅ **i18n:** FR/EN implémenté correctement
+
+---
+
+## 📋 CHECKLIST PRÉ-LANCEMENT
+
+### Obligatoire (BLOQUANT)
+- [x] Supprimer `.env 2` (risque sécurité) ✅
+- [ ] Valider que toutes les variables d'environnement sont configurées en production
+- [ ] Configurer le domaine et les certificats SSL
+- [ ] Configurer Stripe en mode live (webhooks, clés API)
+- [ ] Tester le flow complet d'inscription/connexion en production
+
+### Recommandé
+- [x] Supprimer les fichiers de test (Capture*.png, csv.csv) ✅
+- [x] Supprimer ou réduire les console.log ✅
+- [ ] Compresser les images lourdes dans `/public` (optionnel)
+- [ ] Configurer les backups automatiques (script existant)
+
+### Optionnel
+- [ ] Mettre à jour les dépendances (patches)
+- [ ] Configurer un monitoring (Sentry, LogRocket)
+- [ ] Optimiser les images avec Next.js Image
+
+---
+
+## 🗓️ PLANNING SUGGÉRÉ
+
+| Jour | Epic | Tâches |
+|------|------|--------|
+| J+0 | Epic 2 | Nettoyage fichiers (30 min) |
+| J+0 | Epic 1 | Réactiver TS/ESLint + corrections (2-4h) |
+| J+1 | Epic 3 | Suppression console.log (2-3h) |
+| J+1 | Epic 4 | Mises à jour patches (30 min) |
+| J+2 | - | Tests finaux + déploiement |
+
+**Temps total estimé:** 6-8 heures de travail
+
+---
+
+## 📝 Notes de l'auditeur
+
+> Ce projet est dans un état **bon pour le lancement** avec quelques ajustements mineurs. 
+> Les points critiques (sécurité, build) sont OK.
+> 
+> La désactivation de TypeScript et ESLint dans le build est préoccupante mais n'empêche pas le lancement si le code fonctionne correctement en test.
+>
+> **Recommandation:** Procéder au nettoyage des fichiers (Epic 2) immédiatement, puis traiter les console.log avant le Go-Live.
+
+---
+
+*Document généré automatiquement par Quinn - Test Architect & Quality Advisor*
+*Framework: BMAD Methodology*

@@ -10,7 +10,8 @@ import {
   type PartialExitInput 
 } from '@/services/trade-service';
 import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
-import type { Direction } from '@prisma/client';
+import type { Direction, Trade } from '@prisma/client';
+import { tradeLogger, ocrLogger } from '@/lib/logger';
 
 export interface CreateManualTradeInput {
   symbol: string;
@@ -328,7 +329,7 @@ export async function createTradesFromOcr(
           break;
       }
     } catch (error) {
-      console.error('Error processing OCR trade:', error);
+      ocrLogger.error('Error processing OCR trade:', error);
       errors.push(`Failed to process trade: ${data.entryDt}`);
     }
   }
@@ -354,7 +355,7 @@ export async function updateTradesFromOcr(ocrData: OcrTradeData[]) {
     const closedAt = parseOcrDate(data.exitDt);
 
     if (!openedAt || !closedAt) {
-      console.log('Could not parse dates:', data.entryDt, data.exitDt);
+      ocrLogger.debug('Could not parse dates:', data.entryDt, data.exitDt);
       continue;
     }
 
@@ -466,7 +467,7 @@ function symbolsMatch(ocrSymbol: string, dbSymbol: string): boolean {
 }
 
 interface MatchScore {
-  trade: typeof prisma.trade extends { findMany: (...args: unknown[]) => Promise<infer T> } ? T extends (infer U)[] ? U : never : never;
+  trade: Trade;
   score: number;
   reasons: string[];
 }
@@ -786,15 +787,15 @@ export async function enrichTradesFromOcr(
       }
 
     } catch (error) {
-      console.error('Error enriching OCR trade:', error);
+      ocrLogger.error('Error enriching OCR trade:', error);
       errors.push(`Failed to process OCR trade #${ocrIndex + 1}: ${error}`);
       notFoundCount++;
     }
   }
 
   // Log summary
-  console.log(`[OCR Enrichment Summary] Enriched: ${enrichedCount}, Not Found: ${notFoundCount}, Errors: ${errors.length}`);
-  console.log(debugLogs.join('\n'));
+  ocrLogger.debug(`[OCR Enrichment Summary] Enriched: ${enrichedCount}, Not Found: ${notFoundCount}, Errors: ${errors.length}`);
+  ocrLogger.debug(debugLogs.join('\n'));
 
   revalidatePath('/trades');
   revalidatePath('/dashboard');

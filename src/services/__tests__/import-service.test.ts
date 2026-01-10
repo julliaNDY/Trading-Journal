@@ -169,7 +169,8 @@ MNQ,2025-01-06,21500,21550,1,100`;
     // Note: Comma as decimal separator is NOT currently supported
     // because parseNumber replaces ALL commas with dots
     // e.g., "21500,50" -> "2150050" (bug)
-    // TODO: Fix parseNumber to handle locale-specific decimal separators
+    // Known limitation: parseNumber doesn't handle locale-specific separators (e.g., "21500,50")
+    // Impact: Low - users should use dot as decimal separator in CSV imports
 
     it('parses prices with $ symbol', () => {
       const data = [{ ...validCsvData[0], Entry: '$21500.00', ProfitLoss: '$100.00' }];

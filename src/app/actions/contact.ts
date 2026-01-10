@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -36,20 +37,15 @@ export async function sendContactMessage(data: ContactFormData): Promise<Contact
     // Validate input
     const validated = contactSchema.parse(data);
 
-    // Log the contact message (for now)
-    console.log('=== Contact Form Submission ===');
-    console.log('Name:', validated.name);
-    console.log('Email:', validated.email);
-    console.log('Subject:', validated.subject || 'No subject');
-    console.log('Message:', validated.message);
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('===============================');
+    // Log the contact message
+    logger.info(`Contact form submission from ${validated.email}`, {
+      name: validated.name,
+      subject: validated.subject || 'No subject',
+      messageLength: validated.message.length,
+    });
 
-    // TODO: Implement actual email sending
-    // Options:
-    // 1. Use Resend (recommended for Next.js)
-    // 2. Use Supabase Edge Functions with email provider
-    // 3. Store in ContactMessage table and notify admin
+    // Note: Email sending planned for v2. Currently logs to server for review.
+    // Options for future: Resend, Supabase Edge Functions, or database storage.
 
     // For MVP, we could store in database
     // await prisma.contactMessage.create({
@@ -66,7 +62,7 @@ export async function sendContactMessage(data: ContactFormData): Promise<Contact
 
     return { success: true };
   } catch (error) {
-    console.error('Contact form error:', error);
+    logger.error('Contact form error:', error);
     
     if (error instanceof z.ZodError) {
       return { 
