@@ -9,6 +9,32 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-10 21:00] - Epic 3: Qualité du Code - Logger (Quinn QA)
+
+### 📝 Demande utilisateur
+> Compléter l'Epic 3 : remplacer les console.log par le logger et résoudre les TODOs.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés (16) :**
+- Server-side : ibkr-flex-query-provider.ts, scheduler.ts, broker-sync-service.ts, broker-sync/route.ts, admin.ts, contact.ts, trades.ts, journal.ts, trade-detail.ts
+- Client-side : trade-detail-content.tsx, use-audio-recorder.ts, audio-preview.tsx, voice-notes-section.tsx, journal-voice-notes-section.tsx
+- Tests/Config : auth.ts, import-service.test.ts
+
+**Loggers utilisés :**
+- `brokerLogger` pour broker sync
+- `tradeLogger` pour trades/journal
+- `ocrLogger` pour OCR import
+- `authLogger` pour admin
+
+### 💡 Résultat
+- 58 console.log remplacés/conditionnés
+- 3 TODOs documentés (non bloquants)
+- Build validé : ✅ 0 erreur
+- Epic 3 : **TERMINÉ**
+
+---
+
 ## [2026-01-10 20:00] - Epic 1: Réactivation TypeScript/ESLint (Quinn QA)
 
 ### 📝 Demande utilisateur
