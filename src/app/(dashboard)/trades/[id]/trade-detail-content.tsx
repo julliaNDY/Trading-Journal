@@ -461,8 +461,6 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
           exitPrice: Number(exit.exitPrice),
           exitedAt: new Date(exit.exitedAt),
         }))}
-        hasBrokerConnection={brokerConnection?.hasBrokerConnection}
-        brokerType={brokerConnection?.brokerType}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">

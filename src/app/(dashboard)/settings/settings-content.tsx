@@ -70,6 +70,7 @@ import {
   updateEmail,
   updatePassword,
   updateLanguagePreference,
+  updateNickname,
 } from '@/app/actions/profile';
 import { createBillingPortalAction } from '@/app/actions/subscription';
 
@@ -81,6 +82,7 @@ interface UserProfile {
   id: string;
   email: string;
   discordUsername: string | null;
+  nickname: string | null;
   avatarUrl: string | null;
   preferredLocale: string | null;
   createdAt: Date;
@@ -137,6 +139,8 @@ export function SettingsContent({ profile }: SettingsContentProps) {
   const [hasPassword, setHasPassword] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [nickname, setNickname] = useState(profile?.nickname || '');
+  const [isSavingNickname, setIsSavingNickname] = useState(false);
   
   // Dialogs
   const [showEmailDialog, setShowEmailDialog] = useState(false);
@@ -163,6 +167,7 @@ export function SettingsContent({ profile }: SettingsContentProps) {
     const linked = searchParams.get('linked');
     const error = searchParams.get('error');
     const subscription = searchParams.get('subscription');
+    const emailUpdated = searchParams.get('email_updated');
     
     if (linked) {
       toast({ title: t('linkSuccess'), description: `${linked} ${t('linked')}` });
@@ -178,6 +183,12 @@ export function SettingsContent({ profile }: SettingsContentProps) {
     if (subscription === 'success') {
       toast({ title: t('subscriptionSuccess'), description: t('subscriptionSuccessDesc') });
       router.replace('/settings');
+    }
+
+    if (emailUpdated === 'true') {
+      toast({ title: t('emailUpdated'), description: t('emailUpdatedDesc') });
+      router.replace('/settings');
+      router.refresh(); // Refresh to get new email from server
     }
   }, [searchParams]);
 
@@ -303,6 +314,21 @@ export function SettingsContent({ profile }: SettingsContentProps) {
     }
     
     setIsSubmitting(false);
+  }
+
+  // ==================== NICKNAME ====================
+
+  async function handleSaveNickname() {
+    setIsSavingNickname(true);
+    const result = await updateNickname(nickname);
+    
+    if (result.success) {
+      toast({ title: t('nicknameSaved') });
+    } else {
+      toast({ title: tCommon('error'), description: result.error, variant: 'destructive' });
+    }
+    
+    setIsSavingNickname(false);
   }
 
   // ==================== LANGUAGE ====================
@@ -449,6 +475,34 @@ export function SettingsContent({ profile }: SettingsContentProps) {
                 className="bg-muted"
                 placeholder={t('notSet')}
               />
+            </div>
+          </div>
+
+          {/* Nickname for public display */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              {t('nickname')}
+            </Label>
+            <p className="text-xs text-muted-foreground">{t('nicknameDescription')}</p>
+            <div className="flex gap-2">
+              <Input 
+                value={nickname} 
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder={t('nicknamePlaceholder')}
+                maxLength={30}
+              />
+              <Button 
+                variant="outline" 
+                onClick={handleSaveNickname}
+                disabled={isSavingNickname || nickname === (profile?.nickname || '')}
+              >
+                {isSavingNickname ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
 
@@ -605,7 +659,8 @@ export function SettingsContent({ profile }: SettingsContentProps) {
             })}
           </div>
 
-          {!canUnlink && identities.length > 0 && (
+          {/* Only show warning when there's exactly 1 linked social account */}
+          {!canUnlink && identities.filter(i => i.provider !== 'email').length === 1 && (
             <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground">{t('cannotUnlinkWarning')}</p>
@@ -634,16 +689,18 @@ export function SettingsContent({ profile }: SettingsContentProps) {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>{t('deleteAccountTitle')}</AlertDialogTitle>
-                <AlertDialogDescription className="space-y-3">
-                  <p>{t('deleteAccountWarning')}</p>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>{profile?._count?.trades || 0} trades</li>
-                    <li>{profile?._count?.accounts || 0} comptes trading</li>
-                    <li>{t('deleteAccountDataList')}</li>
-                  </ul>
-                  <p className="font-medium">{t('deleteAccountConfirmText')}</p>
+                <AlertDialogDescription>
+                  {t('deleteAccountWarning')}
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <ul className="list-disc list-inside space-y-1">
+                  <li>{profile?._count?.trades || 0} trades</li>
+                  <li>{profile?._count?.accounts || 0} comptes trading</li>
+                  <li>{t('deleteAccountDataList')}</li>
+                </ul>
+                <p className="font-medium">{t('deleteAccountConfirmText')}</p>
+              </div>
               <div className="space-y-2 py-4">
                 <Label>{t('confirmEmail')}</Label>
                 <Input

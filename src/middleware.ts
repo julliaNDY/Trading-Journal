@@ -6,41 +6,19 @@ const locales = ['en', 'fr'] as const;
 type Locale = (typeof locales)[number];
 const defaultLocale: Locale = 'en';
 
-function detectBrowserLocale(acceptLanguage: string | null): Locale {
-  if (!acceptLanguage) return defaultLocale;
-  
-  const languages = acceptLanguage
-    .split(',')
-    .map(lang => {
-      const [code, qValue] = lang.trim().split(';q=');
-      return {
-        code: code.split('-')[0].toLowerCase(),
-        quality: qValue ? parseFloat(qValue) : 1.0,
-      };
-    })
-    .sort((a, b) => b.quality - a.quality);
-
-  for (const lang of languages) {
-    if (locales.includes(lang.code as Locale)) {
-      return lang.code as Locale;
-    }
-  }
-  
-  return defaultLocale;
-}
+// Browser locale detection disabled - always default to English
+// Users must explicitly set their language preference via the language switcher
+// This ensures consistent experience regardless of browser settings
 
 export async function middleware(request: NextRequest) {
   // ========================================
   // 1. LOCALE HANDLING
   // ========================================
   const localeCookie = request.cookies.get('locale')?.value;
-  let locale: Locale;
-  
-  if (localeCookie && locales.includes(localeCookie as Locale)) {
-    locale = localeCookie as Locale;
-  } else {
-    locale = detectBrowserLocale(request.headers.get('accept-language'));
-  }
+  // Only use cookie if explicitly set, otherwise default to English
+  const locale: Locale = (localeCookie && locales.includes(localeCookie as Locale)) 
+    ? localeCookie as Locale 
+    : defaultLocale;
   
   // Set locale header for next-intl
   const requestHeaders = new Headers(request.headers);

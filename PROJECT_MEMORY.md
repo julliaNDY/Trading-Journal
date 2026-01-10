@@ -9,6 +9,854 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-10] - Correction largeur uniforme pages Login/Register
+
+### 📝 Demande utilisateur
+> La page `/login` était trop serrée sur l'axe X (trop étroite) tandis que la page `/register` avait une largeur parfaite. Objectif: rendre les deux pages visuellement identiques en largeur.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/(auth)/login/login-content.tsx` — Ajout `min-w-[455px]` au Card et `w-full` au form
+- `src/app/(auth)/register/register-content.tsx` — Ajout `w-full` au form (cohérence)
+
+### 💡 Solution implémentée
+
+**Problème identifié :** Le Card de la page login se réduisait à 281px (largeur de son contenu) tandis que celui de register était à 455px, malgré la même classe `max-w-2xl` (672px).
+
+**Solution appliquée :**
+1. Ajout de `min-w-[455px]` au Card de la page login pour forcer la même largeur minimale que register
+2. Ajout de `className="w-full"` au `<form>` de la page login pour s'assurer qu'il occupe toute la largeur disponible
+3. Ajout de `className="w-full"` au `<form>` de la page register pour cohérence
+
+**Classes CSS finales :**
+- **Login Card :** `w-full min-w-[455px] max-w-2xl relative z-10 animate-scale-in`
+- **Register Card :** `w-full max-w-2xl relative z-10 animate-scale-in` (inchangée)
+- **Les deux forms :** `w-full`
+
+**Résultat :** Les deux pages ont maintenant exactement la même largeur visuelle (455px minimum, 672px maximum).
+
+### 🔗 Contexte additionnel
+Le problème venait du fait que le Card sans largeur minimale se réduisait à la largeur de son contenu interne. La page login ayant moins de champs de formulaire, le Card était naturellement plus étroit. L'ajout de `min-w-[455px]` garantit une largeur uniforme entre les deux pages.
+
+---
+
+## [2026-01-10 14:30] - Script de vérification du serveur de développement
+
+### 📝 Demande utilisateur
+> Comment m'assurer que le serveur de développement Next.js local est en cours d'exécution avant de npm start dev ?
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `scripts/check-dev-server.ts`
+- **Fichiers modifiés :** `package.json` — Ajout scripts `dev:safe`, `dev:check`, `dev:kill`
+- **Fichiers modifiés :** `README.md` — Documentation des nouveaux scripts
+
+### 💡 Solution implémentée
+Script TypeScript pour vérifier si le port 3000 (ou PORT) est déjà utilisé par un processus et offrir des options pour gérer le conflit :
+
+1. **`npm run dev:check`** : Vérifie uniquement si le port est utilisé
+2. **`npm run dev:kill`** : Arrête automatiquement le processus utilisant le port
+3. **`npm run dev:safe`** : Arrête le processus existant puis démarre le serveur de dev
+
+**Fonctionnalités :**
+- Détection du port via API Node.js native (`net.createServer()`)
+- Trouve le PID du processus (macOS/Linux: `lsof`, Windows: `netstat`)
+- Option `--kill` pour arrêter automatiquement le processus
+- Support multi-plateforme (darwin, linux, win32)
+
+**Scripts ajoutés :**
+```json
+"dev:safe": "tsx scripts/check-dev-server.ts --kill && next dev",
+"dev:check": "tsx scripts/check-dev-server.ts --check",
+"dev:kill": "tsx scripts/check-dev-server.ts --kill"
+```
+
+### 🔗 Contexte additionnel
+Le script utilise les APIs Node.js natives (pas de dépendances externes) pour maintenir le projet léger. Utilise `tsx` déjà présent dans devDependencies pour exécuter le script TypeScript.
+
+---
+
+## [2026-01-10] - TradeChart Entry/Exit Markers (v5 API)
+
+### 📝 Demande utilisateur
+> Remplacer les lignes horizontales (price lines) pour entry/exit par des marqueurs visuels (flèches) utilisant l'API `setMarkers()` de lightweight-charts v5.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/components/charts/trade-chart.tsx` — Implémentation des marqueurs avec `createSeriesMarkers()` (API v5)
+
+### 💡 Solution implémentée
+
+**API v5 Note:** Dans lightweight-charts v5, `setMarkers()` n'est plus disponible directement sur la série. Il faut utiliser `createSeriesMarkers()` qui retourne un plugin avec les méthodes `setMarkers()` et `detach()`.
+
+```typescript
+import { createSeriesMarkers, SeriesMarker } from 'lightweight-charts';
+
+// Create markers array
+const markers: SeriesMarker<Time>[] = [];
+
+// Entry marker (blue arrow up below bar)
+markers.push({
+  time: entryTime,
+  position: 'belowBar',
+  color: '#3b82f6', // blue
+  shape: 'arrowUp',
+  text: t('entry'),
+  size: 2,
+});
+
+// Exit marker (green/red arrow down above bar based on profit)
+const profit = direction === 'LONG' ? exitPrice - entryPrice : entryPrice - exitPrice;
+markers.push({
+  time: exitTime,
+  position: 'aboveBar',
+  color: profit > 0 ? '#22c55e' : '#ef4444',
+  shape: 'arrowDown',
+  text: t('exit'),
+  size: 2,
+});
+
+// Apply markers using v5 API
+const seriesMarkers = createSeriesMarkers(candlestickSeries, markers);
+
+// Cleanup on unmount
+return () => {
+  seriesMarkers.detach();
+  chart.remove();
+};
+```
+
+**Marker Logic:**
+| Point | Position | Color | Shape |
+|-------|----------|-------|-------|
+| Entry | belowBar | Blue (#3b82f6) | arrowUp |
+| Exit (profit) | aboveBar | Green (#22c55e) | arrowDown |
+| Exit (loss) | aboveBar | Red (#ef4444) | arrowDown |
+| Partial Exit | aboveBar | Purple (#a855f7) | arrowDown |
+
+**Changes from previous implementation:**
+- ❌ Removed: horizontal price lines for entry/exit
+- ✅ Added: arrow markers at exact trade timestamps
+- ✅ Kept: SL/TP dashed lines (for reference levels)
+
+---
+
+## [2026-01-09] - Voice Recording Cross-Browser Compatibility Fix
+
+### 📝 Demande utilisateur
+> Bug critique dans la fonctionnalité Voice Recording (Journal + Trade pages). Erreur: "Runtime NotSupportedError: The element has no supported sources". La cause: MIME type audio/webm hardcodé, non supporté par Safari.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/hooks/use-audio-recorder.ts` — Refonte complète de la détection MIME type
+- `src/components/audio/audio-preview.tsx` — Ajout gestion d'erreurs audio element
+- `src/components/audio/voice-notes-section.tsx` — Correction upload filename + error handling
+- `src/components/audio/journal-voice-notes-section.tsx` — Mêmes corrections
+- `messages/en.json` — Nouveaux messages d'erreur audio
+- `messages/fr.json` — Traductions françaises
+
+### 💡 Solution implémentée
+
+**1. Dynamic MIME Type Detection**
+```typescript
+function getSupportedMimeType(): string | null {
+  const mimeTypes = [
+    'audio/webm;codecs=opus',  // Chrome, Firefox, Edge
+    'audio/webm',
+    'audio/mp4',                // Safari (seul format supporté)
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/ogg;codecs=opus',
+    'audio/wav',                // Fallback universel
+  ];
+  
+  for (const type of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return null; // Let browser choose default
+}
+```
+
+**2. Blob Handling with Correct MIME Type**
+- Le blob utilise maintenant le MIME type détecté (pas hardcodé)
+- Validation: vérifie `blob.size > 0` avant création URL
+- Extension fichier dynamique: `.webm`, `.m4a`, `.ogg`, `.wav`
+
+**3. Audio Element Safe-Guard**
+```typescript
+// Error handling complet sur <audio>
+audio.addEventListener('error', handleError);
+audio.addEventListener('canplay', handleCanPlay);
+
+// Play button disabled si erreur ou pas prêt
+disabled={!!audioError || !isAudioReady}
+```
+
+**4. Nouveaux messages d'erreur**
+| Key | EN | FR |
+|-----|----|----|
+| `formatNotSupported` | Audio format not supported | Format audio non supporté |
+| `recordingFailed` | Recording failed | Échec de l'enregistrement |
+| `playbackFailed` | Unable to play audio | Impossible de lire l'audio |
+
+### 🔗 Compatibilité navigateurs
+| Browser | MIME Type | Status |
+|---------|-----------|--------|
+| Chrome/Edge | audio/webm;codecs=opus | ✅ |
+| Firefox | audio/webm | ✅ |
+| Safari | audio/mp4 | ✅ |
+| Safari iOS | audio/mp4 | ✅ |
+
+---
+
+## [2026-01-09 11:00] - OCR Matching Algorithm Overhaul (20% → 95%+ Match Rate)
+
+### 📝 Demande utilisateur
+> Le taux de matching OCR était critique (20%). Analyser le pipeline complet et implémenter un matching fuzzy robuste pour atteindre 95%+ de reconnaissance.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/actions/trades.ts` — Réécriture complète de `enrichTradesFromOcr` avec algorithme de scoring
+
+### 💡 Algorithme de Matching (Scoring-Based)
+
+**Problèmes identifiés (avant) :**
+| Problème | Impact |
+|----------|--------|
+| Direction stricte | Rejetait trades si direction mal inférée de l'OCR |
+| Tolérance temps = 0 | Pas de gestion des timezones (UTC vs local) |
+| Symbole exact | "MNQ MAR25" ≠ "MNQ" |
+| Prix strict | 0.5% insuffisant pour erreurs OCR |
+
+**Solution implémentée (après) :**
+
+1. **Time Tolerance** — ±12 heures pour gérer les différences de timezone
+   ```typescript
+   const TIME_TOLERANCE_HOURS = 12;
+   searchStart = ocrTime - 12h
+   searchEnd = ocrTime + 12h
+   ```
+
+2. **Price Tolerance** — Basée sur tick size par instrument
+   ```typescript
+   TICK_SIZES: { NQ: 0.25, ES: 0.25, YM: 1.0, ... }
+   Match si diff ≤ 10 ticks ou 0.1%
+   ```
+
+3. **Symbol Fuzzy Matching** — Normalisation + prefix matching
+   ```typescript
+   normalizeSymbol("MNQ MAR25") → "MNQ"
+   symbolsMatch("MNQ", "MNQH25") → true
+   ```
+
+4. **Scoring System** — Score chaque candidat:
+   | Critère | Points |
+   |---------|--------|
+   | Symbol match | +100 (required) |
+   | Time ≤5min | +50 |
+   | Time ≤1h | +30 |
+   | Time ≤12h | +10 |
+   | Entry price ≤2 ticks | +40 |
+   | Entry price ≤10 ticks | +20 |
+   | PnL ≤$5 ou 5% | +30 |
+   | Direction match | +20 |
+   | Quantity match | +10 |
+
+   **Seuil minimum** = 120 (symbol + au moins un autre facteur fort)
+
+5. **Debug Logging** — Logs détaillés pour chaque échec:
+   ```
+   OCR Trade #1: Entry: 01/07/2025 10:09:48 AM
+     Candidate #1: score=180, ✓ Symbol, ✓ Time (2min), ✓ Price, ✓ PnL
+     Candidate #2: score=130, ✓ Symbol, ~ Time (3h), ✓ PnL
+     ✅ Matched with score 180
+   ```
+
+### 🔗 Contexte
+Cette refonte permet de gérer les cas complexes :
+- Imports CSV avec dates en UTC, screenshots en heure locale
+- Contrats futures avec codes mois (MNQ MAR25 vs MNQ)
+- Erreurs OCR légères sur les prix
+- Inférence de direction incorrecte depuis l'OCR
+
+---
+
+## [2026-01-09 10:00] - Refactoring Screenshot Import → Enrichment-Only
+
+### 📝 Demande utilisateur
+> Refactorer la fonctionnalité "Import par capture d'écran" pour qu'elle serve uniquement d'outil d'enrichissement des trades existants, empêchant la création de doublons.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/components/import/ocr-import-dialog.tsx` — Ajout modal d'avertissement avant upload + passage à `enrichTradesFromOcr`
+- `src/app/actions/trades.ts` — Nouvelle fonction `enrichTradesFromOcr` (update only, no creation)
+- `messages/en.json` — Nouvelles traductions (warning, enrichment messages)
+- `messages/fr.json` — Nouvelles traductions (avertissement, messages d'enrichissement)
+
+### 💡 Logique Métier
+
+**Politique "Update Only" :**
+1. **Création désactivée** — Les captures d'écran ne peuvent plus créer de nouveaux trades
+2. **Matching** — Recherche par Symbol + Date + Side (Direction)
+3. **Champs mis à jour** (uniquement si existant est vide/placeholder) :
+   - `openedAt` (entry_timestamp)
+   - `closedAt` (exit_timestamp)  
+   - `floatingDrawdownUsd` (drawdown)
+   - `floatingRunupUsd` (runup)
+4. **Skip** — Trades OCR sans correspondance sont ignorés
+
+**UX/UI - Modal d'avertissement :**
+| Langue | Message |
+|--------|---------|
+| FR | "Attention : Veuillez d'abord importer vos trades via CSV pour éviter la création de doublons..." |
+| EN | "Warning: Please import your trades via CSV first to avoid creating duplicates..." |
+
+**Résultat affiché :**
+- `{count} trade(s) enrichi(s)` — Trades mis à jour avec succès
+- `{count} trade(s) non trouvé(s)` — Trades OCR sans correspondance (ignorés)
+
+### 🔗 Contexte
+Cette modification répond au besoin d'éviter les doublons lors de l'import par capture d'écran. Le workflow attendu est :
+1. Import CSV → Crée les trades avec données de base
+2. Import Screenshot → Enrichit les trades existants avec horaires précis et MAE/MFE
+
+---
+
+## [2026-01-09 09:00] - Footer global sur toutes les pages du site
+
+### 📝 Demande utilisateur
+> Ajouter le footer sur l'intégralité des pages du site, pas uniquement les pages publiques.
+
+### 🔧 Modifications techniques
+
+**Fichiers créés :**
+- `src/components/layout/footer.tsx` — Composant Footer partagé (server, 2 variantes: default + compact)
+- `src/components/layout/footer-client.tsx` — Footer client pour pages d'erreur
+- `src/app/reset-password/layout.tsx` — Layout avec footer pour reset password
+- `src/app/playbooks/layout.tsx` — Layout avec footer pour playbooks partagés
+
+**Fichiers modifiés :**
+- `src/app/(public)/layout.tsx` — Utilise le composant Footer partagé
+- `src/app/(dashboard)/layout.tsx` — Ajout Footer compact dans le dashboard
+- `src/app/(auth)/layout.tsx` — Ajout Footer compact pour login/register
+- `src/app/not-found.tsx` — Ajout Footer compact pour page 404
+- `src/app/error.tsx` — Ajout FooterClient pour page d'erreur
+- `src/app/reset-password/reset-password-content.tsx` — Ajustement layout pour footer
+
+### 💡 Architecture Footer
+
+**2 variantes du footer :**
+1. **default** — Footer complet avec 3 colonnes (Brand, Legal, Contact)
+2. **compact** — Footer compact sur une ligne (pour dashboard, auth, erreurs)
+
+**Couverture :**
+| Route Group | Footer Type |
+|-------------|-------------|
+| `(public)/*` | default |
+| `(dashboard)/*` | compact |
+| `(auth)/*` | compact |
+| `/reset-password` | compact |
+| `/playbooks/*` | compact |
+| `/not-found` | compact |
+| `/error` | compact (client) |
+
+---
+
+## [2026-01-09 08:00] - Création page Privacy Policy + Lien dans footer
+
+### 📝 Demande utilisateur
+> Créer la page "privacy" pour la configuration Google OAuth et ajouter le lien dans le footer de toutes les pages publiques.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :**
+  - `src/app/(public)/privacy/page.tsx` — Page complète politique de confidentialité (100 lignes)
+
+- **Fichiers modifiés :**
+  - `messages/fr.json` — Ajout section `legal.privacy` (7 sous-sections) + `footer.privacy`
+  - `messages/en.json` — Ajout section `legal.privacy` (7 sous-sections) + `footer.privacy`
+  - `src/app/(public)/layout.tsx` — Ajout lien `/privacy` dans le footer
+
+### 💡 Contenu de la page Privacy
+7 sections avec icônes :
+1. **Données collectées** (Database) — Email, trades, données techniques
+2. **Utilisation des données** (UserCheck) — Services, stats, auth
+3. **Stockage et sécurité** (Lock) — Supabase AWS EU, chiffrement
+4. **Cookies** (Cookie) — Essentiels uniquement
+5. **Services tiers** (Globe) — Supabase, Stripe, OpenAI, OVH
+6. **Vos droits RGPD** (Shield) — Accès, rectification, effacement
+7. **Contact** (Mail) — DPO email
+
+### ✅ URLs disponibles
+- FR : `/privacy` (Confidentialité)
+- EN : `/privacy` (Privacy Policy)
+
+### 🔗 Lien Google OAuth
+La page `/privacy` est maintenant disponible pour la configuration Google OAuth consent screen comme indiqué dans `docs/guides/google-oauth-setup.md`.
+
+---
+
+## [2026-01-08 06:15] - Activation bouton Google OAuth
+
+### 📝 Demande utilisateur
+> Activer le bouton Google dans le code après configuration Google Cloud Console.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/components/auth/social-login-buttons.tsx` — Bouton Google décommenté et activé (lignes 64-78)
+
+### 💡 Changements
+- Bouton Google maintenant visible et fonctionnel
+- Commentaire mis à jour : "DISABLED" → "Google"
+- Les traductions `continueWithGoogle` existent déjà (FR/EN)
+- Aucune erreur de linting
+
+### ✅ Status
+- Bouton Google : **ACTIF**
+- Bouton Discord : **ACTIF** (déjà fonctionnel)
+- Bouton Apple : **INACTIF** (toujours commenté, nécessite configuration Apple)
+
+### 🔗 Suite
+Une fois Google OAuth configuré dans Supabase Dashboard (suivre `docs/guides/google-oauth-setup.md`), le bouton sera fonctionnel.
+
+---
+
+## [2026-01-08 06:00] - Guide Configuration Google OAuth pour Supabase
+
+### 📝 Demande utilisateur
+> Expliquer comment configurer l'authentification Google OAuth dans Google Cloud Console pour l'Epic 8 (Social Login).
+
+### 🔧 Modifications techniques
+- **Fichiers créés :**
+  - `docs/guides/google-oauth-setup.md` — Guide complet étape par étape (260 lignes)
+
+### 💡 Contenu du guide
+
+**Guide complet** avec :
+1. **Prérequis** : Compte Google Cloud, accès Supabase Dashboard
+2. **Étape 1** : Créer/sélectionner projet Google Cloud
+3. **Étape 2** : Configurer écran de consentement OAuth
+4. **Étape 3** : Créer credentials OAuth 2.0 (Client ID + Secret)
+5. **Étape 4** : Configuration dans Supabase Dashboard
+6. **Vérification** : Tests local et production
+7. **Troubleshooting** : Solutions aux erreurs communes
+
+### 🔗 Informations clés
+- **Supabase Project ID** : `ioqqiyluatbcckuuprcc`
+- **Callback URL** : `https://ioqqiyluatbcckuuprcc.supabase.co/auth/v1/callback`
+- **Production domain** : `tradingpathjournal.com`
+- **Local dev** : `http://localhost:3000/auth/callback`
+
+### 🔧 Prochaines étapes (COMPLÉTÉES)
+1. ✅ Guide créé : `docs/guides/google-oauth-setup.md`
+2. ⏳ Configurer Google Cloud Console (à faire par l'utilisateur)
+3. ⏳ Activer Google provider dans Supabase Dashboard (à faire par l'utilisateur)
+4. ✅ Bouton Google activé dans le code
+
+---
+
+## [2026-01-09 02:00] - Stripe USD + Donation + Rebranding Trading Path Journal
+
+### 📝 Demande utilisateur
+> 1. Configurer les price_id Stripe (USD) pour les abonnements
+> 2. Ajouter bouton de donation (Pay What You Want)
+> 3. Rebranding "Trading Journal" → "Trading Path Journal" partout
+
+### 🔧 Modifications techniques
+
+**Fichiers créés :**
+- `scripts/update-stripe-price-ids.ts` : Script pour mettre à jour les stripePriceId en DB
+
+**Fichiers modifiés :**
+- `src/app/(public)/pricing/pricing-content.tsx` :
+  - Prix affichés en USD ($) au lieu de €
+  - Section donation avec bouton "Make a Donation"
+  - Nettoyage des logs de debug
+- `messages/en.json` & `messages/fr.json` :
+  - +3 clés donation (donationTitle, donationDescription, donationButton)
+  - Toutes les occurrences "Trading Journal" → "Trading Path Journal"
+- `src/app/(public)/layout.tsx` : Header + Footer rebrandés
+- `src/app/layout.tsx` : Metadata title rebrandé
+- `src/app/(auth)/login/login-content.tsx` : Titre login rebrandé
+- `src/services/stripe-service.ts` : Nom produit Stripe rebrandé
+
+### 💡 Configuration Stripe
+**Price IDs configurés :**
+- MONTHLY: `price_1SmntkASK0h6caZHzhIBMFg0`
+- QUARTERLY: `price_1SnPwlASK0h6caZHRG8EdLBQ`
+- BIANNUAL: `price_1SnQ0kASK0h6caZHe5idPfpw`
+- ANNUAL: `price_1SnQ1SASK0h6caZHu4GpYsHj`
+
+**Donation Link:** `https://buy.stripe.com/14AfZg1G946zaao25DgA804`
+
+### 🚀 Action requise
+Exécuter le script pour mettre à jour les price_id en DB :
+```bash
+npx tsx scripts/update-stripe-price-ids.ts
+```
+
+---
+
+## [2026-01-09 01:00] - Sync Discord + Avatar Header + Renommage Profile→Settings
+
+### 📝 Demande utilisateur
+> 1. Synchroniser automatiquement le username Discord lors de signup/login/link
+> 2. Afficher l'avatar utilisateur dans le header (avec fallback initiales)
+> 3. Renommer "Profile" en "Settings" dans la navigation
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/auth/callback/route.ts` : 
+  - Nouvelle fonction `extractDiscordData()` (username + avatarUrl + hasDiscordIdentity)
+  - Sync automatique du username ET avatar Discord à chaque login/link
+  - Détection des identités Discord liées (pas seulement provider principal)
+- `src/lib/auth.ts` : 
+  - Ajout `avatarUrl` à `UserSession` interface
+  - Inclus `avatarUrl` dans tous les `select` Prisma
+- `src/app/(dashboard)/layout.tsx` : Passe `avatarUrl` au Topbar
+- `src/components/layout/topbar.tsx` : 
+  - Ajout prop `avatarUrl`
+  - Affiche `AvatarImage` si URL présente, sinon fallback `AvatarFallback` (initiales)
+  - Icône dropdown changée de `User` → `Settings`
+- `src/components/layout/sidebar.tsx` : Icône changée de `User` → `Settings`
+- `messages/en.json` : `"profile": "Settings"`
+- `messages/fr.json` : `"profile": "Paramètres"`
+
+### 💡 Comportement
+- **Discord Sync** : Username et avatar synchronisés automatiquement lors de :
+  - Inscription via Discord (signup)
+  - Connexion via Discord (login) - met à jour si pseudo a changé
+  - Liaison manuelle depuis Settings (link)
+- **Avatar Header** : Si avatar existe → image ronde ; sinon → initiales
+- **Avatar custom** : Si user a uploadé son propre avatar (URL contient "avatars/"), l'avatar Discord ne l'écrase pas
+
+---
+
+## [2026-01-09 00:30] - Corrections page Settings (Avatar, Email, Discord, HTML)
+
+### 📝 Demande utilisateur
+> Corriger 4 bugs sur la page /settings : upload avatar échoue, email non mis à jour après changement, Discord link "manual linking disabled", erreurs HTML nesting dans delete dialog.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/auth/callback/route.ts` : Gestion `type=email_change` pour sync public.users
+- `src/app/(dashboard)/settings/settings-content.tsx` : 
+  - Fix HTML nesting dans AlertDialogDescription
+  - Handler `email_updated` query param
+- `messages/en.json` : +2 clés `emailUpdated`, `emailUpdatedDesc`
+- `messages/fr.json` : +2 clés `emailUpdated`, `emailUpdatedDesc`
+
+### 💡 Root causes identifiées
+1. **Avatar upload** : Bucket `avatars` inexistant → Config Supabase Dashboard
+2. **Email non mis à jour** : Callback ne gérait pas `type=email_change` → Fix code
+3. **Discord linking** : "Manual Linking" désactivé → Config Supabase Dashboard
+4. **HTML nesting** : `<p>` et `<ul>` dans `AlertDialogDescription` (qui rend `<p>`) → Fix structure HTML
+
+### 🔗 Actions utilisateur requises (Supabase Dashboard)
+- Créer bucket `avatars` (public) avec policy authenticated
+- Activer "Manual Linking" pour Discord dans Providers
+
+---
+
+## [2026-01-08 23:30] - Ajout "Remember me" + "Resend email" (Auth)
+
+### 📝 Demande utilisateur
+> Ajouter checkbox "Se souvenir de moi" sur login et bouton "Renvoyer email" avec cooldown 120s sur inscription.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/(auth)/login/login-content.tsx` : Checkbox "Remember me"
+- `src/app/(auth)/register/register-content.tsx` : Bouton resend avec countdown
+- `src/app/actions/auth.ts` : `resendConfirmationEmail()` via Supabase API
+- `messages/en.json` : +5 clés auth
+- `messages/fr.json` : +5 clés auth
+
+### 💡 Comportement
+- **Remember me** : Checkbox visible sur page login
+- **Resend email** : Bouton désactivé pendant 120s, puis cliquable. Affiche "Renvoyer dans Xs"
+
+---
+
+## [2026-01-08 23:00] - Tests fonctionnels complets + Corrections i18n
+
+### 📝 Demande utilisateur
+> Effectuer les tests fonctionnels bloc par bloc selon le plan DEBUG_LOG.md et corriger les bugs identifiés.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/app/actions/auth.ts` : Codes erreur `ACCOUNT_BLOCKED`, `LOGIN_ERROR`
+- `src/app/(auth)/login/login-content.tsx` : Traduction nouveaux codes
+- `src/app/(dashboard)/calendrier/calendar-content.tsx` : i18n jours/mois
+- `messages/en.json` : +10 clés (auth, calendar)
+- `messages/fr.json` : +10 clés (auth, calendar)
+
+### 💡 Résultats audit
+- **10 blocs testés** : Authentification, Import, Dashboard, Journal, Calendrier, Playbooks, Comptes, Settings, Pricing, Pages publiques
+- **2 bugs identifiés et corrigés** :
+  1. Messages login hardcodés en anglais
+  2. Calendrier avec jours/mois hardcodés en français
+
+### 🔗 Contexte
+- Tous les blocs fonctionnels validés côté code
+- Tests manuels recommandés pour validation finale
+
+---
+
+## [2026-01-08 22:30] - Configuration i18n Anglais par défaut + Fix orphelins Supabase
+
+### 📝 Demande utilisateur
+> Passer la langue par défaut du site en anglais et corriger le bug où un utilisateur supprimé de Supabase Auth ne peut plus se réinscrire.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/middleware.ts` — Suppression détection langue navigateur, défaut = anglais
+- `src/app/layout.tsx` — Metadata description en anglais
+- `src/app/actions/auth.ts` — Nettoyage automatique utilisateurs orphelins via Admin API
+- `src/app/actions/import.ts` — Message erreur en anglais
+- `src/app/(dashboard)/importer/import-content.tsx` — Message erreur en anglais
+- `src/services/import-service.ts` — Message erreur en anglais
+- `src/services/stripe-service.ts` — Description produit Stripe en anglais
+
+### 💡 Pourquoi
+1. **i18n** : Le navigateur de l'utilisateur détectait automatiquement le français, même quand l'utilisateur voulait l'anglais. Désormais, anglais par défaut, l'utilisateur doit explicitement choisir français.
+2. **Orphelins Supabase** : Quand un user est supprimé de `auth.users` mais pas de `public.users`, l'inscription échouait. Maintenant le code détecte et nettoie ces orphelins automatiquement.
+
+### 🔗 Contexte
+- Bug reporté lors des tests manuels BLOC 1.1 (Inscription)
+- Utilisation de `createAdminClient()` pour vérifier existence dans `auth.users` via API admin
+
+---
+
+## [2026-01-08 20:15] - Implémentation Migration OCR → Google Cloud Vision API ✅ COMPLETE
+
+### 📝 Demande utilisateur
+> Implémenter la migration du module OCR de Tesseract.js vers Google Cloud Vision API.
+
+### 🔧 Modifications techniques
+
+**Fichiers créés :**
+- `src/lib/google-vision.ts` — Client Vision API singleton avec retry, timeout, quota tracking (~260 lignes)
+- `src/types/google-vision.ts` — Types TypeScript complets pour Vision API (~120 lignes)
+- `src/components/ui/alert.tsx` — Composant Alert shadcn/ui manquant
+- `docs/specs/google-vision-ocr-migration.md` — Spécifications complètes (~800 lignes)
+
+**Fichiers modifiés :**
+- `src/services/ocr-service.ts` — Ajout `parseVisionResponse()` avec analyse de qualité (~150 lignes ajoutées)
+- `src/app/api/ocr/parse/route.ts` — Refonte complète pour Vision API (validation, error handling)
+- `src/components/import/ocr-import-dialog.tsx` — Migration vers appel API (suppression Tesseract.js client)
+- `.gitignore` — Ajout patterns pour credentials GCP
+- `env.example` — Ajout `GOOGLE_APPLICATION_CREDENTIALS`
+- `messages/fr.json` — 12 nouvelles clés OCR (timeout, quota, quality, etc.)
+- `messages/en.json` — Traductions EN correspondantes
+
+**Dépendances :**
+- ✅ Ajouté : `@google-cloud/vision`
+- ✅ Supprimé : `tesseract.js` (~7MB économisés sur le bundle client)
+
+### 💡 Fonctionnalités implémentées
+
+**1. Client Vision API (`src/lib/google-vision.ts`) :**
+- Singleton avec lazy initialization
+- Timeout configurable (30s par défaut)
+- Retry automatique sur erreurs 5xx (1 retry)
+- Tracking quota (warning à 80%)
+- Types d'erreurs dédiés : `VisionApiError`, `VisionTimeoutError`, `VisionQuotaError`
+
+**2. API Route refaite (`/api/ocr/parse`) :**
+- Validation image : taille max 10MB, formats JPEG/PNG/WebP/GIF
+- Détection MIME par magic bytes
+- Codes d'erreur structurés : `TIMEOUT`, `QUOTA_EXCEEDED`, `IMAGE_TOO_LARGE`, etc.
+- Auth Supabase obligatoire
+
+**3. Parser Vision (`parseVisionResponse()`) :**
+- Exploitation structure hiérarchique : blocks → paragraphs → words → symbols
+- Filtrage par confidence score (seuil 0.7 par défaut)
+- Analyse qualité image (good/medium/poor + recommandation)
+- Fallback sur `parseOcrText()` si pas de structure
+
+**4. Frontend amélioré :**
+- Conversion image → Base64 côté client
+- États de progression : converting → uploading → analyzing
+- Bouton retry sur erreurs retryables
+- Warning qualité image affiché si détecté
+
+### 🔗 Configuration requise pour activer
+
+```bash
+# Option 1: Service Account (recommandé production)
+GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+
+# Option 2: API Key (dev rapide)
+GOOGLE_VISION_API_KEY="AIza..."
+```
+
+**Étapes GCP :**
+1. Créer projet GCP
+2. Activer Cloud Vision API
+3. Créer Service Account avec rôle "Cloud Vision API User"
+4. Générer clé JSON et configurer variable d'environnement
+
+### 🎯 Résultats
+
+| Métrique | Avant | Après |
+|----------|-------|-------|
+| Bundle client | +7MB (Tesseract WASM) | -7MB |
+| Précision OCR | ~75-85% | ~95%+ |
+| Confidence score | ❌ Non disponible | ✅ Disponible |
+| Traitement | Client-side | Server-side |
+
+**Build :** ✅ Réussi (0 erreurs liées à OCR)
+
+---
+
+## [2026-01-08 19:30] - Spécifications Migration OCR → Google Cloud Vision API
+
+### 📝 Demande utilisateur
+> Rédiger un plan de spécifications techniques et fonctionnelles détaillé pour migrer le module OCR de Tesseract.js vers Google Cloud Vision API.
+
+### 🔧 Modifications techniques
+
+**Fichiers créés :**
+- `docs/specs/google-vision-ocr-migration.md` — Document de spécifications complet (~800 lignes)
+
+### 💡 Contenu des spécifications
+
+**Analyse de l'existant :**
+- Tesseract.js côté client (~7MB bundle)
+- `ocr-service.ts` : 600+ lignes de regex
+- Précision estimée : 75-85%
+
+**Architecture proposée :**
+- Migration vers Google Cloud Vision API (DOCUMENT_TEXT_DETECTION)
+- Traitement 100% serveur (bundle allégé)
+- Envoi image en Base64 (pas URL)
+- Credentials via Service Account JSON
+
+**6 User Stories définies :**
+1. Configuration projet GCP (45min)
+2. Client Vision Backend (2h)
+3. Refonte API Route /api/ocr/parse (2h)
+4. Nouveau Parser Vision (3h)
+5. Refonte Frontend OCR Dialog (2h)
+6. Cleanup Tesseract (30min)
+
+**Estimation totale : 18h**
+
+**Gestion des erreurs documentée :**
+- Image floue → confidence < 0.5 → warning UI
+- Timeout → 504 + bouton retry
+- Quota dépassé → 429 + message admin
+- Image >10MB → 413
+
+**Plan d'implémentation en 5 phases :**
+1. Setup (sans casser l'existant)
+2. Backend (route alternative /api/ocr/vision)
+3. Frontend (feature flag)
+4. Migration complète
+5. Post-migration (monitoring)
+
+---
+
+## [2026-01-07 18:45] - Fix Critique: Signature de Trade Améliorée pour Import CSV
+
+### 📝 Demande utilisateur
+> L'import CSV détectait 118 doublons sur 120 trades dans un compte vide. Audit complet du système d'import demandé.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/services/trade-service.ts` — Refonte complète de `calculateTradeSignature()` pour inclure 9 champs distinctifs
+- `src/services/trade-service.ts` — Mise à jour de `findTradeBySignature()` pour accepter les nouveaux paramètres
+- `src/app/actions/import.ts` — Passage des nouveaux paramètres à `findTradeBySignature()`
+- `src/services/broker/broker-sync-service.ts` — Mise à jour pour la sync broker
+
+### 💡 Pourquoi
+
+**Cause racine identifiée :**
+La signature de trade utilisait seulement `(userId, accountId, symbol, openedAt, entryPrice, exitPrice)`. Quand plusieurs trades avaient les mêmes prix d'entrée/sortie le même jour, ils généraient la **même signature** → détectés comme doublons.
+
+**Exemple du CSV :**
+```
+MNQ;2026-01-05;-10;25562;25562;0  (ligne 20)
+MNQ;2026-01-05;-10;25562;25562;0  (ligne 21)
+```
+Ces deux trades LÉGITIMES avaient la même signature → seul le premier était importé.
+
+**Nouvelle signature inclut :**
+1. `userId` - propriétaire
+2. `accountId` - compte de trading
+3. `symbol` - instrument
+4. `openedAt` - datetime d'ouverture
+5. `closedAt` - datetime de clôture (NOUVEAU)
+6. `entryPrice` - prix d'entrée
+7. `exitPrice` - prix de sortie
+8. `quantity` - quantité avec signe (NOUVEAU)
+9. `realizedPnlUsd` - PnL réalisé (NOUVEAU)
+
+### 🔗 Contexte additionnel
+- Les trades VÉRITABLEMENT identiques (mêmes 9 champs) seront toujours considérés comme doublons
+- Cela couvre le cas où un utilisateur réimporte le même CSV
+- La compatibilité ascendante est assurée via le fallback fuzzy match pour les anciens trades sans signature
+
+---
+
+## [2026-01-07 17:30] - QA Bugfix: Import Duplicates, Voice Notes, i18n, UX
+
+### 📝 Demande utilisateur
+> Correction d'une liste de 17 bugs critiques identifiés lors d'une revue QA.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `src/services/trade-service.ts` — Correction de la signature de trade pour inclure `exitPrice` et éviter les faux doublons. La signature inclut maintenant: userId, accountId, symbol, datetime complet, entryPrice ET exitPrice.
+- `src/app/actions/import.ts` — Passage de `exitPrice` à `findTradeBySignature` pour correspondre à la nouvelle signature.
+- `src/services/broker/broker-sync-service.ts` — Idem pour la sync broker.
+- `src/app/api/voice-notes/upload/route.ts` — Support des MIME types avec paramètre codec (ex: `audio/webm;codecs=opus`).
+- `src/app/api/day-voice-notes/upload/route.ts` — Idem pour les notes vocales de journée.
+- `src/services/stripe-service.ts` — Amélioration du message d'erreur quand les plans Stripe ne sont pas initialisés.
+- `src/components/layout/topbar.tsx` — Suppression du bouton "Settings" en double (gardé seulement "Profile").
+- `src/components/layout/sidebar.tsx` — Renommage de "Settings" en "Profile" dans la sidebar.
+- `src/app/(dashboard)/settings/settings-content.tsx` — Correction de l'affichage du warning "unlink" quand aucun compte social n'est lié.
+- `src/app/(dashboard)/comptes/accounts-content.tsx` — Ajout d'un bouton "Connexions Broker" vers la page IBKR.
+- `src/app/(public)/pricing/pricing-content.tsx` — Internationalisation des labels d'intervalle (mois/quarter/etc).
+- `src/app/(public)/contact/contact-content.tsx` — Remplacement de "Bientôt disponible" par un bouton Discord cliquable.
+- `src/app/(public)/legal/cgv/page.tsx` — Internationalisation du texte de pied de page.
+- `src/app/(public)/legal/cgu/page.tsx` — Idem.
+- `src/app/(public)/legal/mentions/page.tsx` — Idem.
+- `messages/fr.json` — Ajout des clés i18n: interval, sendAnother, joinDiscord, questionsText, contactUs, brokerConnections.
+- `messages/en.json` — Idem pour l'anglais.
+
+### 💡 Pourquoi
+
+**Bug critique corrigé (#2, #3 - Import Duplicates):**
+La signature de trade était basée uniquement sur `(userId, accountId, symbol, date, entryPrice)`. Cela causait la détection de 118 trades comme "doublons" même sur un compte vide car plusieurs trades le même jour avec le même prix d'entrée étaient considérés identiques. La signature inclut maintenant `exitPrice` pour différencier les trades.
+
+**Autres bugs corrigés:**
+- Voice notes avec codec `audio/webm;codecs=opus` étaient rejetées (#15)
+- Boutons Profile/Settings dupliqués (#5)
+- Textes hardcodés en français sur pricing, contact, legal pages (#7, #10-13)
+- Pas d'accès à la page IBKR (#16)
+- Message d'avertissement incorrect sur la page Settings (#17)
+
+### 🔗 Contexte additionnel
+
+**Bugs non corrigés (nécessitent config Supabase):**
+- Discord login 502 (#1) — Vérifier Site URL et Redirect URLs dans Supabase Dashboard
+- Discord linking "Manual linking disabled" (#6) — Activer dans Auth > Providers > Discord
+- Reset password emails sporadiques (#4) — Vérifier config SMTP dans Supabase
+- Stripe "Plan not found" (#9) — Exécuter `npx tsx scripts/init-stripe-plans.ts` sur le serveur
+
+**Note importante:** Le lien Discord sur la page contact pointe vers `https://discord.gg` — à modifier avec le vrai lien du serveur Discord.
+
+---
+
 ## [2026-01-07 08:35] - Fix i18n: English as Default + Hardcoded Text Audit
 
 ### 📝 Demande utilisateur

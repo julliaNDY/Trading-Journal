@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,14 +12,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { logout } from '@/app/actions/auth';
 
 interface TopbarProps {
   email?: string;
+  avatarUrl?: string | null;
 }
 
-export function Topbar({ email }: TopbarProps) {
+export function Topbar({ email, avatarUrl }: TopbarProps) {
   const t = useTranslations('auth');
   const tNav = useTranslations('nav');
 
@@ -37,6 +38,13 @@ export function Topbar({ email }: TopbarProps) {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar className="h-10 w-10">
+              {avatarUrl && (
+                <AvatarImage 
+                  src={avatarUrl} 
+                  alt={email || 'User avatar'} 
+                  className="object-cover"
+                />
+              )}
               <AvatarFallback className="bg-primary/10 text-primary">
                 {initials}
               </AvatarFallback>
@@ -55,14 +63,8 @@ export function Topbar({ email }: TopbarProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild className="cursor-pointer">
             <Link href="/settings">
-              <User className="mr-2 h-4 w-4" />
-              <span>{tNav('profile')}</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild className="cursor-pointer">
-            <Link href="/settings">
               <Settings className="mr-2 h-4 w-4" />
-              <span>{tNav('settings')}</span>
+              <span>{tNav('profile')}</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />

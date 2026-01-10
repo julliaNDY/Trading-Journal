@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
 import { SocialLoginButtons } from '@/components/auth/social-login-buttons';
 
@@ -37,6 +38,7 @@ export function LoginContent() {
   const t = useTranslations('auth');
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // Handle auth callback errors
   useEffect(() => {
@@ -50,7 +52,18 @@ export function LoginContent() {
     setError(null);
     const result = await login(formData);
     if (result?.error) {
-      setError(result.error);
+      // Traduire les codes d'erreur
+      let errorMessage = result.error;
+      if (result.error.includes('Invalid email or password') || result.error.includes('Invalid login credentials')) {
+        errorMessage = t('loginError');
+      } else if (result.error.includes('Email not confirmed')) {
+        errorMessage = t('emailNotConfirmed');
+      } else if (result.error === 'ACCOUNT_BLOCKED') {
+        errorMessage = t('accountBlocked');
+      } else if (result.error === 'LOGIN_ERROR') {
+        errorMessage = t('loginGenericError');
+      }
+      setError(errorMessage);
     }
   }
 
@@ -63,7 +76,7 @@ export function LoginContent() {
         <AuthLanguageSwitcher />
       </div>
       
-      <Card className="w-full max-w-md relative z-10 animate-scale-in">
+      <Card className="w-full min-w-[455px] max-w-2xl relative z-10 animate-scale-in">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 animate-fade-in overflow-hidden">
@@ -77,14 +90,14 @@ export function LoginContent() {
             </div>
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-2xl font-bold">Trading Journal</CardTitle>
+            <CardTitle className="text-2xl font-bold">Trading Path Journal</CardTitle>
             <CardDescription>
               {t('loginDescription')}
             </CardDescription>
           </div>
         </CardHeader>
 
-        <form action={handleSubmit}>
+        <form action={handleSubmit} className="w-full">
           <CardContent className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg animate-fade-in">
@@ -119,6 +132,18 @@ export function LoginContent() {
                 required
                 autoComplete="current-password"
               />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                name="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
+              <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">
+                {t('rememberMe')}
+              </Label>
             </div>
           </CardContent>
 

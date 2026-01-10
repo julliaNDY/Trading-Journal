@@ -11,6 +11,8 @@ import {
   Time,
   LineStyle,
   CandlestickSeries,
+  createSeriesMarkers,
+  SeriesMarker,
 } from 'lightweight-charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,21 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, TrendingUp, AlertTriangle, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Loader2, TrendingUp, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type Timeframe = '1m' | '5m' | '15m' | '30m' | '1h' | '4h';
+type Timeframe = '1m' | '5m' | '15m';
 
 const TIMEFRAME_MS: Record<Timeframe, number> = {
   '1m': 60 * 1000,
   '5m': 5 * 60 * 1000,
   '15m': 15 * 60 * 1000,
-  '30m': 30 * 60 * 1000,
-  '1h': 60 * 60 * 1000,
-  '4h': 4 * 60 * 60 * 1000,
 };
 
 interface TradeChartProps {
@@ -51,26 +50,11 @@ interface TradeChartProps {
     exitPrice: number;
     exitedAt: Date;
   }[];
-  // Future: real data from broker
-  hasBrokerConnection?: boolean;
-  brokerType?: string;
 }
 
 // ============================================================================
 // CANDLE GENERATION
 // ============================================================================
-
-/**
- * Determines the best automatic timeframe based on trade duration
- */
-function getAutoTimeframe(tradeDurationMs: number): Timeframe {
-  if (tradeDurationMs < 10 * 60 * 1000) return '1m';      // < 10 min → 1m
-  if (tradeDurationMs < 30 * 60 * 1000) return '5m';      // < 30 min → 5m
-  if (tradeDurationMs < 2 * 60 * 60 * 1000) return '15m'; // < 2h → 15m
-  if (tradeDurationMs < 8 * 60 * 60 * 1000) return '30m'; // < 8h → 30m
-  if (tradeDurationMs < 24 * 60 * 60 * 1000) return '1h'; // < 24h → 1h
-  return '4h';                                             // >= 24h → 4h
-}
 
 /**
  * Generate simulated candle data around the trade with specific timeframe
@@ -197,8 +181,6 @@ export function TradeChart({
   openedAt,
   closedAt,
   partialExits,
-  hasBrokerConnection = false,
-  brokerType,
 }: TradeChartProps) {
   const t = useTranslations('tradeChart');
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -207,10 +189,9 @@ export function TradeChart({
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
   
-  // Calculate auto timeframe based on trade duration
-  const tradeDurationMs = closedAt.getTime() - openedAt.getTime();
-  const autoTimeframe = getAutoTimeframe(tradeDurationMs);
-  const [timeframe, setTimeframe] = useState<Timeframe>(autoTimeframe);
+  // Default to 5m timeframe - always show chart immediately on load
+  // The user can change the timeframe if needed
+  const [timeframe, setTimeframe] = useState<Timeframe>('5m');
   
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
@@ -319,29 +300,62 @@ export function TradeChart({
     candlestickSeries.setData(candles);
     setHasData(candles.length > 0);
 
-    // Add entry price line
-    candlestickSeries.createPriceLine({
-      price: entryPrice,
-      color: '#3b82f6',
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: true,
-      title: t('entry'),
-    });
+    // Create markers array for entry/exit points
+    const markers: SeriesMarker<Time>[] = [];
+    
+    // Entry marker - only if we have entry data
+    if (openedAt && entryPrice) {
+      const entryTime = Math.floor(openedAt.getTime() / 1000) as Time;
+      markers.push({
+        time: entryTime,
+        position: 'belowBar',
+        color: '#3b82f6', // blue for entry
+        shape: 'arrowUp',
+        text: t('entry'),
+        size: 2,
+      });
+    }
+    
+    // Exit marker - only if we have exit data
+    if (closedAt && exitPrice) {
+      const exitTime = Math.floor(closedAt.getTime() / 1000) as Time;
+      
+      // Calculate profit to determine color
+      const profit = direction === 'LONG' 
+        ? exitPrice - entryPrice 
+        : entryPrice - exitPrice;
+      const exitColor = profit > 0 ? '#22c55e' : '#ef4444'; // green for profit, red for loss
+      
+      markers.push({
+        time: exitTime,
+        position: 'aboveBar',
+        color: exitColor,
+        shape: 'arrowDown',
+        text: t('exit'),
+        size: 2,
+      });
+    }
+    
+    // Add partial exit markers if they exist
+    if (partialExits && partialExits.length > 0) {
+      partialExits.forEach((exit, index) => {
+        const partialTime = Math.floor(exit.exitedAt.getTime() / 1000) as Time;
+        markers.push({
+          time: partialTime,
+          position: 'aboveBar',
+          color: '#a855f7', // purple for partial exits
+          shape: 'arrowDown',
+          text: `P${index + 1}`,
+          size: 1,
+        });
+      });
+    }
+    
+    // Sort markers by time and apply using the v5 API
+    markers.sort((a, b) => (a.time as number) - (b.time as number));
+    const seriesMarkers = createSeriesMarkers(candlestickSeries, markers);
 
-    // Add exit price line
-    candlestickSeries.createPriceLine({
-      price: exitPrice,
-      color: direction === 'LONG' 
-        ? (exitPrice > entryPrice ? '#22c55e' : '#ef4444')
-        : (exitPrice < entryPrice ? '#22c55e' : '#ef4444'),
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: true,
-      title: t('exit'),
-    });
-
-    // Add stop loss line if exists
+    // Add stop loss line if exists (keep this as a reference line)
     if (stopLoss) {
       candlestickSeries.createPriceLine({
         price: stopLoss,
@@ -379,9 +393,6 @@ export function TradeChart({
       });
     }
 
-    // Add markers for entry and exit (v5 API uses attachPrimitive or we skip markers)
-    // Note: v5 changed the markers API - using price lines instead for now
-
     // Fit content
     chart.timeScale().fitContent();
 
@@ -401,6 +412,8 @@ export function TradeChart({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      // Clean up markers primitive
+      seriesMarkers.detach();
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
@@ -428,9 +441,6 @@ export function TradeChart({
                 <SelectItem value="1m">1m</SelectItem>
                 <SelectItem value="5m">5m</SelectItem>
                 <SelectItem value="15m">15m</SelectItem>
-                <SelectItem value="30m">30m</SelectItem>
-                <SelectItem value="1h">1h</SelectItem>
-                <SelectItem value="4h">4h</SelectItem>
               </SelectContent>
             </Select>
             
@@ -468,30 +478,35 @@ export function TradeChart({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading && (
-          <div className="h-[350px] flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
-        
-        <div 
-          ref={chartContainerRef} 
-          className={`h-[350px] ${isLoading ? 'hidden' : ''}`}
-        />
+        <div className="relative h-[350px]">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <div 
+            ref={chartContainerRef} 
+            className="h-full w-full"
+          />
+        </div>
 
         {!isLoading && (
           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-0.5 bg-blue-500" />
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4l-8 8h5v8h6v-8h5z"/>
+              </svg>
               <span>{t('entry')}: {entryPrice.toFixed(2)}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className={`w-3 h-0.5 ${
+            <div className="flex items-center gap-1.5">
+              <svg className={`w-3 h-3 ${
                 (direction === 'LONG' && exitPrice > entryPrice) || 
                 (direction === 'SHORT' && exitPrice < entryPrice) 
-                  ? 'bg-green-500' 
-                  : 'bg-red-500'
-              }`} />
+                  ? 'text-green-500' 
+                  : 'text-red-500'
+              }`} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 20l8-8h-5V4H9v8H4z"/>
+              </svg>
               <span>{t('exit')}: {exitPrice.toFixed(2)}</span>
             </div>
             {stopLoss && (
@@ -509,23 +524,6 @@ export function TradeChart({
           </div>
         )}
 
-        <div className={`mt-3 p-2 rounded border ${
-          hasBrokerConnection 
-            ? 'bg-blue-500/10 border-blue-500/20' 
-            : 'bg-yellow-500/10 border-yellow-500/20'
-        }`}>
-          <div className={`flex items-start gap-2 text-xs ${
-            hasBrokerConnection ? 'text-blue-500' : 'text-yellow-500'
-          }`}>
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>
-              {hasBrokerConnection 
-                ? t('brokerConnectedNote', { broker: brokerType || 'Broker' })
-                : t('simulatedDataNote')
-              }
-            </span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

@@ -411,6 +411,41 @@ export async function updatePassword(
 }
 
 // ============================================================================
+// NICKNAME (Public display name for playbook sharing)
+// ============================================================================
+
+/**
+ * Update user nickname (public display name)
+ */
+export async function updateNickname(nickname: string): Promise<ActionResult> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Validate nickname
+    const trimmedNickname = nickname.trim();
+    if (trimmedNickname.length > 30) {
+      return { success: false, error: 'Nickname must be 30 characters or less' };
+    }
+
+    // Update in database (allow empty string to clear nickname)
+    await prisma.user.update({
+      where: { id: userId },
+      data: { nickname: trimmedNickname || null },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/playbooks/discover');
+    return { success: true };
+  } catch (error) {
+    profileLogger.error('Error updating nickname', error);
+    return { success: false, error: 'Failed to update nickname' };
+  }
+}
+
+// ============================================================================
 // LANGUAGE PREFERENCE (Story 10.6)
 // ============================================================================
 
@@ -471,6 +506,7 @@ export async function getProfile() {
         id: true,
         email: true,
         discordUsername: true,
+        nickname: true,
         avatarUrl: true,
         preferredLocale: true,
         createdAt: true,

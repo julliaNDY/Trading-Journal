@@ -57,6 +57,7 @@ export function ResetPasswordContent() {
         const errorParam = hashParams.get('error');
         const errorDesc = hashParams.get('error_description');
 
+
         if (errorParam) {
           setError(errorDesc || t('sessionExpired') || 'Session expired. Please request a new reset link.');
           setIsValidSession(false);
@@ -68,6 +69,7 @@ export function ResetPasswordContent() {
             access_token: accessToken,
             refresh_token: refreshToken || '',
           });
+
 
           if (error) {
             setError(t('sessionExpired') || 'Session expired. Please request a new reset link.');
@@ -151,7 +153,7 @@ export function ResetPasswordContent() {
   // Loading state pendant la vérification de session
   if (isValidSession === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
+      <div className="flex-1 flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4 relative">
         <div className="absolute inset-0 bg-background/80" />
         <Card className="w-full max-w-md relative z-10">
           <CardContent className="flex items-center justify-center py-12">
@@ -165,7 +167,7 @@ export function ResetPasswordContent() {
   // Session invalide - afficher erreur avec lien
   if (isValidSession === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
+      <div className="flex-1 flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4 relative">
         <div className="absolute inset-0 bg-background/80" />
         <div className="absolute top-4 right-4 z-20">
           <AuthLanguageSwitcher />
@@ -191,7 +193,7 @@ export function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4">
+    <div className="flex-1 flex items-center justify-center bg-gradient-radial bg-grid-pattern p-4 relative">
       <div className="absolute inset-0 bg-background/80" />
       
       {/* Language Switcher */}

@@ -326,7 +326,7 @@ export function JournalContent({ userId, tags, accounts, symbols }: JournalConte
                     <SelectValue placeholder={tStats('symbol')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__all__">{tStats('allSymbols')}</SelectItem>
+                    <SelectItem value="__all__">{tCommon('symbols')}</SelectItem>
                     {symbols.map((symbol) => (
                       <SelectItem key={symbol} value={symbol}>
                         {symbol}

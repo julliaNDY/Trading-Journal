@@ -67,6 +67,12 @@ npm run dev
 
 L'application sera accessible sur `http://localhost:3000`
 
+**Note :** Si le port 3000 est déjà utilisé par un autre processus, vous pouvez :
+
+- Vérifier l'état du serveur : `npm run dev:check`
+- Arrêter automatiquement le processus existant et démarrer : `npm run dev:safe`
+- Arrêter uniquement le processus existant : `npm run dev:kill`
+
 ## Déploiement IONOS
 
 ### Prérequis IONOS

@@ -37,14 +37,20 @@ export async function checkDuplicates(
   let duplicateCount = 0;
   let mergeCount = 0;
 
-  // Use signature-based matching (with accountId to prevent cross-account duplicates)
+  // Use signature-based matching (with all distinguishing fields to prevent false duplicates)
+  // Skip fuzzy matching for CSV imports since CSV data is precise
   for (const trade of trades) {
     const existingTrade = await findTradeBySignature(
       user.id,
       trade.symbol,
       trade.openedAt,
       trade.entryPrice,
-      accountId
+      accountId,
+      trade.exitPrice,
+      trade.closedAt,
+      trade.quantity,
+      trade.realizedPnlUsd,
+      true // skipFuzzyMatch - CSV data is precise, no need for price tolerance
     );
 
     if (existingTrade) {
@@ -109,11 +115,13 @@ export async function commitImport(
   trades: Omit<CreateTradeInput, 'userId' | 'accountId'>[],
   accountId?: string
 ): Promise<{ imported: number; merged: number; skipped: number; errors: string[] }> {
+  
   const user = await getUser();
 
   if (!user) {
     return { imported: 0, merged: 0, skipped: 0, errors: ['Non authentifié'] };
   }
+
 
   const results = { imported: 0, merged: 0, skipped: 0, errors: [] as string[] };
 
@@ -132,6 +140,8 @@ export async function commitImport(
         accountId: accountId || null,
         // CSV imports typically don't have precise times
         timesManuallySet: false,
+        // Skip fuzzy matching for CSV imports - data is precise
+        skipFuzzyMatch: true,
       });
 
       switch (result.action) {
@@ -147,9 +157,10 @@ export async function commitImport(
       }
     } catch (error) {
       console.error('Error importing trade:', error);
-      results.errors.push(`Erreur pour ${trade.symbol} le ${trade.openedAt.toISOString().split('T')[0]}`);
+      results.errors.push(`Error for ${trade.symbol} on ${trade.openedAt.toISOString().split('T')[0]}`);
     }
   }
+
 
   // Revalidate all pages
   revalidatePath('/dashboard');

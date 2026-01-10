@@ -9,7 +9,11 @@ import {
   Edit2,
   Loader2,
   Wallet,
+  Link2,
+  EyeOff,
+  Archive,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +43,9 @@ import {
   updateAccount,
   deleteAccount,
   deleteAccountTrades,
+  hideAccount,
 } from '@/app/actions/accounts';
+import { archiveAccount } from '@/app/actions/profile';
 
 interface Account {
   id: string;
@@ -91,6 +97,8 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
   const [newInitialBalance, setNewInitialBalance] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [hidingAccount, setHidingAccount] = useState<string | null>(null);
+  const [archivingAccount, setArchivingAccount] = useState<string | null>(null);
 
   const resetForm = () => {
     setNewName('');
@@ -213,6 +221,34 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
     setConfirmDeleteTrades(false);
   };
 
+  const handleHideAccount = async (accountId: string) => {
+    setHidingAccount(accountId);
+    try {
+      await hideAccount(accountId);
+      setAccounts(prev => prev.filter(a => a.id !== accountId));
+      router.refresh();
+    } catch (error) {
+      console.error('Error hiding account:', error);
+    } finally {
+      setHidingAccount(null);
+    }
+  };
+
+  const handleArchiveAccount = async (accountId: string) => {
+    setArchivingAccount(accountId);
+    try {
+      const result = await archiveAccount(accountId);
+      if (result.success) {
+        setAccounts(prev => prev.filter(a => a.id !== accountId));
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Error archiving account:', error);
+    } finally {
+      setArchivingAccount(null);
+    }
+  };
+
   const openEdit = (account: Account) => {
     setNewName(account.name);
     setNewBroker(account.broker || '');
@@ -230,10 +266,18 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
           <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground">{t('subtitle')}</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Link href="/comptes/brokers">
+            <Button variant="outline">
+              <Link2 className="h-4 w-4 mr-2" />
+              {t('brokerConnections')}
+            </Button>
+          </Link>
         <Button onClick={() => setIsCreating(true)}>
           <Plus className="h-4 w-4 mr-2" />
           {t('createAccount')}
         </Button>
+        </div>
       </div>
 
       {/* Accounts List */}
@@ -278,6 +322,34 @@ export function AccountsContent({ accounts: initialAccounts }: AccountsContentPr
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(account)}>
                       <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8" 
+                      onClick={() => handleHideAccount(account.id)}
+                      disabled={hidingAccount === account.id}
+                      title={t('hideAccount') || 'Hide Account'}
+                    >
+                      {hidingAccount === account.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8" 
+                      onClick={() => handleArchiveAccount(account.id)}
+                      disabled={archivingAccount === account.id}
+                      title={t('archiveAccount') || 'Archive Account'}
+                    >
+                      {archivingAccount === account.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Archive className="h-4 w-4 text-amber-500" />
+                      )}
                     </Button>
                     {account.tradesCount > 0 && (
                       <Button 

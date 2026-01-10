@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { authLogger } from '@/lib/logger'
 
@@ -60,12 +60,48 @@ export async function register(
   const validatedData = registerSchema.safeParse(rawData)
 
   if (!validatedData.success) {
-    return { error: validatedData.error.errors[0].message }
+    // Retourner des codes d'erreur pour traduction côté client
+    const firstError = validatedData.error.errors[0];
+    if (firstError.message.includes('Invalid email')) {
+      return { error: 'INVALID_EMAIL' };
+    }
+    if (firstError.message.includes('at least 8 characters')) {
+      return { error: 'PASSWORD_TOO_SHORT' };
+    }
+    if (firstError.message.includes('do not match')) {
+      return { error: 'PASSWORD_MISMATCH' };
+    }
+    return { error: firstError.message };
   }
 
   const { email, password, discordUsername } = validatedData.data
 
   try {
+    // Check if email exists in public.users
+    const existingUserByEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+
+    if (existingUserByEmail) {
+      // User exists in public.users - check if corresponding auth user exists
+      const adminClient = createAdminClient()
+      const { data: authUser } = await adminClient.auth.admin.getUserById(existingUserByEmail.id)
+      
+      if (!authUser?.user) {
+        // Orphan record: exists in public.users but not in auth.users
+        // Clean up the orphan and allow re-registration
+        authLogger.info(`Cleaning up orphan user record for email: ${email}`)
+        await prisma.user.delete({
+          where: { id: existingUserByEmail.id },
+        })
+        // Continue with registration
+      } else {
+        // Auth user exists - truly duplicate
+        return { error: 'EMAIL_ALREADY_EXISTS' }
+      }
+    }
+
     const supabase = await createClient()
 
     // Create user in Supabase Auth
@@ -81,13 +117,14 @@ export async function register(
     })
 
     if (error) {
-      // Translate common Supabase errors
-      if (error.message.includes('already registered')) {
-        return { error: 'This email is already registered' }
+      // Translate common Supabase errors - retourner codes pour i18n côté client
+      if (error.message.includes('already registered') || error.message.includes('User already registered') || error.message.includes('already exists')) {
+        return { error: 'EMAIL_ALREADY_EXISTS' }
       }
-      if (error.message.includes('Password should be')) {
-        return { error: 'Password must be at least 6 characters' }
+      if (error.message.includes('Password should be') || error.message.includes('Password')) {
+        return { error: 'PASSWORD_TOO_SHORT' }
       }
+      // Retourner le message Supabase brut pour debugging
       return { error: error.message }
     }
 
@@ -132,7 +169,7 @@ export async function login(
     })
 
     if (publicUser?.isBlocked) {
-      return { error: 'Your account has been blocked. Please contact an administrator.' }
+      return { error: 'ACCOUNT_BLOCKED' }
     }
 
     const supabase = await createClient()
@@ -154,7 +191,7 @@ export async function login(
     }
   } catch (error) {
     authLogger.error('Login error', error)
-    return { error: 'An error occurred while logging in' }
+    return { error: 'LOGIN_ERROR' }
   }
 
   redirect('/dashboard')
@@ -213,5 +250,34 @@ export async function updatePassword(
   } catch (error) {
     authLogger.error('Update password error', error)
     return { success: false, error: 'An error occurred' }
+  }
+}
+
+export async function resendConfirmationEmail(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    
+    // Supabase doesn't have a direct "resend" method, but we can use signUp again
+    // which will send a new confirmation email if the user exists but is not confirmed
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      authLogger.error('Resend confirmation email error', error)
+      // Don't reveal specific errors
+    }
+
+    // Always return success to prevent email enumeration
+    return { success: true }
+  } catch (error) {
+    authLogger.error('Resend confirmation email exception', error)
+    return { success: true } // Don't reveal errors
   }
 }

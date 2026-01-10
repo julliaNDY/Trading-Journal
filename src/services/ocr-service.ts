@@ -1,9 +1,18 @@
 /**
  * OCR Service - Parsing de captures d'écran de trading
  * 
- * Extrait les données de trades depuis du texte OCR (Tesseract)
- * Supporte les formats de plusieurs plateformes (NinjaTrader, Tradovate, etc.)
+ * Extrait les données de trades depuis du texte OCR.
+ * Supporte Google Cloud Vision API (recommandé) et Tesseract (legacy).
+ * Compatible avec les formats de plusieurs plateformes (NinjaTrader, Tradovate, etc.)
  */
+
+import type { 
+  VisionAnnotateImageResponse, 
+  VisionParagraph, 
+  VisionWord,
+  ParsedLine,
+  ImageQualityAnalysis,
+} from '@/types/google-vision';
 
 // ============================================================================
 // TYPES
@@ -386,13 +395,206 @@ export function isHeaderLine(line: string): boolean {
 }
 
 // ============================================================================
+// COLUMN FORMAT DETECTION & PARSING (for Google Vision API)
+// ============================================================================
+
+/**
+ * Détecte si le texte est au format colonne (Vision API)
+ * Le format colonne a les caractéristiques suivantes:
+ * - Beaucoup de lignes avec seulement 1 date/time
+ * - Beaucoup de lignes avec seulement 1 prix
+ * - Peu ou pas de lignes avec 2+ dates ET 2+ prix
+ */
+function detectColumnFormat(lines: string[], priceRange: { min: number; max: number }): boolean {
+  let linesWithMultipleDates = 0;
+  let linesWithSingleDate = 0;
+  let linesWithSinglePrice = 0;
+
+  for (const line of lines.slice(0, 50)) { // Check first 50 lines
+    if (isHeaderLine(line)) continue;
+    
+    const dateTimes = findDateTimes(line);
+    const prices = extractPrices(line, priceRange);
+    
+    if (dateTimes.length >= 2 && prices.length >= 2) {
+      linesWithMultipleDates++;
+    } else if (dateTimes.length === 1 && prices.length === 0) {
+      linesWithSingleDate++;
+    } else if (dateTimes.length === 0 && prices.length === 1) {
+      linesWithSinglePrice++;
+    }
+  }
+
+  // Si on a beaucoup de lignes avec seulement 1 date ou 1 prix,
+  // et peu de lignes complètes, c'est le format colonne
+  const totalSingleValues = linesWithSingleDate + linesWithSinglePrice;
+  return totalSingleValues > 5 && linesWithMultipleDates < 3;
+}
+
+/**
+ * Parse le texte au format colonne (Vision API)
+ * Reconstruit les trades en collectant les colonnes séparément
+ */
+function parseColumnFormat(
+  lines: string[], 
+  priceRange: { min: number; max: number },
+  rawText: string
+): OcrParseResult {
+  const warnings: string[] = [];
+  const allDateTimes: string[] = [];
+  const allPrices: number[] = [];
+  const allPnLs: number[] = [];
+  const allQuantities: number[] = [];
+
+  // Collecte toutes les valeurs
+  for (const line of lines) {
+    if (isHeaderLine(line)) continue;
+
+    const dateTimes = findDateTimes(line);
+    const prices = extractPrices(line, priceRange);
+    const pnl = extractPnL(line);
+    const qty = extractQuantity(line);
+
+    // Ajoute les dates trouvées
+    for (const dt of dateTimes) {
+      allDateTimes.push(dt);
+    }
+
+    // Ajoute les prix (si la ligne ne contient qu'un prix, pas une date)
+    if (dateTimes.length === 0 && prices.length > 0) {
+      for (const p of prices) {
+        allPrices.push(p);
+      }
+    }
+
+    // Ajoute les PnL (lignes avec $ ou €)
+    if (pnl !== 0 && line.match(/[$€]/)) {
+      allPnLs.push(pnl);
+    }
+
+    // Ajoute les quantités (lignes avec +/- suivi de chiffres)
+    if (line.match(/^[+-]\d+$/) || line.match(/^\s*[+-]\d+\s*$/)) {
+      allQuantities.push(qty);
+    }
+  }
+
+
+  // Les dates sont en paires: Entry DT puis Exit DT alternés
+  // OU toutes les Entry DT d'abord, puis toutes les Exit DT
+  // On doit déterminer le pattern
+  
+  const trades: OcrTradeData[] = [];
+  
+  // Stratégie: assume que les dates sont groupées
+  // D'abord N entry dates, puis N exit dates
+  const numTrades = Math.floor(allDateTimes.length / 2);
+  
+  if (numTrades === 0) {
+    warnings.push('No trades could be reconstructed from column format');
+    return { trades: [], rawText, linesProcessed: lines.length, warnings };
+  }
+
+  // Essaie de déterminer si les dates sont alternées ou groupées
+  // En regardant l'ordre chronologique des premières dates
+  let entryDates: string[] = [];
+  let exitDates: string[] = [];
+
+  if (allDateTimes.length >= 2) {
+    const date1 = parseOcrDateTime(allDateTimes[0]);
+    const date2 = parseOcrDateTime(allDateTimes[1]);
+    
+    if (date1 && date2) {
+      if (date2 > date1) {
+        // Les dates sont probablement alternées (entry1, exit1, entry2, exit2...)
+        // OU groupées (entry1, entry2, ..., exit1, exit2, ...)
+        // Vérifions avec la 3ème date si disponible
+        if (allDateTimes.length >= 3) {
+          const date3 = parseOcrDateTime(allDateTimes[2]);
+          if (date3 && date3 < date2) {
+            // date3 < date2 suggère format groupé (toutes les entries d'abord)
+            entryDates = allDateTimes.slice(0, numTrades);
+            exitDates = allDateTimes.slice(numTrades, numTrades * 2);
+          } else {
+            // Format alterné
+            for (let i = 0; i < allDateTimes.length; i += 2) {
+              if (allDateTimes[i]) entryDates.push(allDateTimes[i]);
+              if (allDateTimes[i + 1]) exitDates.push(allDateTimes[i + 1]);
+            }
+          }
+        } else {
+          // Seulement 2 dates, assume groupé
+          entryDates = [allDateTimes[0]];
+          exitDates = [allDateTimes[1]];
+        }
+      } else {
+        // Première date > deuxième date - inhabituel, assume groupé
+        entryDates = allDateTimes.slice(0, numTrades);
+        exitDates = allDateTimes.slice(numTrades, numTrades * 2);
+      }
+    }
+  }
+
+  // Les prix sont aussi en paires: entry price puis exit price
+  // Assume même pattern que les dates
+  const entryPrices = allPrices.slice(0, numTrades);
+  const exitPrices = allPrices.slice(numTrades, numTrades * 2);
+
+
+  // Construit les trades
+  for (let i = 0; i < numTrades; i++) {
+    const entryDt = entryDates[i];
+    const exitDt = exitDates[i];
+    const entryPrice = entryPrices[i];
+    const exitPrice = exitPrices[i];
+    const pnl = allPnLs[i] ?? 0;
+
+    if (!entryDt || !exitDt) {
+      warnings.push(`Trade ${i + 1}: Missing entry or exit date`);
+      continue;
+    }
+
+    if (!entryPrice || !exitPrice) {
+      warnings.push(`Trade ${i + 1}: Missing entry or exit price`);
+      continue;
+    }
+
+    trades.push({
+      entryDt,
+      exitDt,
+      entryPrice,
+      exitPrice,
+      profitLoss: pnl,
+      quantity: allQuantities[i] || 1,
+    });
+  }
+
+  // Trie par date d'entrée
+  trades.sort((a, b) => {
+    const dateA = parseOcrDateTime(a.entryDt);
+    const dateB = parseOcrDateTime(b.entryDt);
+    return (dateA?.getTime() ?? 0) - (dateB?.getTime() ?? 0);
+  });
+
+
+  return {
+    trades,
+    rawText,
+    linesProcessed: lines.length,
+    warnings,
+  };
+}
+
+// ============================================================================
 // MAIN PARSING FUNCTION
 // ============================================================================
 
 /**
  * Parse le texte OCR et extrait les trades
+ * Supporte deux formats:
+ * 1. Format ligne (Tesseract): chaque trade sur une ligne
+ * 2. Format colonne (Vision API): données organisées en colonnes verticales
  * 
- * @param text - Texte brut du résultat Tesseract
+ * @param text - Texte brut du résultat OCR
  * @param symbol - Symbole optionnel pour filtrer les ranges de prix
  * @returns OcrParseResult avec les trades et metadata
  */
@@ -411,6 +613,15 @@ export function parseOcrText(text: string, symbol?: string): OcrParseResult {
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0);
+
+  // Détecte le format du texte
+  // Si on trouve des lignes avec 2+ dates ET 2+ prix, c'est le format ligne
+  // Sinon, c'est probablement le format colonne (Vision API)
+  const isColumnFormat = detectColumnFormat(lines, priceRange);
+
+  if (isColumnFormat) {
+    return parseColumnFormat(lines, priceRange, text);
+  }
 
   const rawRows: RawRow[] = [];
 
@@ -529,6 +740,7 @@ export function parseOcrText(text: string, symbol?: string): OcrParseResult {
       }
     }
   }
+
 
   // Consolide les trades (regroupe les sub-rows)
   const consolidatedTrades = consolidateRawRows(rawRows);
@@ -669,5 +881,199 @@ export function parseOcrDateTime(dateStr: string): Date | null {
   } catch {
     return null;
   }
+}
+
+// ============================================================================
+// GOOGLE VISION API PARSING
+// ============================================================================
+
+const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
+
+export interface VisionParseOptions {
+  /** Seuil de confiance minimum pour inclure un bloc (0-1) */
+  confidenceThreshold?: number;
+  /** Symbole pour filtrer les ranges de prix */
+  symbol?: string;
+}
+
+export interface VisionParseResult extends OcrParseResult {
+  /** Analyse de la qualité de l'image */
+  qualityAnalysis?: ImageQualityAnalysis;
+}
+
+/**
+ * Parse la réponse de Google Cloud Vision API
+ * 
+ * Exploite la structure hiérarchique (blocks → paragraphs → words → symbols)
+ * et les scores de confiance pour un parsing plus précis.
+ * 
+ * @param response - Réponse de l'API Vision
+ * @param options - Options de parsing
+ * @returns Résultat du parsing avec trades et métadonnées
+ */
+export function parseVisionResponse(
+  response: VisionAnnotateImageResponse,
+  options: VisionParseOptions = {}
+): VisionParseResult {
+  const { 
+    confidenceThreshold = DEFAULT_CONFIDENCE_THRESHOLD,
+    symbol 
+  } = options;
+
+  const fullText = response.fullTextAnnotation;
+  
+  // Si pas de structure, fallback sur le texte brut
+  if (!fullText?.pages?.length) {
+    const rawText = fullText?.text || '';
+    return {
+      ...parseOcrText(rawText, symbol),
+      qualityAnalysis: {
+        quality: rawText ? 'medium' : 'poor',
+        avgConfidence: rawText ? 0.5 : 0,
+        totalBlocks: 0,
+        lowConfidenceBlocks: 0,
+        recommendation: rawText 
+          ? 'No structured data available, using raw text parsing.'
+          : 'No text detected in image.',
+      },
+    };
+  }
+
+  const warnings: string[] = [];
+  const lines: ParsedLine[] = [];
+  let lowConfidenceCount = 0;
+  let totalBlocks = 0;
+  const confidences: number[] = [];
+
+  // Extraire les lignes depuis la structure Vision
+  for (const page of fullText.pages) {
+    for (const block of page.blocks || []) {
+      // Skip blocs non-texte
+      if (block.blockType !== 'TEXT') continue;
+      
+      totalBlocks++;
+      const blockConfidence = block.confidence ?? 1;
+      confidences.push(blockConfidence);
+      
+      if (blockConfidence < confidenceThreshold) {
+        lowConfidenceCount++;
+        continue;
+      }
+
+      for (const paragraph of block.paragraphs || []) {
+        const paraConfidence = paragraph.confidence ?? blockConfidence;
+        
+        if (paraConfidence < confidenceThreshold) {
+          continue;
+        }
+
+        const { text: lineText, words } = extractParagraphContent(paragraph);
+        
+        if (lineText.trim()) {
+          lines.push({
+            text: lineText,
+            confidence: paraConfidence,
+            words,
+            lineIndex: lines.length,
+          });
+        }
+      }
+    }
+  }
+
+  if (lowConfidenceCount > 0) {
+    warnings.push(
+      `${lowConfidenceCount} bloc(s) ignoré(s) (confiance < ${Math.round(confidenceThreshold * 100)}%)`
+    );
+  }
+
+  // Calculer la qualité moyenne
+  const avgConfidence = confidences.length > 0
+    ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+    : 0;
+
+  const qualityAnalysis: ImageQualityAnalysis = {
+    quality: avgConfidence >= 0.85 ? 'good' : avgConfidence >= 0.7 ? 'medium' : 'poor',
+    avgConfidence: Math.round(avgConfidence * 100) / 100,
+    totalBlocks,
+    lowConfidenceBlocks: lowConfidenceCount,
+    recommendation: avgConfidence < 0.7 
+      ? 'Image quality is low. Consider using a higher resolution screenshot.'
+      : undefined,
+  };
+
+  // Reconstituer le texte pour le parsing
+  const reconstructedText = lines.map(l => l.text).join('\n');
+  
+  // Parser avec le texte reconstitué
+  const result = parseOcrText(reconstructedText, symbol);
+
+  return {
+    ...result,
+    rawText: fullText.text || reconstructedText,
+    warnings: [...result.warnings, ...warnings],
+    qualityAnalysis,
+  };
+}
+
+/**
+ * Extrait le contenu d'un paragraphe Vision en texte + mots structurés
+ */
+function extractParagraphContent(paragraph: VisionParagraph): { 
+  text: string; 
+  words: ParsedLine['words'];
+} {
+  const words: ParsedLine['words'] = [];
+  const textParts: string[] = [];
+
+  for (const word of paragraph.words || []) {
+    const wordText = getWordText(word);
+    const wordConfidence = word.confidence ?? 1;
+    
+    words.push({
+      text: wordText,
+      confidence: wordConfidence,
+      bounds: word.boundingBox,
+    });
+
+    textParts.push(wordText);
+    
+    // Ajouter espace/newline selon le break type du dernier symbole
+    const lastSymbol = word.symbols?.[word.symbols.length - 1];
+    const breakType = lastSymbol?.property?.detectedBreak?.type;
+    
+    if (breakType === 'EOL_SURE_SPACE' || breakType === 'LINE_BREAK') {
+      textParts.push('\n');
+    } else if (breakType === 'SPACE' || breakType === 'SURE_SPACE') {
+      textParts.push(' ');
+    } else {
+      // Ajouter un espace par défaut entre les mots
+      textParts.push(' ');
+    }
+  }
+
+  return {
+    text: textParts.join('').trim(),
+    words,
+  };
+}
+
+/**
+ * Extrait le texte d'un mot Vision (concatène les symboles)
+ */
+function getWordText(word: VisionWord): string {
+  return (word.symbols || [])
+    .map(s => s.text || '')
+    .join('');
+}
+
+/**
+ * Vérifie si les credentials Google Vision sont configurés
+ */
+export function isVisionApiConfigured(): boolean {
+  return !!(
+    process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+    process.env.GOOGLE_VISION_API_KEY
+  );
 }
 

@@ -1,6 +1,6 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '@/lib/prisma';
-import type { Direction, Trade } from '@prisma/client';
+import type { Direction, Trade, Prisma } from '@prisma/client';
 import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
 
 export interface TradeWithTags extends Trade {
@@ -150,36 +150,49 @@ function simpleHash(data: string): string {
 
 /**
  * Calculate FLEXIBLE trade signature for merge/matching
- * Based on: userId, accountId, symbol, DATE(openedAt), entryPrice (rounded to 2 decimals)
+ * Based on: userId, accountId, symbol, dates, prices, quantity, PnL
  * 
- * This signature is STABLE even if:
- * - Times change (CSV import without times vs OCR with times)
- * - Exit price changes (partial exits)
- * - PnL changes (partial exits)
- * - closedAt changes (last exit time)
+ * This signature is MORE UNIQUE to prevent false duplicate detection.
+ * It includes: full datetimes, both prices, quantity (with sign), and PnL.
  * 
  * IMPORTANT: accountId is included to prevent cross-account false duplicates
+ * IMPORTANT: quantity and realizedPnlUsd distinguish multiple trades with same prices
  */
 export function calculateTradeSignature(trade: {
   userId: string;
   accountId?: string | null;
   symbol: string;
   openedAt: Date;
+  closedAt?: Date;
   entryPrice: number;
+  exitPrice?: number;
+  quantity?: number;
+  realizedPnlUsd?: number;
 }): string {
-  // Extract just the date part (YYYY-MM-DD) for matching
-  const dateOnly = trade.openedAt.toISOString().split('T')[0];
+  // Include full datetime for uniqueness
+  const openDateTime = trade.openedAt.toISOString();
+  const closeDateTime = trade.closedAt?.toISOString() || openDateTime;
   
-  // Round entry price to 2 decimals for fuzzy matching
-  // This handles minor OCR errors like 25717.25 vs 25717.24
+  // Round prices to 2 decimals
   const entryPriceRounded = Math.round(trade.entryPrice * 100) / 100;
+  const exitPriceRounded = trade.exitPrice ? Math.round(trade.exitPrice * 100) / 100 : 0;
+  
+  // Include quantity WITH SIGN to distinguish LONG/SHORT and different sizes
+  const quantityValue = trade.quantity ?? 0;
+  
+  // Include PnL rounded to 2 decimals to distinguish different outcomes
+  const pnlRounded = trade.realizedPnlUsd ? Math.round(trade.realizedPnlUsd * 100) / 100 : 0;
   
   const data = [
     trade.userId,
-    trade.accountId || 'no-account', // Include accountId to prevent cross-account duplicates
+    trade.accountId || 'no-account',
     trade.symbol.toUpperCase().trim(),
-    dateOnly,
+    openDateTime,
+    closeDateTime,
     entryPriceRounded.toFixed(2),
+    exitPriceRounded.toFixed(2),
+    quantityValue.toString(),
+    pnlRounded.toFixed(2),
   ].join('|');
 
   return 'sig_' + simpleHash(data);
@@ -218,15 +231,32 @@ export function calculateImportHash(trade: {
  * Returns the trade if found, null otherwise
  * 
  * IMPORTANT: accountId is required to prevent cross-account false duplicates
+ * IMPORTANT: quantity and realizedPnlUsd help distinguish multiple trades with same prices
  */
 export async function findTradeBySignature(
   userId: string,
   symbol: string,
   openedAt: Date,
   entryPrice: number,
-  accountId?: string | null
+  accountId?: string | null,
+  exitPrice?: number,
+  closedAt?: Date,
+  quantity?: number,
+  realizedPnlUsd?: number,
+  skipFuzzyMatch: boolean = false
 ): Promise<Trade | null> {
-  const signature = calculateTradeSignature({ userId, accountId, symbol, openedAt, entryPrice });
+  const signature = calculateTradeSignature({ 
+    userId, 
+    accountId, 
+    symbol, 
+    openedAt, 
+    closedAt,
+    entryPrice, 
+    exitPrice,
+    quantity,
+    realizedPnlUsd,
+  });
+  
   
   // First try exact signature match
   const exactMatch = await prisma.trade.findFirst({
@@ -239,35 +269,72 @@ export async function findTradeBySignature(
     },
   });
   
+  if (exactMatch) {
+    return exactMatch;
+  }
+  
   if (exactMatch) return exactMatch;
   
-  // Fallback: fuzzy match by date + entry price range (for trades without signature)
-  // MUST respect accountId boundary to prevent cross-account duplicates
+  // Skip fuzzy matching for CSV imports (precise data doesn't need tolerance)
+  if (skipFuzzyMatch) {
+    return null;
+  }
+  
+  // Fallback: fuzzy match by date + entry/exit price range (for trades without signature)
+  // This is for backward compatibility with old trades that don't have signatures
+  // MUST match BOTH entry AND exit prices within tolerance to be considered a duplicate
   const dateStart = new Date(openedAt);
   dateStart.setHours(0, 0, 0, 0);
   const dateEnd = new Date(openedAt);
   dateEnd.setHours(23, 59, 59, 999);
   
-  const fuzzyMatch = await prisma.trade.findFirst({
-    where: {
-      userId,
-      // Respect account boundary - only match within same account
-      accountId: accountId || null,
-      symbol: symbol.toUpperCase().trim(),
-      openedAt: {
-        gte: dateStart,
-        lte: dateEnd,
-      },
-      // Entry price within 0.5% tolerance for OCR errors
-      entryPrice: {
-        gte: entryPrice * 0.995,
-        lte: entryPrice * 1.005,
-      },
+  const fuzzyMatchCriteria: Prisma.TradeWhereInput = {
+    userId,
+    symbol: symbol.toUpperCase().trim(),
+    openedAt: {
+      gte: dateStart,
+      lte: dateEnd,
     },
+    // Entry price within 0.5% tolerance for OCR errors
+    entryPrice: {
+      gte: entryPrice * 0.995,
+      lte: entryPrice * 1.005,
+    },
+  };
+  
+  // NOTE: Exit price matching removed for fuzzy matching
+  // The OCR column format parser often produces incorrect exit prices
+  // because Vision API reads columns top-to-bottom, mixing entry/exit data
+  // We rely on date + entry price + symbol + quantity for duplicate detection
+  // Exit price is still used in the signature for exact matching
+  
+  // Handle account boundary - null accountId means match trades with no account
+  // undefined means match ANY account (for backward compatibility)
+  if (accountId !== undefined) {
+    fuzzyMatchCriteria.accountId = accountId || null;
+  }
+  
+  // Add quantity matching if provided (exact match since it's structured data)
+  if (quantity !== undefined && quantity !== null) {
+    fuzzyMatchCriteria.quantity = Math.abs(quantity);
+  }
+  
+  // NOTE: PnL matching removed for fuzzy matching
+  // The OCR column format parser often produces incorrect PnL values
+  // because Vision API reads columns top-to-bottom, mixing data from different rows
+  // We rely on date + entry price + symbol + quantity for duplicate detection
+  
+  
+  const fuzzyMatch = await prisma.trade.findFirst({
+    where: fuzzyMatchCriteria,
     include: {
       partialExits: true,
     },
   });
+  
+  if (fuzzyMatch) {
+  } else {
+  }
   
   return fuzzyMatch;
 }
@@ -301,6 +368,8 @@ export interface MergeTradeInput {
   // Drawdown/Runup (MAE/MFE) from OCR
   floatingDrawdownUsd?: number | null;
   floatingRunupUsd?: number | null;
+  // Skip fuzzy matching for CSV imports (precise data)
+  skipFuzzyMatch?: boolean;
 }
 
 /**
@@ -484,13 +553,19 @@ export async function mergeTradeData(
 export async function createOrMergeTrade(input: MergeTradeInput): Promise<MergeResult> {
   const symbol = input.symbol.toUpperCase().trim();
   
-  // Try to find existing trade by signature (including accountId)
+  
+  // Try to find existing trade by signature (including all distinguishing fields)
   const existingTrade = await findTradeBySignature(
     input.userId,
     symbol,
     input.openedAt,
     input.entryPrice,
-    input.accountId
+    input.accountId,
+    input.exitPrice,
+    input.closedAt,
+    input.quantity,
+    input.realizedPnlUsd,
+    input.skipFuzzyMatch ?? false
   );
   
   if (existingTrade) {
@@ -507,7 +582,11 @@ export async function createOrMergeTrade(input: MergeTradeInput): Promise<MergeR
     accountId: input.accountId,
     symbol,
     openedAt: input.openedAt,
+    closedAt: input.closedAt,
     entryPrice: input.entryPrice,
+    exitPrice: input.exitPrice,
+    quantity: input.quantity,
+    realizedPnlUsd: input.realizedPnlUsd,
   });
   
   const quantity = Math.abs(input.quantity);
@@ -570,7 +649,11 @@ export async function createTrade(input: CreateTradeInput): Promise<Trade> {
     accountId: input.accountId,
     symbol,
     openedAt: input.openedAt,
+    closedAt: input.closedAt,
     entryPrice: input.entryPrice,
+    exitPrice: input.exitPrice,
+    quantity: input.quantity,
+    realizedPnlUsd: input.realizedPnlUsd,
   });
   
   // Calculate fees based on symbol and quantity

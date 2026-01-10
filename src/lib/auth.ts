@@ -7,6 +7,7 @@ export interface UserSession {
   createdAt: Date
   isBlocked: boolean
   discordUsername: string | null
+  avatarUrl: string | null
 }
 
 /**
@@ -35,6 +36,7 @@ export async function getUser(): Promise<UserSession | null> {
       createdAt: true,
       isBlocked: true,
       discordUsername: true,
+      avatarUrl: true,
     },
   })
 
@@ -53,6 +55,7 @@ export async function getUser(): Promise<UserSession | null> {
           createdAt: true,
           isBlocked: true,
           discordUsername: true,
+          avatarUrl: true,
         },
       })
     } catch (e) {
@@ -65,6 +68,7 @@ export async function getUser(): Promise<UserSession | null> {
           createdAt: true,
           isBlocked: true,
           discordUsername: true,
+          avatarUrl: true,
         },
       })
     }

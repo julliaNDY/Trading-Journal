@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
+import { FooterClient } from '@/components/layout/footer-client';
 
 export default function Error({
   error,
@@ -18,39 +19,42 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="text-center space-y-6 max-w-md">
-        <div className="flex justify-center">
-          <div className="rounded-full bg-destructive/10 p-4">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-destructive/10 p-4">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Something went wrong!</h1>
+            <p className="text-muted-foreground">
+              An unexpected error occurred. Please try again.
+            </p>
+            {error.digest && (
+              <p className="text-xs text-muted-foreground font-mono">
+                Error ID: {error.digest}
+              </p>
+            )}
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={reset}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try again
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard">
+                <Home className="mr-2 h-4 w-4" />
+                Dashboard
+              </Link>
+            </Button>
           </div>
         </div>
-        
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Something went wrong!</h1>
-          <p className="text-muted-foreground">
-            An unexpected error occurred. Please try again.
-          </p>
-          {error.digest && (
-            <p className="text-xs text-muted-foreground font-mono">
-              Error ID: {error.digest}
-            </p>
-          )}
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={reset}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Try again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/dashboard">
-              <Home className="mr-2 h-4 w-4" />
-              Dashboard
-            </Link>
-          </Button>
-        </div>
       </div>
+      <FooterClient />
     </div>
   );
 }

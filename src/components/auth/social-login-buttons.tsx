@@ -55,8 +55,8 @@ export function SocialLoginButtons() {
 
       {/* Social buttons */}
       <div className="grid gap-2">
-        {/* Google - DISABLED: Provider not configured yet */}
-        {/* <Button
+        {/* Google */}
+        <Button
           variant="outline"
           type="button"
           onClick={() => signInWithProvider('google')}
@@ -69,7 +69,7 @@ export function SocialLoginButtons() {
             <GoogleIcon className="mr-2 h-4 w-4" />
           )}
           {t('continueWithGoogle')}
-        </Button> */}
+        </Button>
 
         {/* Apple - DISABLED: Provider not configured yet */}
         {/* <Button

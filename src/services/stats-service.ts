@@ -132,15 +132,35 @@ export function calculateGlobalStats(trades: TradeWithTimes[]): GlobalStats {
     }
   }
 
-  // Average duration in seconds - only for trades with manually set times
-  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  // Average duration in seconds - only for trades with valid manually set times
+  // Filter: timesManuallySet === true AND both dates are valid AND duration > 0
+  const tradesWithValidTimes = trades.filter((t) => {
+    // Must have timesManuallySet flag
+    if (t.timesManuallySet !== true) return false;
+    
+    // Check that openedAt and closedAt exist and are valid dates
+    if (!t.openedAt || !t.closedAt) return false;
+    
+    const openedAt = new Date(t.openedAt);
+    const closedAt = new Date(t.closedAt);
+    
+    // Check for invalid dates (NaN)
+    if (isNaN(openedAt.getTime()) || isNaN(closedAt.getTime())) return false;
+    
+    // Check for valid positive duration
+    const durationMs = closedAt.getTime() - openedAt.getTime();
+    if (durationMs <= 0) return false;
+    
+    return true;
+  });
+  
   let averageDurationSeconds: number | null = null;
   
-  if (tradesWithTimes.length > 0) {
-    const totalDurationSeconds = tradesWithTimes.reduce((sum, t) => {
+  if (tradesWithValidTimes.length > 0) {
+    const totalDurationSeconds = tradesWithValidTimes.reduce((sum, t) => {
       return sum + getDurationSeconds(new Date(t.openedAt), new Date(t.closedAt));
     }, 0);
-    averageDurationSeconds = Math.round(totalDurationSeconds / tradesWithTimes.length);
+    averageDurationSeconds = Math.round(totalDurationSeconds / tradesWithValidTimes.length);
   }
 
   return {
@@ -194,8 +214,13 @@ export function calculateEquityCurve(trades: Trade[]): EquityPoint[] {
 }
 
 export function calculateHourlyStats(trades: TradeWithTimes[]): HourlyStats[] {
-  // Only include trades with manually set times
-  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  // Only include trades with valid manually set times
+  const tradesWithTimes = trades.filter((t) => {
+    if (t.timesManuallySet !== true) return false;
+    if (!t.openedAt) return false;
+    const openedAt = new Date(t.openedAt);
+    return !isNaN(openedAt.getTime());
+  });
   
   const hourlyMap = new Map<number, TradeWithTimes[]>();
 
@@ -236,8 +261,13 @@ export function calculateHourlyStats(trades: TradeWithTimes[]): HourlyStats[] {
 
 // New function: Calculate stats by 5-minute intervals
 export function calculateFiveMinuteStats(trades: TradeWithTimes[]): FiveMinuteStats[] {
-  // Only include trades with manually set times
-  const tradesWithTimes = trades.filter((t) => t.timesManuallySet === true);
+  // Only include trades with valid manually set times
+  const tradesWithTimes = trades.filter((t) => {
+    if (t.timesManuallySet !== true) return false;
+    if (!t.openedAt) return false;
+    const openedAt = new Date(t.openedAt);
+    return !isNaN(openedAt.getTime());
+  });
   
   const fiveMinuteMap = new Map<string, TradeWithTimes[]>();
 

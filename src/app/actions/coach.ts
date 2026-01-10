@@ -1,8 +1,9 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { isAdmin } from './admin';
 
 // Types for coach actions
 export interface ConversationWithMessages {
@@ -210,7 +211,7 @@ export async function submitFeedback(
 }
 
 /**
- * Get all feedbacks (admin only - TODO: add admin check)
+ * Get all feedbacks (admin only)
  */
 export async function getAllFeedbacks(
   filter?: { category?: string; resolved?: boolean }
@@ -223,6 +224,12 @@ export async function getAllFeedbacks(
   resolved: boolean;
   createdAt: Date;
 }>> {
+  // Admin check
+  const adminCheck = await isAdmin();
+  if (!adminCheck) {
+    throw new Error('Forbidden: Admin access required');
+  }
+
   const feedbacks = await prisma.userFeedback.findMany({
     where: {
       ...(filter?.category && { category: filter.category as 'SUGGESTION' | 'BUG_REPORT' | 'COACH_FEEDBACK' | 'GENERAL' }),
@@ -238,7 +245,12 @@ export async function getAllFeedbacks(
  * Mark feedback as resolved (admin only)
  */
 export async function resolveFeedback(id: string): Promise<boolean> {
-  // TODO: Add admin check
+  // Admin check
+  const adminCheck = await isAdmin();
+  if (!adminCheck) {
+    throw new Error('Forbidden: Admin access required');
+  }
+
   await prisma.userFeedback.update({
     where: { id },
     data: { resolved: true },

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
+import { Footer } from '@/components/layout/footer';
 
 export default async function AuthLayout({
   children,
@@ -12,7 +13,14 @@ export default async function AuthLayout({
     redirect('/dashboard');
   }
 
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <main className="flex-1 flex items-center justify-center">
+        {children}
+      </main>
+      <Footer variant="compact" />
+    </div>
+  );
 }
 
 

@@ -4,13 +4,13 @@ import { useFormStatus } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
-import { register } from '@/app/actions/auth';
+import { useState, useEffect, useRef } from 'react';
+import { register, resendConfirmationEmail } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle, RefreshCw } from 'lucide-react';
 import { AuthLanguageSwitcher } from '@/components/layout/auth-language-switcher';
 import { SocialLoginButtons } from '@/components/auth/social-login-buttons';
 
@@ -36,15 +36,68 @@ export function RegisterContent() {
   const t = useTranslations('auth');
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string>('');
+  const [resendCooldown, setResendCooldown] = useState(120);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (showConfirmation && resendCooldown > 0) {
+      cooldownRef.current = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, [showConfirmation]);
+
+  const handleResendEmail = async () => {
+    if (resendCooldown > 0 || isResending || !registeredEmail) return;
+    
+    setIsResending(true);
+    setResendSuccess(false);
+    
+    const result = await resendConfirmationEmail(registeredEmail);
+    
+    if (result.success) {
+      setResendSuccess(true);
+      setResendCooldown(120); // Reset cooldown
+    }
+    
+    setIsResending(false);
+  };
 
   async function handleSubmit(formData: FormData) {
     setError(null);
     setShowConfirmation(false);
     const result = await register(formData);
     if (result?.error) {
-      setError(result.error);
+      // Traduire les codes d'erreur
+      let errorMessage = result.error;
+      if (result.error === 'EMAIL_ALREADY_EXISTS') {
+        errorMessage = t('emailExists');
+      } else if (result.error === 'PASSWORD_TOO_SHORT' || result.error === 'INVALID_PASSWORD') {
+        errorMessage = t('passwordTooShort');
+      } else if (result.error === 'INVALID_EMAIL') {
+        errorMessage = t('invalidEmail');
+      } else if (result.error === 'PASSWORD_MISMATCH') {
+        errorMessage = t('passwordMismatch');
+      }
+      setError(errorMessage);
     } else if (result?.success && result?.needsEmailConfirmation) {
+      const email = formData.get('email') as string;
+      setRegisteredEmail(email);
       setShowConfirmation(true);
+      setResendCooldown(120);
     }
   }
 
@@ -57,7 +110,7 @@ export function RegisterContent() {
         <AuthLanguageSwitcher />
       </div>
       
-      <Card className="w-full max-w-md relative z-10 animate-scale-in">
+      <Card className="w-full max-w-2xl relative z-10 animate-scale-in">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 animate-fade-in overflow-hidden">
@@ -84,14 +137,45 @@ export function RegisterContent() {
               <CheckCircle className="h-5 w-5 mt-0.5 shrink-0" />
               <span>{t('checkEmailConfirmation')}</span>
             </div>
+            
+            {resendSuccess && (
+              <div className="p-3 text-sm text-success bg-success/10 rounded-lg animate-fade-in">
+                {t('resendSuccess')}
+              </div>
+            )}
+            
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleResendEmail}
+              disabled={resendCooldown > 0 || isResending}
+            >
+              {isResending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('resending')}
+                </>
+              ) : resendCooldown > 0 ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t('resendIn', { seconds: resendCooldown })}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t('resendEmail')}
+                </>
+              )}
+            </Button>
+            
             <Link href="/login">
-              <Button variant="outline" className="w-full">
+              <Button variant="ghost" className="w-full">
                 {t('backToLogin')}
               </Button>
             </Link>
           </CardContent>
         ) : (
-          <form action={handleSubmit}>
+          <form action={handleSubmit} className="w-full">
           <CardContent className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg animate-fade-in">

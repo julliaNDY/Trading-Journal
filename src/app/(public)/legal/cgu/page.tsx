@@ -53,10 +53,10 @@ export default async function CGUPage() {
 
       <div className="mt-12 text-center">
         <p className="text-sm text-muted-foreground mb-4">
-          Des questions sur nos conditions d'utilisation ?
+          {tCgu('questionsText')}
         </p>
         <Button asChild>
-          <Link href="/contact">Contactez-nous</Link>
+          <Link href="/contact">{t('contactUs')}</Link>
         </Button>
       </div>
     </div>

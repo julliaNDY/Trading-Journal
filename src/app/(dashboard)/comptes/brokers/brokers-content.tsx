@@ -1,7 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+
+/**
+ * Format date consistently to avoid hydration mismatch between server and client.
+ * Uses ISO-like format that doesn't depend on locale.
+ */
+function formatDateTime(dateString: string | null): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  
+  // Use fixed format: YYYY-MM-DD HH:mm:ss
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -51,6 +71,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import {
   connectBrokerAction,
   disconnectBrokerAction,
@@ -58,6 +79,7 @@ import {
   updateBrokerSyncSettings,
   type ConnectBrokerFormData,
 } from '@/app/actions/broker';
+import { createAccount } from '@/app/actions/accounts';
 import { BrokerType } from '@prisma/client';
 
 // ============================================================================
@@ -107,11 +129,6 @@ interface BrokersContentProps {
 // ============================================================================
 
 const BROKER_INFO: Record<BrokerType, { name: string; logo: string; description: string }> = {
-  TRADOVATE: {
-    name: 'Tradovate',
-    logo: '📊',
-    description: 'Futures trading platform',
-  },
   IBKR: {
     name: 'Interactive Brokers',
     logo: '🏦',
@@ -125,6 +142,7 @@ const BROKER_INFO: Record<BrokerType, { name: string; logo: string; description:
 
 export function BrokersContent({ initialConnections, accounts }: BrokersContentProps) {
   const t = useTranslations('brokers');
+  const tAccounts = useTranslations('accounts');
   const tCommon = useTranslations('common');
   const { toast } = useToast();
   const router = useRouter();
@@ -136,14 +154,20 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [syncingConnectionId, setSyncingConnectionId] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showCreateAccountDialog, setShowCreateAccountDialog] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState<ConnectBrokerFormData>({
-    brokerType: 'TRADOVATE',
+    brokerType: 'IBKR',
     apiKey: '',
     apiSecret: '',
     environment: 'live',
   });
+  
+  // Create account form state
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountColor, setNewAccountColor] = useState('#6366f1');
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
   // ==========================================================================
   // HANDLERS
@@ -170,7 +194,7 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
         });
         setIsConnectDialogOpen(false);
         setFormData({
-          brokerType: 'TRADOVATE',
+          brokerType: 'IBKR',
           apiKey: '',
           apiSecret: '',
           environment: 'live',
@@ -269,6 +293,41 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
       });
     }
   };
+
+  const handleCreateAccount = async () => {
+    if (!newAccountName.trim()) return;
+    
+    setIsCreatingAccount(true);
+    try {
+      const newAccount = await createAccount(
+        newAccountName.trim(),
+        undefined,
+        undefined,
+        newAccountColor
+      );
+      
+      toast({
+        title: tCommon('success'),
+        description: tAccounts('accountCreated'),
+      });
+      
+      // After creating account, refresh to get updated accounts list
+      setShowCreateAccountDialog(false);
+      setNewAccountName('');
+      setNewAccountColor('#6366f1');
+      // Select the newly created account in the form
+      setFormData({ ...formData, accountId: newAccount.id });
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
   
   // ==========================================================================
   // RENDER
@@ -336,7 +395,7 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                   <span className="text-muted-foreground">{t('lastSync')}:</span>
                   <span>
                     {connection.lastSyncAt
-                      ? new Date(connection.lastSyncAt).toLocaleString()
+                      ? formatDateTime(connection.lastSyncAt)
                       : t('never')}
                   </span>
                 </div>
@@ -386,7 +445,7 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                           className="flex items-center justify-between text-xs p-2 rounded bg-muted/50"
                         >
                           <span className="text-muted-foreground">
-                            {new Date(sync.startedAt).toLocaleString()}
+                            {formatDateTime(sync.startedAt)}
                           </span>
                           <div className="flex items-center gap-2">
                             {sync.status === 'SUCCESS' ? (
@@ -464,12 +523,6 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TRADOVATE">
-                    <div className="flex items-center gap-2">
-                      <span>{BROKER_INFO.TRADOVATE.logo}</span>
-                      <span>{BROKER_INFO.TRADOVATE.name}</span>
-                    </div>
-                  </SelectItem>
                   <SelectItem value="IBKR">
                     <div className="flex items-center gap-2">
                       <span>{BROKER_INFO.IBKR.logo}</span>
@@ -479,25 +532,6 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                 </SelectContent>
               </Select>
             </div>
-            
-            {/* Environment (for Tradovate) */}
-            {formData.brokerType === 'TRADOVATE' && (
-              <div className="space-y-2">
-                <Label>{t('environment')}</Label>
-                <Select
-                  value={formData.environment}
-                  onValueChange={(value) => setFormData({ ...formData, environment: value as 'demo' | 'live' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="live">{t('envLive')}</SelectItem>
-                    <SelectItem value="demo">{t('envDemo')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             
             {/* IBKR Tutorial Toggle */}
             {formData.brokerType === 'IBKR' && (
@@ -554,7 +588,7 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                       </div>
                     </div>
                     
-                    {/* Step 3 */}
+                    {/* Step 3 - Create Activity Flex Query */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">3</span>
@@ -567,10 +601,14 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                           <li>{t('ibkrTutorial.step3Item2')}</li>
                           <li>{t('ibkrTutorial.step3Item3')}</li>
                         </ul>
+                        <div className="flex items-center gap-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                          <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                          <p className="text-xs text-amber-600 dark:text-amber-400">{t('ibkrTutorial.step3Warning')}</p>
+                        </div>
                       </div>
                     </div>
                     
-                    {/* Step 4 */}
+                    {/* Step 4 - Configure Date Range */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">4</span>
@@ -578,35 +616,31 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                       </div>
                       <div className="ml-8 space-y-2">
                         <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step4Desc')}</p>
-                        <div className="rounded bg-muted/50 p-2">
-                          <p className="text-xs font-medium text-foreground">{t('ibkrTutorial.step4Fields')}</p>
-                          <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                            <li>• Symbol, Asset Category, Currency</li>
-                            <li>• Buy/Sell, Quantity, Trade Price</li>
-                            <li>• Trade Date, Trade Time</li>
-                            <li>• Realized P&L, Commission</li>
-                            <li>• Open/Close Indicator</li>
-                          </ul>
+                        <div className="rounded bg-muted/50 p-2 text-xs font-mono">
+                          {t('ibkrTutorial.step4Period')}
                         </div>
                       </div>
                     </div>
                     
-                    {/* Step 5 */}
+                    {/* Step 5 - Select Trades Section (CRITICAL) */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">5</span>
-                        <h4 className="font-medium text-sm">{t('ibkrTutorial.step5Title')}</h4>
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold">5</span>
+                        <h4 className="font-medium text-sm text-red-600 dark:text-red-400">{t('ibkrTutorial.step5Title')}</h4>
                       </div>
                       <div className="ml-8 space-y-2">
                         <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step5Desc')}</p>
-                        <div className="flex items-center gap-2 p-2 rounded bg-green-500/10 border border-green-500/20">
-                          <Info className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <p className="text-xs text-green-600 dark:text-green-400">{t('ibkrTutorial.step5Note')}</p>
+                        <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
+                          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium">{t('ibkrTutorial.step5Critical')}</p>
+                        </div>
+                        <div className="rounded bg-muted/50 p-2 text-xs font-mono">
+                          Sections → ✅ Trades
                         </div>
                       </div>
                     </div>
                     
-                    {/* Step 6 */}
+                    {/* Step 6 - Configure Trade Fields */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">6</span>
@@ -614,13 +648,34 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                       </div>
                       <div className="ml-8 space-y-2">
                         <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step6Desc')}</p>
-                        <div className="rounded bg-muted/50 p-2 text-xs font-mono">
-                          Settings → User Settings → Flex Web Service
+                        <div className="rounded bg-muted/50 p-2">
+                          <p className="text-xs font-medium text-foreground">{t('ibkrTutorial.step6FieldsRequired')}</p>
+                          <ul className="text-xs text-muted-foreground mt-1 space-y-0.5 font-mono">
+                            <li>☑️ <strong>IB Execution ID</strong> <span className="text-red-500">({t('ibkrTutorial.step6ExecIdNote')})</span></li>
+                            <li>☑️ <strong>Date/Time</strong> <span className="text-amber-500">({t('ibkrTutorial.step6DateTimeNote')})</span></li>
+                            <li>☑️ <strong>Symbol</strong></li>
+                            <li>☑️ <strong>Buy/Sell</strong></li>
+                            <li>☑️ <strong>Quantity</strong></li>
+                            <li>☑️ <strong>TradePrice</strong></li>
+                            <li>☑️ <strong>Proceeds</strong></li>
+                            <li>☑️ <strong>IB Commission</strong></li>
+                            <li>☑️ <strong>Currency</strong></li>
+                            <li>☑️ <strong>Asset Class</strong></li>
+                            <li>☑️ <strong>Exchange</strong></li>
+                          </ul>
+                        </div>
+                        <div className="rounded bg-blue-500/10 p-2 border border-blue-500/20">
+                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{t('ibkrTutorial.step6FieldsOptional')}</p>
+                          <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                            <li>• Order Type, Order ID</li>
+                            <li>• Underlying Symbol, Multiplier</li>
+                            <li>• Open/Close, FIFO P&L Realized</li>
+                          </ul>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Step 7 */}
+                    {/* Step 7 - Save and Note Query ID */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">7</span>
@@ -628,9 +683,41 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                       </div>
                       <div className="ml-8 space-y-2">
                         <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step7Desc')}</p>
+                        <div className="flex items-center gap-2 p-2 rounded bg-green-500/10 border border-green-500/20">
+                          <Info className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <p className="text-xs text-green-600 dark:text-green-400">{t('ibkrTutorial.step7Note')}</p>
+                        </div>
+                        <div className="rounded bg-muted/50 p-2 text-xs font-mono">
+                          Query ID = <strong>1234567</strong> ({t('ibkrTutorial.step7QueryIdFormat')})
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Step 8 - Enable Flex Web Service */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">8</span>
+                        <h4 className="font-medium text-sm">{t('ibkrTutorial.step8Title')}</h4>
+                      </div>
+                      <div className="ml-8 space-y-2">
+                        <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step8Desc')}</p>
+                        <div className="rounded bg-muted/50 p-2 text-xs font-mono">
+                          Settings → User Settings → Flex Web Service
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Step 9 - Generate Token */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">9</span>
+                        <h4 className="font-medium text-sm">{t('ibkrTutorial.step9Title')}</h4>
+                      </div>
+                      <div className="ml-8 space-y-2">
+                        <p className="text-xs text-muted-foreground">{t('ibkrTutorial.step9Desc')}</p>
                         <div className="flex items-center gap-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
                           <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                          <p className="text-xs text-amber-600 dark:text-amber-400">{t('ibkrTutorial.step7Warning')}</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">{t('ibkrTutorial.step9Warning')}</p>
                         </div>
                       </div>
                     </div>
@@ -663,6 +750,11 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                 onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
                 placeholder={formData.brokerType === 'IBKR' ? t('flexQueryIdPlaceholder') : t('apiSecretPlaceholder')}
               />
+              {formData.brokerType === 'IBKR' && (
+                <p className="text-xs text-muted-foreground">
+                  {t('flexQueryIdHelp')}
+                </p>
+              )}
             </div>
             
             {/* Link to Account */}
@@ -670,13 +762,25 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
               <Label>{t('linkToAccount')}</Label>
               <Select
                 value={formData.accountId || 'none'}
-                onValueChange={(value) => setFormData({ ...formData, accountId: value === 'none' ? undefined : value })}
+                onValueChange={(value) => {
+                  if (value === '__create__') {
+                    setShowCreateAccountDialog(true);
+                  } else {
+                    setFormData({ ...formData, accountId: value === 'none' ? undefined : value });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectAccount')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{t('createNewAccount')}</SelectItem>
+                  <SelectItem value="none">{t('noAccount')}</SelectItem>
+                  <SelectItem value="__create__">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      {t('createNewAccount')}
+                    </div>
+                  </SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       <div className="flex items-center gap-2">
@@ -692,12 +796,6 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
               </Select>
             </div>
             
-            {/* Help Text (for Tradovate only) */}
-            {formData.brokerType === 'TRADOVATE' && (
-              <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-                <p>{t('apiKeyHelp')}</p>
-              </div>
-            )}
           </div>
           
           <DialogFooter>
@@ -730,6 +828,54 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Account Dialog */}
+      <Dialog open={showCreateAccountDialog} onOpenChange={setShowCreateAccountDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tAccounts('createAccount')}</DialogTitle>
+            <DialogDescription>
+              {t('createAccountDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{tAccounts('accountName')}</Label>
+              <Input
+                value={newAccountName}
+                onChange={(e) => setNewAccountName(e.target.value)}
+                placeholder={tAccounts('accountNamePlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{tAccounts('color')}</Label>
+              <div className="flex flex-wrap gap-2">
+                {['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'].map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={cn(
+                      'w-8 h-8 rounded-full transition-transform',
+                      newAccountColor === color && 'ring-2 ring-offset-2 ring-primary scale-110'
+                    )}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setNewAccountColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateAccountDialog(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={handleCreateAccount} disabled={isCreatingAccount || !newAccountName.trim()}>
+              {isCreatingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tCommon('create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

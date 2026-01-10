@@ -203,7 +203,7 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
         imported: 0,
         merged: 0,
         skipped: 0,
-        errors: [`Erreur lors de l'import: ${error}`],
+        errors: [`Import error: ${error}`],
       });
       setStep('complete');
     } finally {

@@ -171,3 +171,50 @@ export async function deleteAccountTrades(accountId: string) {
   return result.count;
 }
 
+// Hide account (soft hide)
+export async function hideAccount(accountId: string) {
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId: user.id },
+  });
+
+  if (!account) throw new Error('Account not found');
+
+  // Add [HIDDEN] prefix to hide the account
+  if (!account.name.startsWith('[HIDDEN]')) {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: {
+        name: `[HIDDEN] ${account.name}`,
+      },
+    });
+  }
+
+  revalidatePath('/comptes');
+}
+
+// Unhide account
+export async function unhideAccount(accountId: string) {
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId: user.id },
+  });
+
+  if (!account) throw new Error('Account not found');
+
+  // Remove [HIDDEN] prefix
+  if (account.name.startsWith('[HIDDEN]')) {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: {
+        name: account.name.replace('[HIDDEN] ', ''),
+      },
+    });
+  }
+
+  revalidatePath('/comptes');
+}

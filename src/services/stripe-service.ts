@@ -127,9 +127,11 @@ export async function createCheckoutSession(
   input: CreateCheckoutSessionInput
 ): Promise<string> {
   const { userId, planInterval, successUrl, cancelUrl } = input;
+  const fs = await import('fs');const logEntry = JSON.stringify({location:'stripe-service.ts:createCheckoutSession',message:'Creating checkout session',data:{userId,planInterval,successUrl,cancelUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry)}catch(e){}
 
   // Get or create Stripe customer
   const customerId = await getOrCreateStripeCustomer(userId);
+  const logEntry2 = JSON.stringify({location:'stripe-service.ts:createCheckoutSession:customer',message:'Got customer ID',data:{hasCustomerId:!!customerId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry2)}catch(e){}
 
   // Get the plan from database
   const plan = await prisma.plan.findFirst({
@@ -138,9 +140,16 @@ export async function createCheckoutSession(
       isActive: true,
     },
   });
+  const logEntry3 = JSON.stringify({location:'stripe-service.ts:createCheckoutSession:plan',message:'Plan lookup result',data:{hasPlan:!!plan,planName:plan?.name,hasStripePriceId:!!plan?.stripePriceId,planInterval},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry3)}catch(e){}
 
-  if (!plan || !plan.stripePriceId) {
-    throw new Error(`Plan not found for interval: ${planInterval}`);
+  if (!plan) {
+    stripeLogger.error(`Plan not found for interval: ${planInterval}. Please run: npx tsx scripts/init-stripe-plans.ts`);
+    throw new Error(`Plan not configured. Please contact support.`);
+  }
+
+  if (!plan.stripePriceId) {
+    stripeLogger.error(`Plan ${plan.name} has no Stripe price ID. Please run: npx tsx scripts/init-stripe-plans.ts`);
+    throw new Error(`Plan not configured. Please contact support.`);
   }
 
   // Create checkout session
@@ -536,12 +545,12 @@ export async function initializeStripePlans(): Promise<void> {
     active: true,
   });
 
-  if (existingProducts.data.length > 0 && existingProducts.data[0].name === 'Trading Journal Pro') {
+  if (existingProducts.data.length > 0 && existingProducts.data[0].name === 'Trading Path Journal Pro') {
     product = existingProducts.data[0];
   } else {
     product = await stripe.products.create({
-      name: 'Trading Journal Pro',
-      description: 'Accès complet à toutes les fonctionnalités du Trading Journal',
+      name: 'Trading Path Journal Pro',
+      description: 'Full access to all Trading Path Journal features',
     });
   }
 

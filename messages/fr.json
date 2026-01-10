@@ -37,7 +37,10 @@
     "name": "Nom",
     "description": "Description",
     "actions": "Actions",
-    "language": "Langue"
+    "language": "Langue",
+    "allAccounts": "Tous les comptes",
+    "symbols": "Symboles",
+    "playbooks": "Playbooks"
   },
   "auth": {
     "login": "Connexion",
@@ -60,7 +63,7 @@
     "emailExists": "Cet email est déjà utilisé",
     "loginDescription": "Connectez-vous pour accéder à votre journal",
     "createAccount": "Créer un compte",
-    "registerDescription": "Commencez à suivre vos performances de trading",
+    "registerDescription": "Suivez et améliorez vos performances de trading grâce à l'IA",
     "emailPlaceholder": "vous@exemple.com",
     "discordUsername": "Discord Username",
     "discordUsernamePlaceholder": "votre_pseudo#0000",
@@ -72,6 +75,7 @@
     "authCallbackError": "Erreur de confirmation. Veuillez réessayer.",
     "redirectingToDashboard": "Redirection vers le tableau de bord...",
     "checkEmailConfirmation": "Vérifiez votre email pour confirmer votre inscription.",
+    "emailNotConfirmed": "Veuillez confirmer votre email avant de vous connecter.",
     "resetLinkSent": "Si un compte existe avec cet email, vous recevrez un lien de réinitialisation sous peu.",
     "sessionExpired": "Votre session a expiré ou le lien est invalide. Veuillez demander un nouveau lien.",
     "requestNewLink": "Demander un nouveau lien",
@@ -81,13 +85,20 @@
     "resetPassword": "Réinitialiser",
     "passwordResetSuccess": "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
     "invalidResetToken": "Ce lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",
-    "resetEmailSubject": "Réinitialisez votre mot de passe Trading Journal",
+    "resetEmailSubject": "Réinitialisez votre mot de passe Trading Path Journal",
     "resetEmailBody": "Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe. Ce lien expirera dans 1 heure.",
     "orContinueWith": "ou continuer avec",
     "continueWithGoogle": "Continuer avec Google",
     "continueWithApple": "Continuer avec Apple",
     "continueWithDiscord": "Continuer avec Discord",
-    "socialLoginError": "Erreur de connexion. Veuillez réessayer."
+    "socialLoginError": "Erreur de connexion. Veuillez réessayer.",
+    "accountBlocked": "Votre compte a été bloqué. Veuillez contacter un administrateur.",
+    "loginGenericError": "Une erreur est survenue lors de la connexion. Veuillez réessayer.",
+    "rememberMe": "Se souvenir de moi",
+    "resendEmail": "Renvoyer l'email de confirmation",
+    "resendIn": "Renvoyer dans {seconds}s",
+    "resending": "Envoi...",
+    "resendSuccess": "Email de confirmation envoyé ! Vérifiez votre boîte de réception."
   },
   "settings": {
     "title": "Paramètres",
@@ -133,6 +144,8 @@
     "sendConfirmation": "Envoyer la confirmation",
     "emailUpdateSent": "Email de confirmation envoyé",
     "emailUpdateSentDesc": "Vérifiez votre boîte de réception pour confirmer le changement.",
+    "emailUpdated": "Email mis à jour",
+    "emailUpdatedDesc": "Votre adresse email a été mise à jour avec succès.",
     "changePassword": "Changer le mot de passe",
     "changePasswordDescription": "Choisissez un mot de passe sécurisé d'au moins 8 caractères.",
     "currentPassword": "Mot de passe actuel",
@@ -151,7 +164,11 @@
     "deleteAccountConfirmText": "Tapez votre email pour confirmer :",
     "confirmEmail": "Confirmer avec votre email",
     "deleteAccountConfirm": "Supprimer définitivement",
-    "accountDeleted": "Compte supprimé"
+    "accountDeleted": "Compte supprimé",
+    "nickname": "Surnom public",
+    "nicknameDescription": "Ce nom sera affiché lorsque vous partagez des playbooks publiquement.",
+    "nicknamePlaceholder": "Entrez votre surnom public",
+    "nicknameSaved": "Surnom enregistré"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -163,7 +180,7 @@
     "settings": "Paramètres",
     "playbooks": "Playbooks",
     "trades": "Trades",
-    "profile": "Profil",
+    "profile": "Paramètres",
     "personalAccount": "Compte personnel"
   },
   "dashboard": {
@@ -243,7 +260,34 @@
     "monthlyPnl": "PnL mensuel",
     "noTradesMonth": "Aucun trade ce mois",
     "tradesCount": "{count} trade(s)",
-    "viewDetails": "Voir les détails"
+    "viewDetails": "Voir les détails",
+    "weekdays": {
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam",
+      "sun": "Dim"
+    },
+    "months": {
+      "january": "Janvier",
+      "february": "Février",
+      "march": "Mars",
+      "april": "Avril",
+      "may": "Mai",
+      "june": "Juin",
+      "july": "Juillet",
+      "august": "Août",
+      "september": "Septembre",
+      "october": "Octobre",
+      "november": "Novembre",
+      "december": "Décembre"
+    },
+    "today": "Aujourd'hui",
+    "winDays": "Jours gagnants",
+    "lossDays": "Jours perdants",
+    "tradingDays": "Jours de trading"
   },
   "statistics": {
     "title": "Statistiques",
@@ -483,9 +527,18 @@
     "showReviewed": "Afficher analysés",
     "hideReviewed": "Masquer analysés",
     "allAccounts": "Tous les comptes",
-    "importFromScreenshot": "Importer depuis une capture",
-    "importScreenshotTitle": "Importer des trades depuis une capture d'écran",
-    "importScreenshotDescription": "Téléchargez une capture d'écran de votre liste de trades pour extraire automatiquement les heures d'entrée/sortie.",
+    "importFromScreenshot": "Enrichir depuis une capture",
+    "importScreenshotTitle": "Enrichir des trades depuis une capture d'écran",
+    "importScreenshotDescription": "Téléchargez une capture d'écran de votre liste de trades pour extraire automatiquement les heures d'entrée/sortie des trades existants.",
+    "screenshotWarningTitle": "Important : Import CSV d'abord",
+    "screenshotWarningMessage": "Attention : Veuillez d'abord importer vos trades via CSV pour éviter la création de doublons. L'import par capture d'écran sert uniquement à enrichir les données existantes (horaires, drawdown, runup).",
+    "screenshotWarningConfirm": "J'ai compris, continuer",
+    "ocrNoMatchFound": "Aucun trade correspondant trouvé",
+    "ocrEnrichedCount": "{count} trade(s) enrichi(s)",
+    "ocrNotFoundCount": "{count} trade(s) non trouvé(s) (ignorés)",
+    "ocrMatchDetails": "Détails du matching",
+    "ocrShowDebugLogs": "Afficher les logs",
+    "ocrHideDebugLogs": "Masquer les logs",
     "importScreenshotColumnsNote": "Assurez-vous que les en-têtes de colonnes sont visibles dans la capture (Entry DT, Exit DT, etc.).",
     "showExample": "Voir un exemple",
     "hideExample": "Masquer l'exemple",
@@ -494,8 +547,19 @@
     "ocrSuccess": "{count} trade(s) mis à jour avec les horaires",
     "ocrNoMatches": "Aucun trade trouvé dans l'image",
     "ocrError": "Erreur lors du traitement de l'image",
-    "ocrConfirmTitle": "Importer des trades depuis une capture",
-    "ocrConfirmDescription": "{count} trade(s) détecté(s). Veuillez sélectionner le symbole et le compte.",
+    "ocrTimeout": "Le traitement de l'image a pris trop de temps. Veuillez réessayer.",
+    "ocrQuotaExceeded": "Limite de requêtes atteinte. Veuillez réessayer plus tard.",
+    "imageTooLarge": "L'image est trop grande (max 10 Mo).",
+    "imageFormatInvalid": "Format d'image non supporté. Utilisez JPEG, PNG, WebP ou GIF.",
+    "ocrLowQuality": "La qualité de l'image est faible. Les résultats peuvent être imprécis.",
+    "ocrRetry": "Réessayer",
+    "maxRetriesReached": "Nombre maximum de tentatives atteint.",
+    "ocrConverting": "Préparation de l'image...",
+    "ocrUploading": "Envoi de l'image...",
+    "ocrAnalyzing": "Analyse en cours...",
+    "enterSymbolToReparse": "Entrez un symbole pour filtrer correctement les prix.",
+    "ocrConfirmTitle": "Enrichir des trades depuis une capture",
+    "ocrConfirmDescription": "{count} trade(s) détecté(s). Sélectionnez le symbole et le compte pour faire correspondre les trades existants.",
     "ocrCreated": "{count} trade(s) créé(s)",
     "ocrUpdated": "{count} trade(s) mis à jour avec les heures",
     "ocrSkipped": "{count} doublon(s) ignoré(s)",
@@ -503,8 +567,8 @@
     "symbolRequired": "Le symbole est requis",
     "preview": "Aperçu",
     "andMore": "et {count} de plus...",
-    "importTrades": "Importer {count} trade(s)",
-    "importing": "Import en cours..."
+    "importTrades": "Enrichir {count} trade(s)",
+    "importing": "Enrichissement..."
   },
   "tradeChart": {
     "title": "Graphique du Trade",
@@ -580,10 +644,14 @@
     "transcription": {
       "title": "Transcription",
       "inProgress": "Transcription en cours...",
+      "processing": "Transcription...",
       "completed": "Transcription terminée",
+      "saved": "Transcription sauvegardée",
       "failed": "Échec de la transcription",
       "retry": "Réessayer",
       "transcribe": "Transcrire",
+      "button": "Transcrire",
+      "regenerate": "Régénérer",
       "edit": "Modifier",
       "save": "Sauvegarder",
       "cancel": "Annuler",
@@ -599,6 +667,7 @@
       "generated": "Synthèse générée",
       "regenerate": "Régénérer",
       "generate": "Générer synthèse",
+      "button": "Synthèse IA",
       "keyPoints": "Points clés",
       "mistakes": "Erreurs identifiées",
       "lessons": "Leçons",
@@ -607,6 +676,7 @@
       "empty": "Aucune synthèse disponible",
       "failed": "Échec de la génération",
       "noTranscription": "Transcription requise",
+      "needsTranscription": "Une transcription est nécessaire pour générer la synthèse",
       "show": "Voir la synthèse",
       "hide": "Masquer la synthèse"
     },
@@ -617,12 +687,16 @@
       "uploadFailed": "Échec de l'upload",
       "deleteFailed": "Échec de la suppression",
       "transcriptionFailed": "Échec de la transcription",
-      "unknown": "Erreur inconnue"
+      "unknown": "Erreur inconnue",
+      "formatNotSupported": "Format audio non supporté sur ce navigateur",
+      "recordingFailed": "Échec de l'enregistrement",
+      "playbackFailed": "Impossible de lire l'audio sur ce navigateur"
     }
   },
   "accounts": {
     "title": "Comptes",
     "subtitle": "Gérez vos comptes de trading",
+    "brokerConnections": "Connexions Broker",
     "createAccount": "Créer un compte",
     "editAccount": "Modifier le compte",
     "deleteAccount": "Supprimer le compte",
@@ -650,7 +724,9 @@
     "initialBalance": "Balance initiale",
     "initialBalancePlaceholder": "Ex: 10000",
     "currentBalance": "Balance actuelle",
-    "roi": "ROI"
+    "roi": "ROI",
+    "hideAccount": "Masquer le compte",
+    "archiveAccount": "Archiver le compte"
   },
   "brokers": {
     "title": "Connexions Broker",
@@ -671,12 +747,14 @@
     "linkToAccount": "Lier à un compte",
     "selectAccount": "Sélectionner un compte",
     "createNewAccount": "Créer un nouveau compte",
+    "createAccountDescription": "Créer un nouveau compte à lier avec votre connexion broker",
     "noAccount": "Aucun compte",
     "apiKeyHelp": "Vous pouvez générer vos clés API dans les paramètres de votre compte Tradovate. Assurez-vous d'avoir l'add-on 'API Access' activé.",
     "flexToken": "Token Flex Web Service",
     "flexTokenPlaceholder": "Votre token de 32 caractères",
     "flexQueryId": "Query ID",
-    "flexQueryIdPlaceholder": "Votre numéro de Query (6 chiffres)",
+    "flexQueryIdPlaceholder": "Votre Query ID",
+    "flexQueryIdHelp": "C'est l'identifiant numérique situé à côté du nom de votre Query dans IBKR (ex: 1234567).",
     "ibkrSetupTitle": "Configuration IBKR Flex Query :",
     "ibkrStep1": "Connectez-vous à IBKR Account Management",
     "ibkrStep2": "Allez dans Reports → Flex Queries → Trade Confirmation Flex Query → Create",
@@ -688,26 +766,37 @@
       "step1Desc": "Accédez à votre compte Interactive Brokers via le Client Portal.",
       "openPortal": "Ouvrir le Client Portal IBKR",
       "step2Title": "Accédez aux Flex Queries",
-      "step2Desc": "Dans le menu principal, naviguez vers la section des rapports flexibles.",
-      "step3Title": "Créez une nouvelle Flex Query",
-      "step3Desc": "Cliquez sur le bouton '+' ou 'Create' pour créer une nouvelle query de type 'Trade Confirmation'.",
-      "step3Item1": "Choisissez 'Trade Confirmation Flex Query'",
-      "step3Item2": "Donnez un nom à votre query (ex: 'Trading Journal Sync')",
-      "step3Item3": "Sélectionnez le format de sortie XML",
-      "step4Title": "Configurez les champs à exporter",
-      "step4Desc": "Sélectionnez tous les champs nécessaires pour l'import des trades :",
-      "step4Fields": "Champs obligatoires :",
-      "step5Title": "Sauvegardez et notez le Query ID",
-      "step5Desc": "Après avoir sauvegardé, IBKR vous attribuera un numéro unique (Query ID).",
-      "step5Note": "Le Query ID est un nombre à 6 chiffres. Notez-le précieusement !",
-      "step6Title": "Activez le Flex Web Service",
-      "step6Desc": "Retournez dans les paramètres de votre compte pour activer l'API.",
-      "step7Title": "Générez votre Token",
-      "step7Desc": "Cliquez sur 'Generate Token' pour créer votre clé d'accès API.",
-      "step7Warning": "Le token n'est affiché qu'une seule fois ! Copiez-le immédiatement."
+      "step2Desc": "Dans le menu principal, allez dans : Performance & Reports → Flex Queries",
+      "step3Title": "Créez une Activity Flex Query",
+      "step3Desc": "Cliquez sur le bouton '+' à côté de 'Activity Flex Query' pour créer une nouvelle query.",
+      "step3Item1": "Choisissez 'Activity Flex Query' (PAS Trade Confirmation)",
+      "step3Item2": "Donnez un nom à votre query (ex: 'Trading Path Journal Sync')",
+      "step3Item3": "Format : CSV, Séparateur : Virgule (,)",
+      "step3Warning": "⚠️ IMPORTANT : Sélectionnez 'Activity Flex Query', PAS 'Trade Confirmation'. L'Activity Query permet l'historique (jusqu'à 365 jours).",
+      "step4Title": "Configurez le format et la plage de dates",
+      "step4Desc": "Définissez le format de sortie et la plage de dates :",
+      "step4Period": "Période : 365 derniers jours | Format date : yyyy-MM-dd | Format heure : HH:mm:ss",
+      "step5Title": "Sélectionnez la section 'Trades' (CRITIQUE)",
+      "step5Desc": "Dans le panneau 'Sections', vous DEVEZ activer la section Trades :",
+      "step5Critical": "Sans cocher 'Trades', aucune donnée de trade ne sera exportée !",
+      "step6Title": "Configurez les champs de trades à exporter",
+      "step6Desc": "Cliquez sur la section 'Trades' pour la déplier, puis sélectionnez ces champs :",
+      "step6FieldsRequired": "✅ Champs Essentiels (OBLIGATOIRES) :",
+      "step6FieldsOptional": "📎 Champs Optionnels (Recommandés) :",
+      "step6DateTimeNote": "DOIT inclure l'heure pour un tri précis",
+      "step6ExecIdNote": "critique pour la déduplication",
+      "step7Title": "Sauvegardez et notez le Query ID",
+      "step7Desc": "Après avoir sauvegardé, IBKR vous attribuera un numéro de Query ID unique.",
+      "step7Note": "Copiez le Query ID exactement tel qu'affiché. C'est le numéro à côté du nom de votre Query.",
+      "step7QueryIdFormat": "ID numérique",
+      "step8Title": "Activez le Flex Web Service",
+      "step8Desc": "Allez dans : Settings → User Settings → Flex Web Service",
+      "step9Title": "Générez votre Token",
+      "step9Desc": "Cliquez sur 'Generate Token' pour créer votre clé d'accès API.",
+      "step9Warning": "Le token n'est affiché qu'une seule fois ! Copiez-le immédiatement."
     },
     "connect": "Connecter",
-    "disconnect": "Déconnecter",
+    "disconnect": "Supprimer",
     "syncNow": "Synchroniser",
     "lastSync": "Dernière sync",
     "never": "Jamais",
@@ -718,8 +807,8 @@
     "statusDisconnected": "Déconnecté",
     "connected": "Broker connecté",
     "connectedDescription": "Votre broker a été connecté avec succès",
-    "disconnected": "Broker déconnecté",
-    "disconnectedDescription": "La connexion broker a été supprimée",
+    "disconnected": "Broker supprimé",
+    "disconnectedDescription": "La connexion broker a été supprimée avec succès",
     "connectionFailed": "Échec de connexion",
     "credentialsRequired": "La clé API et le secret sont requis",
     "syncComplete": "Synchronisation terminée",
@@ -727,7 +816,7 @@
     "syncFailed": "Échec de synchronisation",
     "accountLinked": "Compte lié",
     "accountLinkedDescription": "Le compte a été lié à la connexion broker",
-    "confirmDisconnect": "Déconnecter le broker ?",
+    "confirmDisconnect": "Supprimer le broker ?",
     "confirmDisconnectDescription": "Cette action supprimera la connexion et les identifiants associés. Les trades déjà importés ne seront pas supprimés.",
     "error": "Erreur"
   },
@@ -748,7 +837,22 @@
     "adminStatus": "Admin",
     "block": "Bloquer",
     "unblock": "Débloquer",
-    "noUsers": "Aucun utilisateur inscrit"
+    "noUsers": "Aucun utilisateur inscrit",
+    "maintenance": "Maintenance",
+    "maintenanceDescription": "Outils d'administration pour maintenir l'intégrité de la base de données.",
+    "cleanupOrphanedUsers": "Nettoyer les utilisateurs orphelins",
+    "cleanupOrphanedUsersDescription": "Supprime les utilisateurs qui existent dans la base de données mais dont le compte Supabase Auth a été supprimé manuellement.",
+    "runCleanup": "Lancer le nettoyage",
+    "cleanupSuccess": "{count} utilisateur(s) orphelin(s) supprimé(s)",
+    "noOrphanedUsers": "Aucun utilisateur orphelin trouvé",
+    "cleanupError": "Erreur lors du nettoyage des utilisateurs orphelins",
+    "errorToggleBlock": "Erreur lors du changement de statut de blocage",
+    "confirmDeleteTitle": "Supprimer l'utilisateur ?",
+    "confirmDeleteDescription": "Cette action supprimera définitivement l'utilisateur {email} et toutes ses données (trades, journaux, playbooks, etc.). Cette action est irréversible.",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "deleteSuccess": "Utilisateur supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression de l'utilisateur"
   },
   "errors": {
     "generic": "Une erreur est survenue",
@@ -766,14 +870,14 @@
     "lastUpdated": "Dernière mise à jour",
     "cgv": {
       "title": "Conditions Générales de Vente",
-      "description": "Les présentes conditions générales de vente régissent l'utilisation des services payants de Trading Journal.",
+      "description": "Les présentes conditions générales de vente régissent l'utilisation des services payants de Trading Path Journal.",
       "article1": {
         "title": "Article 1 - Objet",
-        "content": "Les présentes Conditions Générales de Vente (CGV) ont pour objet de définir les droits et obligations des parties dans le cadre de la vente en ligne des services proposés par Trading Journal."
+        "content": "Les présentes Conditions Générales de Vente (CGV) ont pour objet de définir les droits et obligations des parties dans le cadre de la vente en ligne des services proposés par Trading Path Journal."
       },
       "article2": {
         "title": "Article 2 - Prix",
-        "content": "Les prix de nos services sont indiqués en euros toutes taxes comprises. Trading Journal se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix figurant au moment de la commande sera le seul applicable au Client."
+        "content": "Les prix de nos services sont indiqués en euros toutes taxes comprises. Trading Path Journal se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix figurant au moment de la commande sera le seul applicable au Client."
       },
       "article3": {
         "title": "Article 3 - Paiement",
@@ -793,23 +897,24 @@
       },
       "article7": {
         "title": "Article 7 - Responsabilité",
-        "content": "Trading Journal ne pourra être tenu responsable des dommages directs ou indirects causés au Client ou à des tiers du fait de l'utilisation des services. L'outil est fourni à titre informatif et ne constitue pas un conseil en investissement."
+        "content": "Trading Path Journal ne pourra être tenu responsable des dommages directs ou indirects causés au Client ou à des tiers du fait de l'utilisation des services. L'outil est fourni à titre informatif et ne constitue pas un conseil en investissement."
       },
       "article8": {
         "title": "Article 8 - Droit applicable",
         "content": "Les présentes CGV sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents."
-      }
+      },
+      "questionsText": "Des questions sur nos conditions générales de vente ?"
     },
     "cgu": {
       "title": "Conditions Générales d'Utilisation",
-      "description": "Les présentes conditions générales d'utilisation régissent l'accès et l'utilisation du site Trading Journal.",
+      "description": "Les présentes conditions générales d'utilisation régissent l'accès et l'utilisation du site Trading Path Journal.",
       "article1": {
         "title": "Article 1 - Acceptation des conditions",
-        "content": "L'accès et l'utilisation du site Trading Journal sont soumis à l'acceptation et au respect des présentes Conditions Générales d'Utilisation. En utilisant le site, vous acceptez sans réserve ces conditions."
+        "content": "L'accès et l'utilisation du site Trading Path Journal sont soumis à l'acceptation et au respect des présentes Conditions Générales d'Utilisation. En utilisant le site, vous acceptez sans réserve ces conditions."
       },
       "article2": {
         "title": "Article 2 - Description des services",
-        "content": "Trading Journal est une application web permettant aux utilisateurs de suivre et analyser leurs performances de trading. Le service inclut l'import de trades, la gestion de journal, l'affichage de statistiques et autres fonctionnalités connexes."
+        "content": "Trading Path Journal est une application web permettant aux utilisateurs de suivre et analyser leurs performances de trading. Le service inclut l'import de trades, la gestion de journal, l'affichage de statistiques et autres fonctionnalités connexes."
       },
       "article3": {
         "title": "Article 3 - Inscription",
@@ -817,11 +922,11 @@
       },
       "article4": {
         "title": "Article 4 - Données personnelles",
-        "content": "Trading Journal collecte et traite les données personnelles conformément au RGPD. Les données de trading importées restent la propriété de l'utilisateur et peuvent être supprimées à tout moment depuis l'espace personnel."
+        "content": "Trading Path Journal collecte et traite les données personnelles conformément au RGPD. Les données de trading importées restent la propriété de l'utilisateur et peuvent être supprimées à tout moment depuis l'espace personnel."
       },
       "article5": {
         "title": "Article 5 - Propriété intellectuelle",
-        "content": "Tous les éléments du site Trading Journal (textes, graphiques, logiciels, etc.) sont protégés par le droit de la propriété intellectuelle. Toute reproduction ou représentation, totale ou partielle, est interdite sans autorisation préalable."
+        "content": "Tous les éléments du site Trading Path Journal (textes, graphiques, logiciels, etc.) sont protégés par le droit de la propriété intellectuelle. Toute reproduction ou représentation, totale ou partielle, est interdite sans autorisation préalable."
       },
       "article6": {
         "title": "Article 6 - Comportement de l'utilisateur",
@@ -829,19 +934,20 @@
       },
       "article7": {
         "title": "Article 7 - Avertissement sur les risques",
-        "content": "Le trading comporte des risques significatifs de perte en capital. Trading Journal est un outil de suivi et ne fournit aucun conseil en investissement. Les décisions de trading restent de la seule responsabilité de l'utilisateur."
+        "content": "Le trading comporte des risques significatifs de perte en capital. Trading Path Journal est un outil de suivi et ne fournit aucun conseil en investissement. Les décisions de trading restent de la seule responsabilité de l'utilisateur."
       },
       "article8": {
         "title": "Article 8 - Modification des CGU",
-        "content": "Trading Journal se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications importantes. L'utilisation continue du service après modification vaut acceptation des nouvelles conditions."
-      }
+        "content": "Trading Path Journal se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications importantes. L'utilisation continue du service après modification vaut acceptation des nouvelles conditions."
+      },
+      "questionsText": "Des questions sur nos conditions d'utilisation ?"
     },
     "mentions": {
       "title": "Mentions Légales",
-      "description": "Informations légales obligatoires concernant le site Trading Journal.",
+      "description": "Informations légales obligatoires concernant le site Trading Path Journal.",
       "editor": {
         "title": "Éditeur du site",
-        "name": "Trading Journal",
+        "name": "Trading Path Journal",
         "status": "Entreprise individuelle - SIREN 841 365 539",
         "address": "39 Chemin des Fins Nord, 74000 Annecy, France",
         "email": "contact@tradingpathjournal.com",
@@ -859,7 +965,7 @@
       },
       "intellectual": {
         "title": "Propriété intellectuelle",
-        "content": "L'ensemble du contenu du site Trading Journal (textes, images, vidéos, logos, etc.) est protégé par le droit d'auteur. Toute reproduction ou représentation, totale ou partielle, du site ou de l'un de ses éléments, sans autorisation expresse, est interdite."
+        "content": "L'ensemble du contenu du site Trading Path Journal (textes, images, vidéos, logos, etc.) est protégé par le droit d'auteur. Toute reproduction ou représentation, totale ou partielle, du site ou de l'un de ses éléments, sans autorisation expresse, est interdite."
       },
       "cookies": {
         "title": "Cookies",
@@ -872,8 +978,43 @@
       "pricing": {
         "title": "Tarification",
         "content": "Les tarifs des abonnements (Mensuel 10€, Trimestriel 20€, Semestriel 50€, Annuel 70€) sont susceptibles d'évoluer. Les abonnements en cours conservent leur tarif jusqu'au renouvellement suivant. Les prix sont indiqués TTC."
-      }
-    }
+      },
+      "questionsText": "Des questions ou une demande concernant vos données personnelles ?"
+    },
+    "privacy": {
+      "title": "Politique de Confidentialité",
+      "description": "Comment nous collectons, utilisons et protégeons vos données personnelles.",
+      "dataCollection": {
+        "title": "Données collectées",
+        "content": "Nous collectons les données suivantes :\n• Informations de compte : email, nom d'utilisateur Discord (optionnel)\n• Données de trading : trades importés, statistiques, notes personnelles\n• Données techniques : adresse IP, type de navigateur, logs de connexion\n• Données de paiement : traitées par Stripe (nous ne stockons pas vos informations de carte)"
+      },
+      "dataUsage": {
+        "title": "Utilisation des données",
+        "content": "Vos données sont utilisées pour :\n• Fournir et améliorer nos services de journal de trading\n• Calculer vos statistiques et métriques de performance\n• Vous authentifier et sécuriser votre compte\n• Traiter vos paiements d'abonnement\n• Vous envoyer des communications importantes (mises à jour, sécurité)\n• Améliorer notre service grâce aux retours et analytics anonymisés"
+      },
+      "dataStorage": {
+        "title": "Stockage et sécurité",
+        "content": "Vos données sont stockées de manière sécurisée :\n• Base de données hébergée par Supabase (AWS EU - Frankfurt)\n• Chiffrement en transit (TLS) et au repos\n• Authentification sécurisée avec tokens JWT\n• Accès aux données limité au strict nécessaire\n• Sauvegardes régulières et automatiques"
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "Nous utilisons uniquement des cookies essentiels :\n• Cookie de session : maintient votre connexion\n• Cookie de préférence de langue : mémorise votre choix FR/EN\n• Aucun cookie publicitaire ou de tracking tiers\n• Aucune vente de données à des tiers"
+      },
+      "thirdParties": {
+        "title": "Services tiers",
+        "content": "Nous utilisons les services tiers suivants :\n• Supabase : authentification et base de données\n• Stripe : traitement des paiements\n• OpenAI : fonctionnalité Coach IA (données anonymisées)\n• OVH : hébergement serveur\n\nChaque service respecte le RGPD et dispose de ses propres politiques de confidentialité."
+      },
+      "rights": {
+        "title": "Vos droits (RGPD)",
+        "content": "Conformément au RGPD, vous disposez des droits suivants :\n• Droit d'accès : obtenir une copie de vos données\n• Droit de rectification : corriger vos données inexactes\n• Droit à l'effacement : supprimer votre compte et données\n• Droit à la portabilité : exporter vos données\n• Droit d'opposition : refuser certains traitements\n\nPour exercer ces droits, rendez-vous dans Paramètres > Compte ou contactez-nous."
+      },
+      "contact": {
+        "title": "Nous contacter",
+        "content": "Pour toute question concernant vos données personnelles :\n\nEmail : contact@tradingpathjournal.com\nAdresse : 39 Chemin des Fins Nord, 74000 Annecy, France\n\nDélégué à la protection des données : contact@tradingpathjournal.com"
+      },
+      "questionsText": "Des questions sur notre politique de confidentialité ?"
+    },
+    "contactUs": "Contactez-nous"
   },
   "contact": {
     "title": "Contactez-nous",
@@ -902,8 +1043,10 @@
       "title": "Autres moyens de contact",
       "email": "Email direct",
       "discord": "Discord",
+      "joinDiscord": "Rejoignez notre communauté",
       "response": "Délai de réponse habituel : 24-48h"
     },
+    "sendAnother": "Envoyer un autre message",
     "subjects": {
       "general": "Question générale",
       "technical": "Problème technique",
@@ -917,8 +1060,9 @@
     "cgv": "CGV",
     "cgu": "CGU",
     "mentions": "Mentions légales",
+    "privacy": "Confidentialité",
     "contact": "Contact",
-    "copyright": "© {year} Trading Journal. Tous droits réservés.",
+    "copyright": "© {year} Trading Path Journal. Tous droits réservés.",
     "madeWith": "Fait avec ❤️ pour les traders"
   },
   "coach": {
@@ -978,6 +1122,12 @@
     "mostPopular": "Le plus populaire",
     "save": "Économisez",
     "startTrial": "Commencer l'essai gratuit",
+    "interval": {
+      "monthly": "/mois",
+      "quarterly": "/trimestre",
+      "biannual": "/semestre",
+      "annual": "/an"
+    },
     "processing": "Redirection...",
     "trialInfo": "Essai gratuit de 7 jours, sans engagement. Carte bancaire requise. Annulez à tout moment.",
     "pricesMayChange": "Ces tarifs sont susceptibles d'évoluer. Les abonnements en cours conservent leur tarif.",
@@ -986,6 +1136,9 @@
     "error": "Erreur",
     "errorLoadingPlans": "Impossible de charger les plans. Veuillez réessayer.",
     "errorCreatingCheckout": "Impossible de créer la session de paiement.",
+    "donationTitle": "Soutenir le Projet",
+    "donationDescription": "Si vous appréciez Trading Path Journal et souhaitez soutenir son développement, envisagez de faire un don. Chaque contribution compte !",
+    "donationButton": "Faire un Don",
     "faqTitle": "Questions fréquentes",
     "faq1Question": "Puis-je annuler à tout moment ?",
     "faq1Answer": "Oui, vous pouvez annuler votre abonnement à tout moment depuis les paramètres de votre compte. Vous conserverez l'accès jusqu'à la fin de votre période de facturation.",

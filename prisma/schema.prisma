@@ -13,6 +13,7 @@ model User {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   discordUsername      String?
+  nickname             String?             // Surnom public pour le partage de playbooks
   isBlocked            Boolean             @default(false)
   stripeCustomerId     String?             @unique // Stripe Customer ID
   avatarUrl            String?             // URL de l'avatar (stocké dans Supabase Storage)

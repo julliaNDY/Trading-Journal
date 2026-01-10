@@ -578,6 +578,7 @@ export async function getPublicPlaybooks(options?: {
       user: {
         select: {
           id: true,
+          nickname: true,
           discordUsername: true,
         },
       },
@@ -598,7 +599,7 @@ export async function getPublicPlaybooks(options?: {
     description: p.description,
     author: {
       id: p.user.id,
-      displayName: p.user.discordUsername || 'Anonymous Trader',
+      displayName: p.user.nickname || p.user.discordUsername || 'Anonymous Trader',
     },
     groupsCount: p.groups.length,
     prerequisitesCount: p.groups.reduce((sum, g) => sum + g.prerequisites.length, 0),
@@ -630,6 +631,7 @@ export async function getPlaybookByShareToken(token: string) {
       user: {
         select: {
           id: true,
+          nickname: true,
           discordUsername: true,
         },
       },
@@ -646,11 +648,13 @@ export async function getPlaybookByShareToken(token: string) {
 
   if (!playbook) return null;
 
-  // Increment view count (fire and forget)
+  // Increment view count (fire and forget, but log errors)
   prisma.playbook.update({
     where: { id: playbook.id },
     data: { viewCount: { increment: 1 } },
-  }).catch(() => {}); // Ignore errors
+  }).catch((err) => {
+    console.error('[Playbook] Failed to increment view count:', err);
+  });
 
   return {
     id: playbook.id,
@@ -659,7 +663,7 @@ export async function getPlaybookByShareToken(token: string) {
     visibility: playbook.visibility,
     author: {
       id: playbook.user.id,
-      displayName: playbook.user.discordUsername || 'Anonymous Trader',
+      displayName: playbook.user.nickname || playbook.user.discordUsername || 'Anonymous Trader',
     },
     groups: playbook.groups,
     viewCount: playbook.viewCount,
@@ -679,6 +683,7 @@ export async function getPublicPlaybook(playbookId: string) {
       user: {
         select: {
           id: true,
+          nickname: true,
           discordUsername: true,
         },
       },
@@ -695,11 +700,13 @@ export async function getPublicPlaybook(playbookId: string) {
 
   if (!playbook) return null;
 
-  // Increment view count (fire and forget)
+  // Increment view count (fire and forget, but log errors)
   prisma.playbook.update({
     where: { id: playbook.id },
     data: { viewCount: { increment: 1 } },
-  }).catch(() => {}); // Ignore errors
+  }).catch((err) => {
+    console.error('[Playbook] Failed to increment view count:', err);
+  });
 
   return {
     id: playbook.id,
@@ -708,7 +715,7 @@ export async function getPublicPlaybook(playbookId: string) {
     visibility: playbook.visibility,
     author: {
       id: playbook.user.id,
-      displayName: playbook.user.discordUsername || 'Anonymous Trader',
+      displayName: playbook.user.nickname || playbook.user.discordUsername || 'Anonymous Trader',
     },
     groups: playbook.groups,
     viewCount: playbook.viewCount,

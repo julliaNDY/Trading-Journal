@@ -84,7 +84,7 @@ export function ContactContent() {
                   <h3 className="text-xl font-semibold mb-2">{t('success.title')}</h3>
                   <p className="text-muted-foreground mb-6">{t('success.description')}</p>
                   <Button onClick={() => setSubmitStatus('idle')}>
-                    Envoyer un autre message
+                    {t('sendAnother')}
                   </Button>
                 </div>
               ) : (
@@ -197,15 +197,20 @@ export function ContactContent() {
                   </a>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <MessageCircle className="h-5 w-5 text-primary mt-0.5" />
+              <a 
+                href="https://discord.gg/BrcscCGJ8D" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 p-3 -mx-3 rounded-lg hover:bg-muted transition-colors"
+              >
+                <MessageCircle className="h-5 w-5 text-[#5865F2] mt-0.5" />
                 <div>
                   <p className="font-medium">{t('info.discord')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Bientôt disponible
+                    {t('info.joinDiscord')}
                   </p>
                 </div>
-              </div>
+              </a>
               <div className="pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
                   {t('info.response')}

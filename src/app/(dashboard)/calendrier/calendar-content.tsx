@@ -18,14 +18,19 @@ interface CalendarContentProps {
   trades: Trade[];
 }
 
-const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
+// Weekday and month keys for i18n
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+const MONTH_KEYS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december'
+] as const;
 
 export function CalendarContent({ dailyPnl, trades }: CalendarContentProps) {
   const t = useTranslations('calendar');
+  
+  // Get translated weekdays and months
+  const weekdays = WEEKDAY_KEYS.map(key => t(`weekdays.${key}`));
+  const months = MONTH_KEYS.map(key => t(`months.${key}`));
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -131,13 +136,13 @@ export function CalendarContent({ dailyPnl, trades }: CalendarContentProps) {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Jours gagnants</p>
+            <p className="text-sm text-muted-foreground">{t('winDays')}</p>
             <p className="text-2xl font-bold text-success">{monthlyStats.winDays}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Jours perdants</p>
+            <p className="text-sm text-muted-foreground">{t('lossDays')}</p>
             <p className="text-2xl font-bold text-destructive">{monthlyStats.lossDays}</p>
           </CardContent>
         </Card>
@@ -148,11 +153,11 @@ export function CalendarContent({ dailyPnl, trades }: CalendarContentProps) {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle>
-              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+              {months[currentDate.getMonth()]} {currentDate.getFullYear()}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={goToToday}>
-                Aujourd'hui
+                {t('today')}
               </Button>
               <Button variant="outline" size="icon" onClick={goToPrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
@@ -166,9 +171,9 @@ export function CalendarContent({ dailyPnl, trades }: CalendarContentProps) {
         <CardContent>
           {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {WEEKDAYS.map((day) => (
+            {weekdays.map((day, index) => (
               <div
-                key={day}
+                key={WEEKDAY_KEYS[index]}
                 className="text-center text-sm font-medium text-muted-foreground py-2"
               >
                 {day}

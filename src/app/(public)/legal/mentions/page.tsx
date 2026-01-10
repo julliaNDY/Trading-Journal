@@ -128,10 +128,10 @@ export default async function MentionsLegalesPage() {
 
       <div className="mt-12 text-center">
         <p className="text-sm text-muted-foreground mb-4">
-          Des questions ou une demande concernant vos données personnelles ?
+          {tMentions('questionsText')}
         </p>
         <Button asChild>
-          <Link href="/contact">Contactez-nous</Link>
+          <Link href="/contact">{t('contactUs')}</Link>
         </Button>
       </div>
     </div>

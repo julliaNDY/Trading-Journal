@@ -172,6 +172,16 @@ export async function connectBroker(input: ConnectBrokerInput): Promise<{
   };
 }
 
+/**
+ * Delete a broker connection completely (hard delete)
+ * 
+ * This will:
+ * 1. Delete all sync logs associated with this connection
+ * 2. Delete the broker connection record
+ * 
+ * Note: Trades that were imported from this broker are NOT deleted.
+ * They remain in the database as they represent real trading history.
+ */
 export async function disconnectBroker(connectionId: string, userId: string): Promise<void> {
   const connection = await prisma.brokerConnection.findFirst({
     where: { id: connectionId, userId },
@@ -181,16 +191,13 @@ export async function disconnectBroker(connectionId: string, userId: string): Pr
     throw new Error('Broker connection not found');
   }
   
-  await prisma.brokerConnection.update({
+  // Hard delete the connection
+  // SyncLogs will be cascade deleted due to onDelete: Cascade in the schema
+  await prisma.brokerConnection.delete({
     where: { id: connectionId },
-    data: {
-      status: 'DISCONNECTED',
-      accessToken: null,
-      encryptedApiKey: null,
-      encryptedApiSecret: null,
-      syncEnabled: false,
-    },
   });
+  
+  console.log(`[Broker] Deleted broker connection ${connectionId} for user ${userId}`);
 }
 
 export async function getBrokerConnections(userId: string) {
@@ -282,10 +289,15 @@ export async function syncBrokerTrades(
     }
     
     // Fetch trades from broker
+    // For manual syncs, don't filter by lastSyncAt - import ALL trades and rely on deduplication
+    // This allows users to re-import historical data without issues
+    // For scheduled syncs, use lastSyncAt to avoid re-processing old trades
+    const sinceDate = syncType === 'scheduled' ? (connection.lastSyncAt || undefined) : undefined;
+    
     const brokerTrades = await provider.getTrades(
       accessToken,
       connection.brokerAccountId!,
-      connection.lastSyncAt || undefined
+      sinceDate
     );
     
     // Process each trade
@@ -384,23 +396,15 @@ async function importBrokerTrade(
     accountId,
     symbol: brokerTrade.symbol,
     openedAt: brokerTrade.openedAt,
+    closedAt: brokerTrade.closedAt,
     entryPrice: brokerTrade.entryPrice,
+    exitPrice: brokerTrade.exitPrice,
+    quantity: brokerTrade.quantity,
+    realizedPnlUsd: brokerTrade.realizedPnl,
   });
   
-  // Check for existing trade
-  const existing = await prisma.trade.findFirst({
-    where: {
-      userId,
-      tradeSignature: signature,
-    },
-  });
-  
-  if (existing) {
-    // Trade already exists - skip
-    return 'skipped';
-  }
-  
-  // Check by broker trade ID in metadata
+  // IMPORTANT: Check by broker trade ID FIRST (unique per broker execution)
+  // This prevents false positives from signature collisions on trades with identical parameters
   const existingByBrokerId = await prisma.trade.findFirst({
     where: {
       userId,
@@ -411,6 +415,11 @@ async function importBrokerTrade(
   if (existingByBrokerId) {
     return 'skipped';
   }
+  
+  // NOTE: We intentionally skip signature-based deduplication for broker imports.
+  // The brokerTradeId (stored in importHash) is the authoritative identifier.
+  // Signature-based dedup can cause false positives when multiple trades have
+  // identical parameters (same symbol, time, price, quantity) but different executions.
   
   // Create new trade
   await prisma.trade.create({

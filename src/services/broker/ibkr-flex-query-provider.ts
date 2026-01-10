@@ -2,16 +2,41 @@
  * IBKR Flex Query Provider
  * 
  * Implementation of the BrokerProvider interface for Interactive Brokers
- * using the Flex Query Web Service.
+ * using the Flex Query Web Service with ACTIVITY FLEX QUERY.
+ * 
+ * IMPORTANT: We use "Activity Flex Query" (NOT "Trade Confirmation Flex Query")
+ * because Activity Query supports historical date ranges (up to 365 days),
+ * while Trade Confirmation is limited to the current day only.
  * 
  * How Flex Query works:
- * 1. User creates a "Trade Confirmation Flex Query" in IBKR Account Management
- * 2. User gets a Query ID and configures a Flex Web Service Token
- * 3. Our app calls the Flex Web Service API to fetch trade data
+ * 1. User creates an "Activity Flex Query" in IBKR Account Management
+ * 2. User MUST select the "Trades" section and configure required fields
+ * 3. User sets period to "Last 365 Calendar Days" (or preferred range)
+ * 4. User gets a Query ID and configures a Flex Web Service Token
+ * 5. Our app calls the Flex Web Service API to fetch trade data
  * 
  * API Flow:
  * Step 1: SendRequest - Request report generation (returns referenceCode)
  * Step 2: GetStatement - Download the XML report using referenceCode
+ * 
+ * XML Structure (Activity Flex Query):
+ * <FlexQueryResponse>
+ *   <FlexStatements>
+ *     <FlexStatement accountId="...">
+ *       <Trades>
+ *         <Trade symbol="..." dateTime="..." buySell="..." ... />
+ *       </Trades>
+ *     </FlexStatement>
+ *   </FlexStatements>
+ * </FlexQueryResponse>
+ * 
+ * Required Fields in Trades section:
+ * - Account ID, Symbol, Asset Class, Currency
+ * - Date/Time (CRITICAL - must include time for accurate ordering)
+ * - Buy/Sell, Quantity, Trade Price
+ * - IB Commission, Proceeds
+ * - IB Exec ID (for deduplication)
+ * - Open/Close Indicator
  * 
  * Documentation:
  * - Flex Web Service Guide: https://www.interactivebrokers.com/en/software/am/am/reports/flex_web_service_version_3.htm
@@ -45,56 +70,145 @@ interface FlexQueryResponse {
   ErrorMessage?: string;
 }
 
+/**
+ * IBKR Flex Query Trade Confirmation Fields
+ * 
+ * These field names match EXACTLY what IBKR exports in their Flex Query XML.
+ * Users must select these fields when configuring their Trade Confirmation Flex Query:
+ * 
+ * REQUIRED FIELDS:
+ * - Account ID: Broker account identifier
+ * - Symbol: Trading symbol
+ * - Asset Class: STK, OPT, FUT, etc.
+ * - Currency: Trade currency
+ * - Date/Time: Exact timestamp of execution (preferred over Trade Date)
+ * - Trade Date: Date of trade (fallback if Date/Time not available)
+ * - Buy/Sell: Trade direction (BUY or SELL)
+ * - Quantity: Number of units traded
+ * - Price: Execution price
+ * - Commission: Trading fees
+ * - Proceeds: Trade value (or Net Cash as alternative)
+ * - Exec ID: Unique execution identifier (CRITICAL for deduplication)
+ * 
+ * OPTIONAL FIELDS:
+ * - Order Type, Exchange, Order ID
+ * - Underlying Symbol (for derivatives)
+ * - Description, Multiplier
+ */
 interface FlexTradeConfirmation {
-  // Trade identification
-  tradeID: string;
-  ibOrderID?: string;
-  ibExecID?: string;
+  // === TRADE IDENTIFICATION (REQUIRED) ===
+  execId: string;                  // "Exec ID" - CRITICAL for deduplication
+  orderId?: string;                // "Order ID"
+  brokerageOrderId?: string;       // "Brokerage Order ID"
   
-  // Account info
-  accountId: string;
-  acctAlias?: string;
+  // === ACCOUNT INFO (REQUIRED) ===
+  accountId: string;               // "Account ID"
+  accountAlias?: string;           // "Account Alias"
+  model?: string;                  // "Model"
   
-  // Symbol info
-  symbol: string;
-  underlyingSymbol?: string;
-  description?: string;
-  assetCategory: string; // STK, OPT, FUT, etc.
-  currency: string;
+  // === SYMBOL INFO (REQUIRED) ===
+  symbol: string;                  // "Symbol"
+  underlyingSymbol?: string;       // "Underlying Symbol"
+  description?: string;            // "Description"
+  assetClass: string;              // "Asset Class" (STK, OPT, FUT, etc.)
+  subCategory?: string;            // "Sub Category"
+  currency: string;                // "Currency"
+  conid?: string;                  // "Conid"
+  underlyingConid?: string;        // "Underlying Conid"
+  listingExchange?: string;        // "Listing Exchange"
   
-  // Trade details
-  buySell: 'BUY' | 'SELL';
-  quantity: string;
-  tradePrice: string;
-  tradeMoney?: string;
-  proceeds?: string;
-  netCash?: string;
+  // === SECURITY IDENTIFIERS ===
+  securityId?: string;             // "Security ID"
+  securityIdType?: string;         // "Security ID Type"
+  cusip?: string;                  // "CUSIP"
+  isin?: string;                   // "ISIN"
+  figi?: string;                   // "FIGI"
+  underlyingSecurityId?: string;   // "Underlying Security ID"
   
-  // Dates
-  tradeDate: string;      // YYYYMMDD
-  tradeTime?: string;     // HHMMSS
-  settleDateTarget?: string;
-  dateTime?: string;      // YYYYMMDD;HHMMSS or ISO format
+  // === TRADE DETAILS (REQUIRED) ===
+  buySell: 'BUY' | 'SELL';         // "Buy/Sell"
+  quantity: string;                // "Quantity"
+  price: string;                   // "Price"
+  amount?: string;                 // "Amount"
+  proceeds?: string;               // "Proceeds"
+  netCash?: string;                // "Net Cash"
+  netCashWithBillable?: string;    // "Net Cash With Billable"
   
-  // P&L
-  fifoPnlRealized?: string;
-  mtmPnl?: string;
+  // === DATES (REQUIRED - at least one) ===
+  dateTime?: string;               // "Date/Time" - PREFERRED (includes time)
+  tradeDate?: string;              // "Trade Date" - YYYYMMDD
+  orderTime?: string;              // "Order Time"
+  reportDate?: string;             // "Report Date"
+  settleDate?: string;             // "Settle Date"
   
-  // Costs
-  ibCommission?: string;
-  ibCommissionCurrency?: string;
-  taxes?: string;
+  // === FEES & COMMISSIONS (REQUIRED) ===
+  commission?: string;             // "Commission" - PRIMARY commission field
+  brokerExecutionCommission?: string;       // "Broker Execution Commission"
+  brokerClearingCommission?: string;        // "Broker Clearing Commission"
+  thirdPartyExecutionCommission?: string;   // "Third-Party Execution Commission"
+  thirdPartyClearingCommission?: string;    // "Third-Party Clearing Commission"
+  thirdPartyRegulatoryCommission?: string;  // "Third-Party Regulatory Commission"
+  otherCommission?: string;                 // "Other Commission"
+  commissionCurrency?: string;              // "Commission Currency"
+  tax?: string;                    // "Tax"
+  salesTax?: string;               // "Sales Tax"
+  tradeCharge?: string;            // "Trade Charge"
+  otherTax?: string;               // "Other Tax"
   
-  // Position info
-  openCloseIndicator?: 'O' | 'C' | '';  // Open, Close, or empty
+  // === EXECUTION INFO ===
+  orderType?: string;              // "Order Type" (LMT, MKT, etc.)
+  exchange?: string;               // "Exchange"
+  code?: string;                   // "Code"
+  levelOfDetail?: string;          // "Level of Detail"
+  traderId?: string;               // "Trader ID"
+  isApiOrder?: string;             // "Is API Order"
+  allocatedTo?: string;            // "Allocated To"
   
-  // Exchange
-  exchange?: string;
+  // === LEGACY FIELDS (for backward compatibility) ===
+  // These are mapped from various possible field names
+  tradeID?: string;                // Legacy: may appear as "tradeID" in some reports
+  ibOrderID?: string;              // Legacy: "ibOrderID"
+  ibExecID?: string;               // Legacy: "ibExecID"
+  tradePrice?: string;             // Legacy: maps to "price"
+  tradeTime?: string;              // Legacy: extracted from dateTime
+  assetCategory?: string;          // Legacy: maps to "assetClass"
+  ibCommission?: string;           // Legacy: maps to "commission"
+  fifoPnlRealized?: string;        // P&L field
+  mtmPnl?: string;                 // Mark-to-market P&L
+  openCloseIndicator?: 'O' | 'C' | '';  // Open/Close
+  multiplier?: string;             // Contract multiplier
+  origTradePrice?: string;         // "Orig Trade Price"
+  origTradeDate?: string;          // "Orig Trade Date"
+  origTradeId?: string;            // "Orig Trade ID"
+  extExecId?: string;              // "Ext Exec ID"
+  blockId?: string;                // "Block ID"
+  rfqId?: string;                  // "RFQID"
+  positionActionId?: string;       // "Position Action ID"
+  accruedInterest?: string;        // "Accrued Interest"
   
-  // Multiplier for options/futures
-  multiplier?: string;
+  // === PHYSICAL DELIVERY (Commodities) ===
+  serialNumber?: string;           // "Serial Number"
+  deliveryType?: string;           // "Delivery Type"
+  commodityType?: string;          // "Commodity Type"
+  fineness?: string;               // "Fineness"
+  weight?: string;                 // "Weight"
 }
 
+/**
+ * Activity Flex Query XML Structure
+ * 
+ * The Activity Flex Query returns trades in the <Trades> section:
+ * <FlexQueryResponse>
+ *   <FlexStatements count="1">
+ *     <FlexStatement accountId="U1234567" fromDate="20240101" toDate="20241231">
+ *       <Trades>
+ *         <Trade accountId="..." symbol="..." dateTime="..." buySell="..." quantity="..." ... />
+ *         <Trade ... />
+ *       </Trades>
+ *     </FlexStatement>
+ *   </FlexStatements>
+ * </FlexQueryResponse>
+ */
 interface FlexStatement {
   FlexStatements?: {
     FlexStatement?: {
@@ -103,11 +217,13 @@ interface FlexStatement {
         fromDate?: string;
         toDate?: string;
       };
-      TradeConfirms?: {
-        TradeConfirm?: FlexTradeConfirmation[] | FlexTradeConfirmation;
-      };
+      // Activity Flex Query uses "Trades" section
       Trades?: {
         Trade?: FlexTradeConfirmation[] | FlexTradeConfirmation;
+      };
+      // Legacy: Trade Confirmation Flex Query uses "TradeConfirms" section
+      TradeConfirms?: {
+        TradeConfirm?: FlexTradeConfirmation[] | FlexTradeConfirmation;
       };
     };
   };
@@ -140,10 +256,10 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
   
   async authenticate(credentials: BrokerCredentials): Promise<AuthResult> {
     this.token = credentials.apiKey;     // Flex Web Service Token
-    this.queryId = credentials.apiSecret; // Query ID
+    this.queryId = credentials.apiSecret; // Activity Flex Query ID
     
     if (!this.token || !this.queryId) {
-      throw new BrokerAuthError('IBKR Flex Query requires both Token and Query ID');
+      throw new BrokerAuthError('IBKR Activity Flex Query requires both Token and Query ID. Ensure you created an Activity Flex Query (not Trade Confirmation) with the Trades section enabled.');
     }
     
     // Validate by making a test request
@@ -219,6 +335,14 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
   // TRADES
   // ==========================================================================
   
+  /**
+   * Fetch trades from IBKR Activity Flex Query
+   * 
+   * The Activity Flex Query supports historical date ranges (up to 365 days),
+   * making it ideal for onboarding new users with past trades.
+   * 
+   * The query returns trades in the <Trades> section of the XML response.
+   */
   async getTrades(
     accessToken: string,
     accountId: string,
@@ -230,27 +354,52 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     this.queryId = queryId;
     this.accountId = accountId;
     
+    console.log(`[IBKR] Fetching trades from Activity Flex Query${since ? ` since ${since.toISOString()}` : ''}`);
+    
     const statement = await this.fetchFlexStatement();
     const trades: BrokerTrade[] = [];
     
     const flexStatement = statement.FlexStatements?.FlexStatement;
     if (!flexStatement) {
-      return trades;
+      const errorMsg = '[IBKR] No FlexStatement found in response';
+      console.error(errorMsg);
+      throw new BrokerApiError(errorMsg);
     }
     
-    // Extract trades from TradeConfirms or Trades section
-    const tradeConfirms = flexStatement.TradeConfirms?.TradeConfirm || 
-                          flexStatement.Trades?.Trade;
+    // Log the date range from the query response
+    if (flexStatement.$?.fromDate && flexStatement.$?.toDate) {
+      console.log(`[IBKR] Query date range: ${flexStatement.$.fromDate} to ${flexStatement.$.toDate}`);
+    }
     
-    if (!tradeConfirms) {
-      return trades;
+    // Extract trades from Activity Flex Query's <Trades> section
+    // Also check <TradeConfirms> for backward compatibility with Trade Confirmation queries
+    const rawTrades = flexStatement.Trades?.Trade || 
+                      flexStatement.TradeConfirms?.TradeConfirm;
+    
+    
+    if (!rawTrades) {
+      const warningMsg = '[IBKR] No trades found in Flex Query response. Ensure the "Trades" section is enabled in your Activity Flex Query configuration.';
+      console.warn(warningMsg);
+      return trades; // Return empty array if no trades (user might not have any)
     }
     
     // Ensure array
-    const tradeList = Array.isArray(tradeConfirms) ? tradeConfirms : [tradeConfirms];
+    const tradeList = Array.isArray(rawTrades) ? rawTrades : [rawTrades];
     
-    // Group trades by symbol and aggregate to create full trades
+    console.log(`[IBKR] Found ${tradeList.length} raw trade executions`);
+    
+    // Group trades by symbol and aggregate to create full round-trip trades
     const aggregatedTrades = this.aggregateTradesToRoundTrips(tradeList, since);
+    
+    console.log(`[IBKR] Aggregated into ${aggregatedTrades.length} round-trip trades`);
+    
+    
+    // CRITICAL: If we have raw trades but aggregated to zero, log warning but don't fail
+    // (This can happen if all trades are opening positions without closes)
+    if (tradeList.length > 0 && aggregatedTrades.length === 0) {
+      const warningMsg = `[IBKR] Found ${tradeList.length} raw trade executions but aggregated to 0 round-trip trades. This may indicate all trades are open positions without closes, or an aggregation issue.`;
+      console.warn(warningMsg);
+    }
     
     return aggregatedTrades;
   }
@@ -310,7 +459,10 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       );
     }
     
-    return response.text();
+    const responseText = await response.text();
+    
+    
+    return responseText;
   }
   
   private async fetchFlexStatement(): Promise<FlexStatement> {
@@ -370,42 +522,356 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     return result as T;
   }
   
-  private parseFlexStatement(xmlText: string): FlexStatement {
+  private parseFlexStatement(responseText: string): FlexStatement {
+    // Detect if response is CSV or XML
+    const trimmedResponse = responseText.trim();
+    const isXML = trimmedResponse.startsWith('<');
+    const isCSV = !isXML && (responseText.includes(',') || responseText.includes('\t')) && responseText.includes('\n');
+    
+    
+    // Validate that we have the expected root element
+    if (isXML && !responseText.includes('<FlexQueryResponse>') && !responseText.includes('<FlexStatement')) {
+      const errorMsg = `[IBKR] Invalid XML response: missing FlexQueryResponse or FlexStatement root element. Response starts with: ${responseText.substring(0, 200)}`;
+      console.error(errorMsg);
+      throw new BrokerApiError(errorMsg);
+    }
+    
+    if (isCSV) {
+      console.log('[IBKR] Detected CSV format, parsing...');
+      const result = this.parseCSVStatement(responseText);
+      return result;
+    }
+    
+    console.log('[IBKR] Detected XML format, parsing...');
+    const result = this.parseXMLStatement(responseText);
+    return result;
+  }
+  
+  /**
+   * Parse CSV response from Activity Flex Query
+   * 
+   * Expected CSV headers (exact names from IBKR):
+   * - IB Execution ID -> execId (CRITICAL for deduplication)
+   * - Date/Time -> dateTime (format: yyyy-MM-dd;HH:mm:ss or yyyy-MM-dd, HH:mm:ss)
+   * - Symbol -> symbol
+   * - Buy/Sell -> buySell
+   * - Quantity -> quantity
+   * - TradePrice -> price
+   * - Proceeds -> proceeds
+   * - IB Commission -> commission
+   * - Currency -> currency
+   * - Asset Class -> assetClass
+   * - Exchange -> exchange
+   */
+  private parseCSVStatement(csvText: string): FlexStatement {
     const statement: FlexStatement = {
       FlexStatements: {
         FlexStatement: {
-          TradeConfirms: {
-            TradeConfirm: [],
+          Trades: {
+            Trade: [],
           },
         },
       },
     };
     
-    // Extract account ID
-    const accountMatch = xmlText.match(/accountId="([^"]+)"/);
-    if (accountMatch && statement.FlexStatements?.FlexStatement) {
-      statement.FlexStatements.FlexStatement.$ = {
-        accountId: accountMatch[1],
-      };
-      this.accountId = accountMatch[1];
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) {
+      console.warn('[IBKR] CSV has no data rows');
+      return statement;
     }
     
-    // Extract trade confirmations
-    const trades: FlexTradeConfirmation[] = [];
+    // Parse header row
+    const headers = this.parseCSVRow(lines[0]);
+    console.log('[IBKR] CSV Headers:', headers);
     
-    // Match TradeConfirm or Trade elements
-    const tradeRegex = /<(?:TradeConfirm|Trade)\s+([^>]+)\/?>(?:<\/(?:TradeConfirm|Trade)>)?/g;
-    let tradeMatch;
+    // Create header index map (case-insensitive, trim whitespace)
+    const headerMap = new Map<string, number>();
+    headers.forEach((h, i) => {
+      const normalized = h.trim().toLowerCase();
+      headerMap.set(normalized, i);
+    });
     
-    while ((tradeMatch = tradeRegex.exec(xmlText)) !== null) {
-      const trade = this.parseTradeAttributes(tradeMatch[1]);
-      if (trade.symbol && trade.quantity) {
-        trades.push(trade);
+    // Map CSV column names to our field names
+    // These are the EXACT names from IBKR Activity Flex Query CSV export
+    const columnMapping: Record<string, string> = {
+      'ib execution id': 'execId',
+      'ibexecutionid': 'execId',
+      'ibexecid': 'execId',
+      'execution id': 'execId',
+      'exec id': 'execId',
+      'date/time': 'dateTime',
+      'datetime': 'dateTime',
+      'tradeprice': 'price',
+      'trade price': 'price',
+      'price': 'price',
+      'ib commission': 'commission',
+      'ibcommission': 'commission',
+      'commission': 'commission',
+      'symbol': 'symbol',
+      'buy/sell': 'buySell',
+      'buysell': 'buySell',
+      'side': 'buySell',
+      'quantity': 'quantity',
+      'qty': 'quantity',
+      'currency': 'currency',
+      'asset class': 'assetClass',
+      'assetclass': 'assetClass',
+      'exchange': 'exchange',
+      'proceeds': 'proceeds',
+      'account id': 'accountId',
+      'accountid': 'accountId',
+      'underlying symbol': 'underlyingSymbol',
+      'underlyingsymbol': 'underlyingSymbol',
+      'multiplier': 'multiplier',
+      'open/close': 'openCloseIndicator',
+      'openclose': 'openCloseIndicator',
+      'o/c': 'openCloseIndicator',
+      'fifo p&l realized': 'fifoPnlRealized',
+      'fifopnlrealized': 'fifoPnlRealized',
+      'realized p&l': 'fifoPnlRealized',
+      'realized pnl': 'fifoPnlRealized',
+      'order id': 'orderId',
+      'orderid': 'orderId',
+      'order type': 'orderType',
+      'ordertype': 'orderType',
+    };
+    
+    // Find column indices for each field
+    const fieldIndices: Record<string, number> = {};
+    for (const [csvName, fieldName] of Object.entries(columnMapping)) {
+      if (headerMap.has(csvName)) {
+        fieldIndices[fieldName] = headerMap.get(csvName)!;
       }
     }
     
-    if (statement.FlexStatements?.FlexStatement?.TradeConfirms) {
-      statement.FlexStatements.FlexStatement.TradeConfirms.TradeConfirm = trades;
+    
+    console.log('[IBKR] Field mappings found:', Object.keys(fieldIndices));
+    
+    // Parse data rows
+    const trades: FlexTradeConfirmation[] = [];
+    const invalidRows: Array<{ row: number; reason: string; trade: Partial<FlexTradeConfirmation> }> = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = this.parseCSVRow(line);
+      const trade: Partial<FlexTradeConfirmation> = {};
+      
+      // Map values to trade fields
+      for (const [fieldName, colIndex] of Object.entries(fieldIndices)) {
+        if (colIndex < values.length) {
+          const rawValue = values[colIndex];
+          const value = rawValue?.trim();
+          if (value) {
+            (trade as Record<string, string>)[fieldName] = value;
+          }
+          
+        }
+      }
+      
+      // Normalize buySell to uppercase
+      if (trade.buySell) {
+        trade.buySell = trade.buySell.toUpperCase() as 'BUY' | 'SELL';
+      }
+      
+      // IBKR CSV contains both summary rows (empty Exchange) and detail rows (with Exchange)
+      // Summary rows are aggregates of detail rows - we should skip them to avoid duplicates
+      // Detail rows have valid IBExecID, summary rows have empty IBExecID
+      const hasExchange = !!(trade as Record<string, string>).exchange && (trade as Record<string, string>).exchange.trim().length > 0;
+      const hasValidExecId = !!(trade as Record<string, string>).execId && (trade as Record<string, string>).execId.trim().length > 0;
+      
+      if (!hasExchange && !hasValidExecId) {
+        // Skip summary rows (no exchange, no execId) - they're duplicates of detail rows
+        continue;
+      }
+      
+      // Ensure execId is set (critical for deduplication)
+      if (!trade.execId) {
+        trade.execId = `${trade.symbol}-${trade.dateTime || Date.now()}-${i}`;
+      }
+      
+      // STRICT VALIDATION: Required fields according to IBKR Activity Flex Query spec
+      // Note: IBKR uses negative quantities for SELL trades, so we check != 0, not > 0
+      const quantityValue = trade.quantity ? parseFloat(trade.quantity) : 0;
+      const requiredFields = {
+        symbol: !!trade.symbol && trade.symbol.trim().length > 0,
+        buySell: !!trade.buySell && (trade.buySell === 'BUY' || trade.buySell === 'SELL'),
+        quantity: !!trade.quantity && !isNaN(quantityValue) && quantityValue !== 0,
+        price: !!(trade.price || trade.tradePrice),
+        dateTime: !!(trade.dateTime || trade.tradeDate),
+      };
+      
+      const missingFields = Object.entries(requiredFields)
+        .filter(([_, present]) => !present)
+        .map(([field]) => field);
+      
+      if (missingFields.length > 0) {
+        const reason = `Missing required fields: ${missingFields.join(', ')}`;
+        invalidRows.push({ row: i + 1, reason, trade });
+        console.warn(`[IBKR] CSV row ${i + 1}: ${reason}`, { symbol: trade.symbol, quantity: trade.quantity, buySell: trade.buySell, price: trade.price || trade.tradePrice, dateTime: trade.dateTime || trade.tradeDate });
+        continue;
+      }
+      
+      trades.push(trade as FlexTradeConfirmation);
+    }
+    
+    console.log(`[IBKR] Parsed ${trades.length} valid trades from ${lines.length - 1} CSV rows (${invalidRows.length} invalid rows skipped)`);
+    
+    // CRITICAL: If we have data rows but parsed zero trades, that's an error
+    if (lines.length > 1 && trades.length === 0 && invalidRows.length > 0) {
+      const errorMsg = `[IBKR] CSV has ${lines.length - 1} data rows but parsed 0 valid trades. Invalid rows: ${invalidRows.slice(0, 3).map(r => `Row ${r.row}: ${r.reason}`).join('; ')}`;
+      console.error(errorMsg);
+      throw new BrokerApiError(errorMsg);
+    }
+    
+    if (statement.FlexStatements?.FlexStatement?.Trades) {
+      statement.FlexStatements.FlexStatement.Trades.Trade = trades;
+    }
+    
+    return statement;
+  }
+  
+  /**
+   * Parse a single CSV row, handling quoted values with commas
+   */
+  private parseCSVRow(row: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    
+    return result;
+  }
+  
+  /**
+   * Parse XML response from Activity Flex Query
+   * 
+   * According to IBKR Flex Query documentation:
+   * https://www.ibkrguides.com/clientportal/performanceandstatements/flex.htm
+   * 
+   * Structure: <FlexQueryResponse><FlexStatements><FlexStatement><Trades><Trade .../></Trades></FlexStatement></FlexStatements></FlexQueryResponse>
+   */
+  private parseXMLStatement(xmlText: string): FlexStatement {
+    const statement: FlexStatement = {
+      FlexStatements: {
+        FlexStatement: {
+          Trades: {
+            Trade: [],
+          },
+        },
+      },
+    };
+    
+    
+    // Validate root structure according to IBKR spec
+    if (!hasFlexQueryResponse && !hasFlexStatement) {
+      const errorMsg = `[IBKR] Invalid XML: missing FlexQueryResponse or FlexStatement root. Found structure: ${xmlText.substring(0, 300)}`;
+      console.error(errorMsg);
+      throw new BrokerApiError(errorMsg);
+    }
+    
+    // Extract account ID and date range from FlexStatement attributes
+    const accountMatch = xmlText.match(/accountId="([^"]+)"/);
+    const fromDateMatch = xmlText.match(/fromDate="([^"]+)"/);
+    const toDateMatch = xmlText.match(/toDate="([^"]+)"/);
+    
+    if (statement.FlexStatements?.FlexStatement) {
+      statement.FlexStatements.FlexStatement.$ = {
+        accountId: accountMatch?.[1],
+        fromDate: fromDateMatch?.[1],
+        toDate: toDateMatch?.[1],
+      };
+      
+      if (accountMatch?.[1]) {
+        this.accountId = accountMatch[1];
+      }
+    }
+    
+    // Log date range for debugging
+    if (fromDateMatch && toDateMatch) {
+      console.log(`[IBKR] Parsing Activity Flex Query: ${fromDateMatch[1]} to ${toDateMatch[1]}`);
+    }
+    
+    // Extract trades from Activity Flex Query's <Trades> section
+    // The XML structure is: <Trades><Trade .../><Trade .../></Trades>
+    // According to IBKR spec, Activity Flex Query uses <Trades><Trade .../></Trades>
+    // Trade Confirmation Flex Query uses <TradeConfirms><TradeConfirm .../></TradeConfirms>
+    const trades: FlexTradeConfirmation[] = [];
+    
+    // Match Trade elements (from Activity Flex Query's Trades section)
+    // Support both self-closing <Trade .../> and full <Trade ...></Trade> tags
+    // Also match TradeConfirm elements for backward compatibility with Trade Confirmation queries
+    const tradeRegex = /<(?:Trade|TradeConfirm)\s+([^>]+?)(?:\s*\/\s*>|>(?:.*?)<\/(?:Trade|TradeConfirm)>)/gs;
+    let tradeMatch;
+    let matchCount = 0;
+    
+    while ((tradeMatch = tradeRegex.exec(xmlText)) !== null) {
+      matchCount++;
+      const attributes = tradeMatch[1];
+      
+      
+      const trade = this.parseTradeAttributes(attributes);
+      
+      // Strict validation: REQUIRED fields according to IBKR Activity Flex Query spec
+      // Required: symbol, buySell, quantity, price/dateTime
+      // Note: IBKR uses negative quantities for SELL trades, so we check != 0, not > 0
+      const quantityValue = trade.quantity ? parseFloat(trade.quantity) : 0;
+      const requiredFields = {
+        symbol: !!trade.symbol,
+        buySell: !!trade.buySell,
+        quantity: !!trade.quantity && !isNaN(quantityValue) && quantityValue !== 0,
+        price: !!(trade.price || trade.tradePrice),
+        dateTime: !!(trade.dateTime || trade.tradeDate),
+      };
+      
+      const missingFields = Object.entries(requiredFields)
+        .filter(([_, present]) => !present)
+        .map(([field]) => field);
+      
+      if (missingFields.length > 0) {
+        console.warn(`[IBKR] Trade ${matchCount} missing required fields: ${missingFields.join(', ')}`, {
+          symbol: trade.symbol,
+          buySell: trade.buySell,
+          quantity: trade.quantity,
+          price: trade.price || trade.tradePrice,
+          dateTime: trade.dateTime || trade.tradeDate,
+        });
+        continue; // Skip invalid trades but continue parsing
+      }
+      
+      trades.push(trade);
+    }
+    
+    console.log(`[IBKR] Parsed ${trades.length} valid trades from ${matchCount} trade elements in XML`);
+    
+    // CRITICAL: If we found trade elements but parsed zero trades, that's an error
+    if (matchCount > 0 && trades.length === 0) {
+      const errorMsg = `[IBKR] Found ${matchCount} trade elements but parsed 0 valid trades. This indicates a parsing or validation issue. Check required fields (symbol, buySell, quantity, price, dateTime).`;
+      console.error(errorMsg);
+      throw new BrokerApiError(errorMsg);
+    }
+    
+    // If no trades found and no trade elements, warn but don't fail (user might not have trades)
+    if (matchCount === 0 && !hasTrades && !hasTradeConfirms) {
+      console.warn('[IBKR] No trade elements found in XML response. Ensure your Activity Flex Query has the Trades section enabled.');
+    }
+    
+    if (statement.FlexStatements?.FlexStatement?.Trades) {
+      statement.FlexStatements.FlexStatement.Trades.Trade = trades;
     }
     
     return statement;
@@ -422,20 +888,59 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       const key = attrMatch[1];
       const value = attrMatch[2];
       
-      // Map to our interface
+      // Map IBKR Flex Query field names to our interface
+      // Field names match what users select in the IBKR portal
       switch (key) {
-        case 'tradeID':
+        // === TRADE IDENTIFICATION ===
+        case 'execId':
+        case 'execID':           // Handle case variations
+          trade.execId = value;
+          break;
+        case 'orderId':
+        case 'orderID':
+          trade.orderId = value;
+          break;
+        case 'brokerageOrderId':
+        case 'brokerageOrderID':
+          trade.brokerageOrderId = value;
+          break;
+        case 'tradeID':          // Legacy field
           trade.tradeID = value;
           break;
-        case 'ibOrderID':
+        case 'ibOrderID':        // Legacy field
           trade.ibOrderID = value;
           break;
-        case 'ibExecID':
+        case 'ibExecID':         // Legacy field - map to execId
           trade.ibExecID = value;
+          if (!trade.execId) trade.execId = value;
           break;
+        case 'extExecId':
+        case 'extExecID':
+          trade.extExecId = value;
+          break;
+        case 'origTradeId':
+        case 'origTradeID':
+          trade.origTradeId = value;
+          break;
+        case 'blockId':
+        case 'blockID':
+          trade.blockId = value;
+          break;
+          
+        // === ACCOUNT INFO ===
         case 'accountId':
+        case 'accountID':
           trade.accountId = value;
           break;
+        case 'accountAlias':
+        case 'acctAlias':        // Handle legacy name
+          trade.accountAlias = value;
+          break;
+        case 'model':
+          trade.model = value;
+          break;
+          
+        // === SYMBOL INFO ===
         case 'symbol':
           trade.symbol = value;
           break;
@@ -445,23 +950,71 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
         case 'description':
           trade.description = value;
           break;
-        case 'assetCategory':
+        case 'assetClass':
+          trade.assetClass = value;
+          break;
+        case 'assetCategory':    // Legacy name for assetClass
           trade.assetCategory = value;
+          if (!trade.assetClass) trade.assetClass = value;
+          break;
+        case 'subCategory':
+          trade.subCategory = value;
           break;
         case 'currency':
           trade.currency = value;
           break;
+        case 'conid':
+          trade.conid = value;
+          break;
+        case 'underlyingConid':
+          trade.underlyingConid = value;
+          break;
+        case 'listingExchange':
+          trade.listingExchange = value;
+          break;
+          
+        // === SECURITY IDENTIFIERS ===
+        case 'securityId':
+        case 'securityID':
+          trade.securityId = value;
+          break;
+        case 'securityIdType':
+        case 'securityIDType':
+          trade.securityIdType = value;
+          break;
+        case 'cusip':
+        case 'CUSIP':
+          trade.cusip = value;
+          break;
+        case 'isin':
+        case 'ISIN':
+          trade.isin = value;
+          break;
+        case 'figi':
+        case 'FIGI':
+          trade.figi = value;
+          break;
+        case 'underlyingSecurityId':
+        case 'underlyingSecurityID':
+          trade.underlyingSecurityId = value;
+          break;
+          
+        // === TRADE DETAILS ===
         case 'buySell':
-          trade.buySell = value as 'BUY' | 'SELL';
+          trade.buySell = value.toUpperCase() as 'BUY' | 'SELL';
           break;
         case 'quantity':
           trade.quantity = value;
           break;
-        case 'tradePrice':
-          trade.tradePrice = value;
+        case 'price':
+          trade.price = value;
           break;
-        case 'tradeMoney':
-          trade.tradeMoney = value;
+        case 'tradePrice':       // Legacy name for price
+          trade.tradePrice = value;
+          if (!trade.price) trade.price = value;
+          break;
+        case 'amount':
+          trade.amount = value;
           break;
         case 'proceeds':
           trade.proceeds = value;
@@ -469,37 +1022,172 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
         case 'netCash':
           trade.netCash = value;
           break;
-        case 'tradeDate':
-          trade.tradeDate = value;
+        case 'netCashWithBillable':
+          trade.netCashWithBillable = value;
           break;
-        case 'tradeTime':
-          trade.tradeTime = value;
-          break;
+          
+        // === DATES ===
         case 'dateTime':
           trade.dateTime = value;
           break;
+        case 'tradeDate':
+          trade.tradeDate = value;
+          break;
+        case 'tradeTime':        // Legacy - usually extracted from dateTime
+          trade.tradeTime = value;
+          break;
+        case 'orderTime':
+          trade.orderTime = value;
+          break;
+        case 'reportDate':
+          trade.reportDate = value;
+          break;
+        case 'settleDate':
+        case 'settleDateTarget':
+          trade.settleDate = value;
+          break;
+        case 'origTradeDate':
+          trade.origTradeDate = value;
+          break;
+        case 'origTradePrice':
+          trade.origTradePrice = value;
+          break;
+          
+        // === FEES & COMMISSIONS ===
+        case 'commission':
+          trade.commission = value;
+          break;
+        case 'ibCommission':     // Legacy name for commission
+          trade.ibCommission = value;
+          if (!trade.commission) trade.commission = value;
+          break;
+        case 'brokerExecutionCommission':
+          trade.brokerExecutionCommission = value;
+          break;
+        case 'brokerClearingCommission':
+          trade.brokerClearingCommission = value;
+          break;
+        case 'thirdPartyExecutionCommission':
+          trade.thirdPartyExecutionCommission = value;
+          break;
+        case 'thirdPartyClearingCommission':
+          trade.thirdPartyClearingCommission = value;
+          break;
+        case 'thirdPartyRegulatoryCommission':
+          trade.thirdPartyRegulatoryCommission = value;
+          break;
+        case 'otherCommission':
+          trade.otherCommission = value;
+          break;
+        case 'commissionCurrency':
+        case 'ibCommissionCurrency':
+          trade.commissionCurrency = value;
+          break;
+        case 'tax':
+        case 'taxes':
+          trade.tax = value;
+          break;
+        case 'salesTax':
+          trade.salesTax = value;
+          break;
+        case 'tradeCharge':
+          trade.tradeCharge = value;
+          break;
+        case 'otherTax':
+          trade.otherTax = value;
+          break;
+          
+        // === EXECUTION INFO ===
+        case 'orderType':
+          trade.orderType = value;
+          break;
+        case 'exchange':
+          trade.exchange = value;
+          break;
+        case 'code':
+          trade.code = value;
+          break;
+        case 'levelOfDetail':
+          trade.levelOfDetail = value;
+          break;
+        case 'traderId':
+        case 'traderID':
+          trade.traderId = value;
+          break;
+        case 'isAPIOrder':
+        case 'isApiOrder':
+          trade.isApiOrder = value;
+          break;
+        case 'allocatedTo':
+          trade.allocatedTo = value;
+          break;
+        case 'openCloseIndicator':
+          trade.openCloseIndicator = value as 'O' | 'C' | '';
+          break;
+        case 'multiplier':
+          trade.multiplier = value;
+          break;
+          
+        // === P&L ===
         case 'fifoPnlRealized':
           trade.fifoPnlRealized = value;
           break;
         case 'mtmPnl':
           trade.mtmPnl = value;
           break;
-        case 'ibCommission':
-          trade.ibCommission = value;
+          
+        // === OTHER ===
+        case 'accruedInterest':
+          trade.accruedInterest = value;
           break;
-        case 'taxes':
-          trade.taxes = value;
+        case 'rfqId':
+        case 'rfqID':
+        case 'RFQID':
+          trade.rfqId = value;
           break;
-        case 'openCloseIndicator':
-          trade.openCloseIndicator = value as 'O' | 'C' | '';
+        case 'positionActionId':
+        case 'positionActionID':
+          trade.positionActionId = value;
           break;
-        case 'exchange':
-          trade.exchange = value;
+          
+        // === PHYSICAL DELIVERY ===
+        case 'serialNumber':
+          trade.serialNumber = value;
           break;
-        case 'multiplier':
-          trade.multiplier = value;
+        case 'deliveryType':
+          trade.deliveryType = value;
+          break;
+        case 'commodityType':
+          trade.commodityType = value;
+          break;
+        case 'fineness':
+          trade.fineness = value;
+          break;
+        case 'weight':
+          trade.weight = value;
           break;
       }
+    }
+    
+    // Ensure we have essential fields with fallbacks
+    // execId is CRITICAL for deduplication
+    if (!trade.execId) {
+      trade.execId = trade.ibExecID || trade.tradeID || trade.orderId || `${trade.symbol}-${trade.dateTime || trade.tradeDate}-${Date.now()}`;
+    }
+    
+    // Ensure assetClass has a value
+    if (!trade.assetClass) {
+      trade.assetClass = trade.assetCategory || 'UNKNOWN';
+    }
+    
+    // Ensure price has a value
+    if (!trade.price) {
+      trade.price = trade.tradePrice || '0';
+    }
+    
+    // Ensure commission has a value
+    if (!trade.commission) {
+      trade.commission = trade.ibCommission || '0';
     }
     
     return trade as FlexTradeConfirmation;
@@ -515,17 +1203,25 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
   ): BrokerTrade[] {
     const trades: BrokerTrade[] = [];
     
+    
     // Group by symbol
     const tradesBySymbol = new Map<string, FlexTradeConfirmation[]>();
+    let tradesWithoutSymbol = 0;
     
     for (const trade of tradeList) {
+      
       const symbol = trade.underlyingSymbol || trade.symbol;
-      if (!symbol) continue;
+      if (!symbol) {
+        tradesWithoutSymbol++;
+        continue;
+      }
       
       // Filter by date if specified
       if (since) {
-        const tradeDate = this.parseIBKRDate(trade.tradeDate, trade.tradeTime);
-        if (tradeDate < since) continue;
+        const tradeDate = this.parseIBKRDateTime(trade);
+        if (tradeDate < since) {
+          continue;
+        }
       }
       
       const existing = tradesBySymbol.get(symbol) || [];
@@ -533,12 +1229,13 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       tradesBySymbol.set(symbol, existing);
     }
     
+    
     // Process each symbol's trades
     for (const [symbol, symbolTrades] of tradesBySymbol) {
-      // Sort by date/time
+      // Sort by date/time (prefer dateTime field for accurate ordering)
       symbolTrades.sort((a, b) => {
-        const dateA = this.parseIBKRDate(a.tradeDate, a.tradeTime);
-        const dateB = this.parseIBKRDate(b.tradeDate, b.tradeTime);
+        const dateA = this.parseIBKRDateTime(a);
+        const dateB = this.parseIBKRDateTime(b);
         return dateA.getTime() - dateB.getTime();
       });
       
@@ -546,11 +1243,18 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       let position = 0;
       let entryTrades: FlexTradeConfirmation[] = [];
       
+      
       for (const trade of symbolTrades) {
+        // CRITICAL: IBKR CSV uses signed quantities (negative for SELL, positive for BUY)
+        // So we should use the quantity as-is, not apply sign based on buySell
         const qty = parseFloat(trade.quantity || '0');
-        const signedQty = trade.buySell === 'BUY' ? qty : -qty;
+        // Use quantity directly if it's already signed, otherwise apply sign based on buySell
+        // In IBKR CSV, quantities are already signed, so we use them directly
+        const signedQty = qty; // IBKR CSV already has signed quantities
+        
         const previousPosition = position;
         position += signedQty;
+        
         
         // Determine if opening or closing
         const isOpening = 
@@ -564,13 +1268,16 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
           (previousPosition > 0 && signedQty < 0) ||
           (previousPosition < 0 && signedQty > 0);
         
+        
         if (isOpening && !isClosing) {
           entryTrades.push(trade);
         } else if (isClosing && entryTrades.length > 0) {
+          
           // Create a round-trip trade
           const brokerTrade = this.createRoundTripTrade(symbol, entryTrades, trade);
           if (brokerTrade) {
             trades.push(brokerTrade);
+          } else {
           }
           
           // Clear entries if position is flat
@@ -579,6 +1286,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
           }
         }
       }
+      
     }
     
     return trades;
@@ -595,18 +1303,19 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     const multiplier = parseFloat(firstEntry.multiplier || '1');
     
     // Calculate weighted average entry price
+    // Use 'price' field (primary) with fallback to 'tradePrice' (legacy)
     let totalQty = 0;
     let totalCost = 0;
     
     for (const entry of entryTrades) {
       const qty = Math.abs(parseFloat(entry.quantity || '0'));
-      const price = parseFloat(entry.tradePrice || '0');
+      const price = parseFloat(entry.price || entry.tradePrice || '0');
       totalQty += qty;
       totalCost += qty * price;
     }
     
     const entryPrice = totalCost / totalQty;
-    const exitPrice = parseFloat(exitTrade.tradePrice || '0');
+    const exitPrice = parseFloat(exitTrade.price || exitTrade.tradePrice || '0');
     const exitQty = Math.abs(parseFloat(exitTrade.quantity || '0'));
     const quantity = Math.min(totalQty, exitQty);
     
@@ -624,17 +1333,23 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       realizedPnl = priceDiff * quantity * multiplier;
     }
     
-    // Calculate fees
-    const fees = entryTrades.reduce((sum, t) => {
-      return sum + Math.abs(parseFloat(t.ibCommission || '0'));
-    }, 0) + Math.abs(parseFloat(exitTrade.ibCommission || '0'));
+    // Calculate total fees (commission is the primary field)
+    const getCommission = (t: FlexTradeConfirmation): number => {
+      return Math.abs(parseFloat(t.commission || t.ibCommission || '0'));
+    };
+    
+    const fees = entryTrades.reduce((sum, t) => sum + getCommission(t), 0) + getCommission(exitTrade);
+    
+    // Use execId for unique trade identification (CRITICAL for deduplication)
+    const exitExecId = exitTrade.execId || exitTrade.ibExecID || exitTrade.tradeID;
+    const entryExecIds = entryTrades.map(t => t.execId || t.ibExecID || t.tradeID);
     
     return {
-      brokerTradeId: exitTrade.tradeID || `${firstEntry.tradeID}-${Date.now()}`,
+      brokerTradeId: exitExecId || `${symbol}-${Date.now()}`,
       symbol,
       direction,
-      openedAt: this.parseIBKRDate(firstEntry.tradeDate, firstEntry.tradeTime),
-      closedAt: this.parseIBKRDate(exitTrade.tradeDate, exitTrade.tradeTime),
+      openedAt: this.parseIBKRDateTime(firstEntry),
+      closedAt: this.parseIBKRDateTime(exitTrade),
       entryPrice,
       exitPrice,
       quantity,
@@ -642,13 +1357,29 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       fees,
       metadata: {
         accountId: firstEntry.accountId,
-        assetCategory: firstEntry.assetCategory,
+        assetClass: firstEntry.assetClass || firstEntry.assetCategory,
         currency: firstEntry.currency,
         multiplier,
-        entryTradeIds: entryTrades.map(t => t.tradeID),
-        exitTradeId: exitTrade.tradeID,
+        entryExecIds,
+        exitExecId,
+        exchange: exitTrade.exchange,
+        orderType: exitTrade.orderType,
       },
     };
+  }
+  
+  /**
+   * Parse IBKR date/time from various possible field combinations
+   * Prefers "Date/Time" field, falls back to "Trade Date" + time extraction
+   */
+  private parseIBKRDateTime(trade: FlexTradeConfirmation): Date {
+    // Prefer the combined dateTime field
+    if (trade.dateTime) {
+      return this.parseIBKRDate(trade.dateTime);
+    }
+    
+    // Fall back to tradeDate + tradeTime
+    return this.parseIBKRDate(trade.tradeDate, trade.tradeTime);
   }
   
   // ==========================================================================

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -13,8 +13,20 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, Ban, CheckCircle, Loader2 } from 'lucide-react';
-import { toggleUserBlock } from '@/app/actions/admin';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Shield, Users, Ban, CheckCircle, Loader2, Trash2, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { toggleUserBlock, cleanupOrphanedUsers, deleteUser } from '@/app/actions/admin';
+import { useToast } from '@/hooks/use-toast';
 
 // Admin emails list (must match the one in admin.ts)
 const ADMIN_EMAILS = [
@@ -36,8 +48,11 @@ interface AdminContentProps {
 
 export function AdminContent({ users: initialUsers }: AdminContentProps) {
   const t = useTranslations('admin');
+  const { toast } = useToast();
   const [users, setUsers] = useState(initialUsers);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -60,8 +75,50 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
       }
     } catch (error) {
       console.error('Error toggling user block:', error);
+      toast({ title: t('errorToggleBlock'), variant: 'destructive' });
     } finally {
       setLoadingUserId(null);
+    }
+  };
+
+  const handleCleanupOrphanedUsers = async () => {
+    setIsCleaningUp(true);
+    try {
+      const result = await cleanupOrphanedUsers();
+      if (result.success) {
+        if (result.deletedCount > 0) {
+          // Remove deleted users from local state
+          setUsers(prev => prev.filter(u => !result.orphanedIds.includes(u.id)));
+          toast({ title: t('cleanupSuccess', { count: result.deletedCount }) });
+        } else {
+          toast({ title: t('noOrphanedUsers') });
+        }
+      } else {
+        toast({ title: result.error || t('cleanupError'), variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error cleaning up orphaned users:', error);
+      toast({ title: t('cleanupError'), variant: 'destructive' });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setDeletingUserId(userId);
+    try {
+      const result = await deleteUser(userId);
+      if (result.success) {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        toast({ title: t('deleteSuccess') });
+      } else {
+        toast({ title: result.error || t('deleteError'), variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({ title: t('deleteError'), variant: 'destructive' });
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -125,6 +182,42 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
         </Card>
       </div>
 
+      {/* Maintenance Section */}
+      <Card className="border-yellow-500/20 bg-yellow-500/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-yellow-600">
+            <AlertTriangle className="w-5 h-5" />
+            {t('maintenance')}
+          </CardTitle>
+          <CardDescription>
+            {t('maintenanceDescription')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">{t('cleanupOrphanedUsers')}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('cleanupOrphanedUsersDescription')}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleCleanupOrphanedUsers}
+              disabled={isCleaningUp}
+              className="border-yellow-500/50 hover:bg-yellow-500/10"
+            >
+              {isCleaningUp ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCcw className="h-4 w-4 mr-2" />
+              )}
+              {t('runCleanup')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Users Table */}
       <Card>
         <CardHeader>
@@ -180,26 +273,62 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
                     </TableCell>
                     <TableCell className="text-right">
                       {!isAdmin && (
-                        <Button
-                          variant={user.isBlocked ? 'outline' : 'destructive'}
-                          size="sm"
-                          onClick={() => handleToggleBlock(user.id)}
-                          disabled={loadingUserId === user.id}
-                        >
-                          {loadingUserId === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : user.isBlocked ? (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              {t('unblock')}
-                            </>
-                          ) : (
-                            <>
-                              <Ban className="h-4 w-4 mr-1" />
-                              {t('block')}
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant={user.isBlocked ? 'outline' : 'destructive'}
+                            size="sm"
+                            onClick={() => handleToggleBlock(user.id)}
+                            disabled={loadingUserId === user.id || deletingUserId === user.id}
+                          >
+                            {loadingUserId === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : user.isBlocked ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                {t('unblock')}
+                              </>
+                            ) : (
+                              <>
+                                <Ban className="h-4 w-4 mr-1" />
+                                {t('block')}
+                              </>
+                            )}
+                          </Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                disabled={deletingUserId === user.id}
+                              >
+                                {deletingUserId === user.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t('confirmDeleteDescription', { email: user.email })}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  {t('delete')}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

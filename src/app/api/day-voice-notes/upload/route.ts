@@ -9,8 +9,8 @@ import { isTranscriptionAvailable } from '@/services/transcription-service';
 const UPLOAD_DIR = process.env.UPLOAD_DIR || 'public/uploads';
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-// Allowed audio MIME types
-const ALLOWED_TYPES = [
+// Allowed audio MIME types (base types without codec parameters)
+const ALLOWED_BASE_TYPES = [
   'audio/webm',
   'audio/mp4',
   'audio/mpeg',
@@ -21,7 +21,7 @@ const ALLOWED_TYPES = [
   'audio/m4a',
 ];
 
-// Map MIME types to file extensions
+// Map base MIME types to file extensions
 const mimeToExt: Record<string, string> = {
   'audio/webm': '.webm',
   'audio/mp4': '.m4a',
@@ -32,6 +32,22 @@ const mimeToExt: Record<string, string> = {
   'audio/x-m4a': '.m4a',
   'audio/m4a': '.m4a',
 };
+
+/**
+ * Get base MIME type without codec parameters
+ * e.g. "audio/webm;codecs=opus" -> "audio/webm"
+ */
+function getBaseMimeType(mimeType: string): string {
+  return mimeType.split(';')[0].trim();
+}
+
+/**
+ * Check if MIME type is allowed (handles codecs parameter)
+ */
+function isAllowedMimeType(mimeType: string): boolean {
+  const baseType = getBaseMimeType(mimeType);
+  return ALLOWED_BASE_TYPES.includes(baseType);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,14 +83,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Validate file type
+    // Validate file type (handles MIME types with codec parameters like "audio/webm;codecs=opus")
     const mimeType = file.type || 'audio/webm';
-    if (!ALLOWED_TYPES.includes(mimeType)) {
+    if (!isAllowedMimeType(mimeType)) {
       return NextResponse.json(
-        { error: `Invalid file type: ${mimeType}` },
+        { error: `Invalid file type: ${mimeType}. Allowed: ${ALLOWED_BASE_TYPES.join(', ')}` },
         { status: 400 }
       );
     }
+    
+    // Get base MIME type for extension lookup
+    const baseMimeType = getBaseMimeType(mimeType);
     
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
@@ -107,7 +126,7 @@ export async function POST(request: NextRequest) {
     
     // Generate unique filename
     const fileId = uuidv4();
-    const ext = mimeToExt[mimeType] || '.webm';
+    const ext = mimeToExt[baseMimeType] || '.webm';
     const fileName = `${fileId}${ext}`;
     
     // Create directory structure: uploads/day-voice-notes/{dayJournalId}/

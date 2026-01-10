@@ -57,10 +57,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// Disable body parsing for webhook route
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Note: App Router handles raw body automatically via request.text()
+// No config needed - the route already uses request.text() for raw body parsing
 

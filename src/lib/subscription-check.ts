@@ -140,9 +140,16 @@ export const FREE_TIER_LIMITS = {
 
 /**
  * Check if user has exceeded free tier limit for trades
+ * Note: Uses the current authenticated user's subscription status
  */
 export async function hasExceededTradeLimit(userId: string): Promise<boolean> {
-  const { hasActiveSubscription } = await checkSubscription();
+  // Check subscription for the specific userId, not current session
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId },
+  });
+
+  const activeStatuses: SubscriptionStatus[] = ['ACTIVE', 'TRIAL'];
+  const hasActiveSubscription = subscription && activeStatuses.includes(subscription.status);
   
   if (hasActiveSubscription) {
     return false; // No limit for premium users

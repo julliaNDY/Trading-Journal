@@ -739,7 +739,7 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
                 <SelectValue placeholder={tStats('symbol')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">{tStats('allSymbols')}</SelectItem>
+                <SelectItem value="__all__">{tCommon('symbols')}</SelectItem>
                 {symbols.map((symbol) => (
                   <SelectItem key={symbol} value={symbol}>
                     {symbol}
@@ -754,7 +754,7 @@ export function TradesContent({ trades: initialTrades, playbooks, symbols, accou
                 <SelectValue placeholder={t('filterByPlaybook')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">{tCommon('all')}</SelectItem>
+                <SelectItem value="__all__">{tCommon('playbooks')}</SelectItem>
                 {playbooks.map((pb) => (
                   <SelectItem key={pb.id} value={pb.id}>
                     {pb.name}

@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, Sparkles, Zap, Crown, Loader2 } from 'lucide-react';
+import { Check, Sparkles, Zap, Crown, Loader2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { getPlans, createCheckoutSessionAction } from '@/app/actions/subscription';
 import { PlanInterval } from '@prisma/client';
+
+// Stripe donation link (pay what you want)
+const DONATION_LINK = 'https://buy.stripe.com/14AfZg1G946zaao25DgA804';
 
 // ============================================================================
 // TYPES
@@ -38,13 +41,6 @@ const PLAN_ICONS: Record<PlanInterval, React.ReactNode> = {
   ANNUAL: <Crown className="h-6 w-6 text-amber-500" />,
 };
 
-const INTERVAL_LABELS: Record<PlanInterval, string> = {
-  MONTHLY: '/mois',
-  QUARTERLY: '/trimestre',
-  BIANNUAL: '/semestre',
-  ANNUAL: '/an',
-};
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -52,6 +48,11 @@ const INTERVAL_LABELS: Record<PlanInterval, string> = {
 export function PricingContent() {
   const t = useTranslations('pricing');
   const router = useRouter();
+  
+  // Dynamic interval labels based on locale
+  const getIntervalLabel = (interval: PlanInterval): string => {
+    return t(`interval.${interval.toLowerCase()}`);
+  };
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
@@ -96,10 +97,17 @@ export function PricingContent() {
     try {
       const result = await createCheckoutSessionAction(planInterval);
       
-      if (result.success && result.data?.url) {
-        window.location.href = result.data.url;
+      if (result.success) {
+        if (result.data?.url) {
+          window.location.href = result.data.url;
+        } else {
+          toast({
+            variant: 'destructive',
+            title: t('errorCreatingCheckout'),
+          });
+        }
       } else {
-        const errorMessage = !result.success ? result.error : t('errorCreatingCheckout');
+        const errorMessage = result.error || t('errorCreatingCheckout');
         toast({
           title: t('error'),
           description: errorMessage,
@@ -180,9 +188,9 @@ export function PricingContent() {
                   {/* Price */}
                   <div className="text-center mb-6">
                     <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-bold">{plan.price}€</span>
+                      <span className="text-4xl font-bold">${plan.price}</span>
                       <span className="text-muted-foreground">
-                        {INTERVAL_LABELS[plan.interval]}
+                        {getIntervalLabel(plan.interval)}
                       </span>
                     </div>
                     {plan.savings && (
@@ -233,6 +241,24 @@ export function PricingContent() {
           <p className="mt-2 text-sm text-muted-foreground">
             {t('pricesMayChange')}
           </p>
+        </div>
+
+        {/* Donation Section */}
+        <div className="mt-16 max-w-xl mx-auto text-center">
+          <div className="p-8 rounded-2xl bg-gradient-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+            <Heart className="h-10 w-10 mx-auto mb-4 text-pink-500" />
+            <h2 className="text-2xl font-bold mb-2">{t('donationTitle')}</h2>
+            <p className="text-muted-foreground mb-6">{t('donationDescription')}</p>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-pink-500/50 hover:bg-pink-500/10 hover:border-pink-500"
+              onClick={() => window.open(DONATION_LINK, '_blank')}
+            >
+              <Heart className="mr-2 h-4 w-4 text-pink-500" />
+              {t('donationButton')}
+            </Button>
+          </div>
         </div>
 
         {/* FAQ or additional info */}

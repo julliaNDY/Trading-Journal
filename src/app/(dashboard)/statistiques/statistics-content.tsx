@@ -32,6 +32,9 @@ import type { Trade, Tag } from '@prisma/client';
 
 interface TradeWithTags extends Trade {
   tags: { tag: { id: string; name: string; color: string } }[];
+  tradePlaybooks: {
+    playbook: { id: string; name: string };
+  }[];
 }
 
 interface Account {
@@ -40,11 +43,17 @@ interface Account {
   color: string;
 }
 
+interface PlaybookForSelection {
+  id: string;
+  name: string;
+}
+
 interface StatisticsContentProps {
   initialTrades: TradeWithTags[];
   symbols: string[];
   tags: Tag[];
   accounts: Account[];
+  playbooks: PlaybookForSelection[];
 }
 
 export function StatisticsContent({
@@ -52,16 +61,19 @@ export function StatisticsContent({
   symbols,
   tags,
   accounts,
+  playbooks,
 }: StatisticsContentProps) {
   const t = useTranslations('statistics');
   const tCommon = useTranslations('common');
+  const tTrades = useTranslations('trades');
   const locale = useLocale();
   const dateLocale = locale === 'en' ? 'en-GB' : 'fr-FR';
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterPlaybook, setFilterPlaybook] = useState<string>('');
 
   // Filter trades based on criteria
   const filteredTrades = useMemo(() => {
@@ -79,14 +91,14 @@ export function StatisticsContent({
       }
 
       // Account filter
-      if (selectedAccounts.length > 0) {
-        if (!trade.accountId || !selectedAccounts.includes(trade.accountId)) {
+      if (selectedAccount && selectedAccount !== '__all__') {
+        if (!trade.accountId || trade.accountId !== selectedAccount) {
           return false;
         }
       }
 
       // Symbol filter
-      if (selectedSymbol && trade.symbol !== selectedSymbol) return false;
+      if (selectedSymbol && selectedSymbol !== '__all__' && trade.symbol !== selectedSymbol) return false;
 
       // Tags filter
       if (selectedTags.length > 0) {
@@ -96,9 +108,16 @@ export function StatisticsContent({
         }
       }
 
+      // Playbook filter
+      if (filterPlaybook && filterPlaybook !== '__all__') {
+        if (!trade.tradePlaybooks || !trade.tradePlaybooks.some((tp) => tp.playbook.id === filterPlaybook)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [initialTrades, dateRange, selectedAccounts, selectedSymbol, selectedTags]);
+  }, [initialTrades, dateRange, selectedAccount, selectedSymbol, selectedTags, filterPlaybook]);
 
   // Calculate stats
   const stats = useMemo(() => calculateGlobalStats(filteredTrades), [filteredTrades]);
@@ -109,19 +128,12 @@ export function StatisticsContent({
   const clearFilters = () => {
     setDateRange({});
     setSelectedSymbol('');
-    setSelectedAccounts([]);
+    setSelectedAccount('');
     setSelectedTags([]);
+    setFilterPlaybook('');
   };
 
-  const hasFilters = dateRange.from || dateRange.to || selectedSymbol || selectedAccounts.length > 0 || selectedTags.length > 0;
-
-  const toggleAccount = (accountId: string) => {
-    setSelectedAccounts((prev) =>
-      prev.includes(accountId)
-        ? prev.filter((id) => id !== accountId)
-        : [...prev, accountId]
-    );
-  };
+  const hasFilters = dateRange.from || dateRange.to || selectedSymbol || (selectedAccount && selectedAccount !== '__all__') || selectedTags.length > 0 || (filterPlaybook && filterPlaybook !== '__all__');
 
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) =>
@@ -192,25 +204,30 @@ export function StatisticsContent({
               </PopoverContent>
             </Popover>
 
-            {/* Accounts */}
+            {/* Accounts Dropdown */}
             {accounts.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {accounts.map((account) => (
-                  <Badge
-                    key={account.id}
-                    variant={selectedAccounts.includes(account.id) ? 'default' : 'outline'}
-                    className="cursor-pointer text-xs"
-                    style={
-                      selectedAccounts.includes(account.id)
-                        ? { backgroundColor: account.color }
-                        : { borderColor: account.color, color: account.color }
-                    }
-                    onClick={() => toggleAccount(account.id)}
-                  >
-                    {account.name}
-                  </Badge>
-                ))}
-              </div>
+              <Select 
+                value={selectedAccount || '__all__'} 
+                onValueChange={(v) => setSelectedAccount(v === '__all__' ? '' : v)}
+              >
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder={tCommon('allAccounts') || 'All Accounts'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{tCommon('allAccounts') || 'All Accounts'}</SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: account.color }}
+                        />
+                        {account.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             {/* Symbol */}
@@ -222,7 +239,7 @@ export function StatisticsContent({
                 <SelectValue placeholder={t('symbol')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">{t('allSymbols')}</SelectItem>
+                <SelectItem value="__all__">{tCommon('symbols')}</SelectItem>
                 {symbols.map((symbol) => (
                   <SelectItem key={symbol} value={symbol}>
                     {symbol}
@@ -230,6 +247,23 @@ export function StatisticsContent({
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Playbook */}
+            {playbooks.length > 0 && (
+              <Select value={filterPlaybook || '__all__'} onValueChange={(v) => setFilterPlaybook(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder={tTrades('filterByPlaybook') || 'Filter by Playbook'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{tCommon('playbooks')}</SelectItem>
+                  {playbooks.map((pb) => (
+                    <SelectItem key={pb.id} value={pb.id}>
+                      {pb.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {/* Tags */}
             {tags.length > 0 && (

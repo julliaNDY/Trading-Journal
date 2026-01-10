@@ -311,7 +311,7 @@ export function processImport(
         floatingDrawdownUsd,
       });
     } catch (error) {
-      errors.push({ row: rowNum, message: `Erreur: ${error}` });
+      errors.push({ row: rowNum, message: `Error: ${error}` });
     }
   }
 

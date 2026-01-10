@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Trading Journal',
-  description: 'Analysez et améliorez vos performances de trading',
+  title: 'Trading Path Journal',
+  description: 'Analyze and improve your trading performance',
   icons: {
     icon: '/favicon.ico',
   },

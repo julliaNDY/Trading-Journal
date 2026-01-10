@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import Tesseract from 'tesseract.js';
-import { Camera, Loader2, Plus } from 'lucide-react';
+import { Camera, Loader2, Plus, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,12 +20,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { parseOcrText, type OcrTradeData } from '@/services/ocr-service';
+import { parseOcrText, type OcrTradeData, type VisionParseResult } from '@/services/ocr-service';
 import { createAccount } from '@/app/actions/accounts';
-import { createTradesFromOcr } from '@/app/actions/trades';
+import { enrichTradesFromOcr } from '@/app/actions/trades';
 import { useToast } from '@/hooks/use-toast';
+
+// =============================================================================
+// TYPES
+// =============================================================================
 
 interface Account {
   id: string;
@@ -42,6 +47,48 @@ interface OcrImportDialogProps {
   onAccountCreated: (account: Account) => void;
   onSuccess?: () => void;
 }
+
+type OcrProgress = 'converting' | 'uploading' | 'analyzing' | null;
+
+interface OcrApiResponse extends VisionParseResult {
+  metadata?: {
+    imageSize: number;
+    mimeType: string;
+    visionApiUsed: boolean;
+  };
+}
+
+interface OcrApiError {
+  error: string;
+  code?: string;
+  retryable?: boolean;
+  details?: string;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Convertit un fichier image en Base64
+ */
+async function imageToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Extraire la partie base64 (retirer le préfixe data:image/xxx;base64,)
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// =============================================================================
+// COMPONENT
+// =============================================================================
 
 export function OcrImportDialog({
   open,
@@ -59,11 +106,22 @@ export function OcrImportDialog({
 
   // OCR processing state
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<OcrProgress>(null);
   const [showOcrExample, setShowOcrExample] = useState(false);
+  const [lastError, setLastError] = useState<OcrApiError | null>(null);
+  const [lastImageBase64, setLastImageBase64] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
+  
+  // Warning dialog state (shown before upload)
+  const [showWarningDialog, setShowWarningDialog] = useState(false);
+  const [pendingFileInput, setPendingFileInput] = useState<HTMLInputElement | null>(null);
   
   // Confirm dialog state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [parsedTrades, setParsedTrades] = useState<OcrTradeData[]>([]);
+  const [rawOcrText, setRawOcrText] = useState('');
+  const [qualityWarning, setQualityWarning] = useState<string | null>(null);
   const [symbol, setSymbol] = useState('');
   const [accountId, setAccountId] = useState('');
   
@@ -75,18 +133,36 @@ export function OcrImportDialog({
 
   const resetState = () => {
     setParsedTrades([]);
+    setRawOcrText('');
+    setQualityWarning(null);
     setSymbol('');
     setAccountId('');
     setIsCreatingAccount(false);
     setNewAccountName('');
     setNewAccountBroker('');
     setShowOcrExample(false);
+    setLastError(null);
+    setLastImageBase64(null);
+    setRetryCount(0);
+    setShowWarningDialog(false);
+    setPendingFileInput(null);
   };
+  
+  // Re-parse OCR text when symbol changes (for better price range filtering)
+  useEffect(() => {
+    if (rawOcrText && symbol.trim()) {
+      const result = parseOcrText(rawOcrText, symbol.trim());
+      if (result.trades && result.trades.length > 0) {
+        setParsedTrades(result.trades);
+      }
+    }
+  }, [symbol, rawOcrText]);
 
   const handleMainDialogClose = (open: boolean) => {
     onOpenChange(open);
     if (!open) {
       setShowOcrExample(false);
+      setLastError(null);
     }
   };
 
@@ -97,104 +173,154 @@ export function OcrImportDialog({
     }
   };
 
-  // Parse trade data using the centralized ocr-service
-  const parseTradeData = (text: string, sym?: string): OcrTradeData[] => {
-    const result = parseOcrText(text, sym);
-    if (result.warnings.length > 0) {
-      result.warnings.forEach(w => console.warn('OCR warning:', w));
-    }
-    return result.trades;
-  };
+  /**
+   * Process image via OCR API
+   */
+  const processImage = async (base64Image: string) => {
+    setOcrProgress('uploading');
+    setLastError(null);
 
-  // OCR file handler
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsProcessingOcr(true);
     try {
-      // Create image element for preprocessing
-      const img = new Image();
-      const imageUrl = URL.createObjectURL(file);
-      
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = reject;
-        img.src = imageUrl;
+      setOcrProgress('analyzing');
+
+      const response = await fetch('/api/ocr/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: base64Image,
+          symbol: symbol || undefined,
+        }),
       });
 
-      // Create canvas for preprocessing
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
-
-      // Scale up for better OCR
-      const scale = img.width < 1000 ? 3 : 2;
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Image preprocessing
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      // Detect dark theme
-      let totalBrightness = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
-      }
-      const avgBrightness = totalBrightness / (data.length / 4);
-      const isDarkTheme = avgBrightness < 128;
-
-      if (isDarkTheme) {
-        // Invert colors for better OCR
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = 255 - data[i];
-          data[i + 1] = 255 - data[i + 1];
-          data[i + 2] = 255 - data[i + 2];
+      if (!response.ok) {
+        const responseText = await response.text();
+        let errorData: OcrApiError;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: responseText || 'Unknown error', code: 'PARSE_ERROR' };
         }
-      }
-      
-      // Increase contrast
-      const contrast = isDarkTheme ? 1.5 : 1.3;
-      const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
-      
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
-        data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
-        data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
+        throw errorData;
       }
 
-      ctx.putImageData(imageData, 0, 0);
-
-      // Convert to blob
-      const processedBlob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
-      });
-
-      URL.revokeObjectURL(imageUrl);
-
-      // Run OCR
-      const result = await Tesseract.recognize(processedBlob, 'eng', {});
+      const result: OcrApiResponse = await response.json();
       
-      const text = result.data.text;
-      const trades = parseTradeData(text);
+      setRawOcrText(result.rawText);
       
-      if (trades && trades.length > 0) {
-        setParsedTrades(trades);
+      // Check quality and show warning if needed
+      if (result.qualityAnalysis?.recommendation) {
+        setQualityWarning(result.qualityAnalysis.recommendation);
+      }
+      
+      if (result.trades.length > 0) {
+        setParsedTrades(result.trades);
         onOpenChange(false);
         setShowConfirmDialog(true);
+      } else if (result.rawText.trim()) {
+        // Text detected but no trades parsed
+        onOpenChange(false);
+        setShowConfirmDialog(true);
+        toast({
+          title: tCommon('info'),
+          description: tTrades('enterSymbolToReparse') || 'Enter a symbol to filter price ranges correctly',
+        });
       } else {
         toast({
           title: tCommon('info'),
           description: tTrades('ocrNoMatches'),
         });
       }
+
+      // Show warnings if any
+      if (result.warnings.length > 0) {
+        console.warn('OCR warnings:', result.warnings);
+      }
+
+      // Reset retry count on success
+      setRetryCount(0);
+
     } catch (error) {
       console.error('OCR error:', error);
+      
+      const apiError = error as OcrApiError;
+      setLastError(apiError);
+      
+      let description = tTrades('ocrError');
+      
+      if (apiError.code === 'TIMEOUT') {
+        description = tTrades('ocrTimeout') || 'Processing took too long. Please try again.';
+      } else if (apiError.code === 'QUOTA_EXCEEDED') {
+        description = tTrades('ocrQuotaExceeded') || 'API quota exceeded. Please try again later.';
+      } else if (apiError.code === 'IMAGE_TOO_LARGE') {
+        description = tTrades('imageTooLarge') || 'Image is too large (max 10MB).';
+      } else if (apiError.code === 'INVALID_FORMAT') {
+        description = tTrades('imageFormatInvalid') || 'Invalid image format. Use JPEG, PNG, WebP or GIF.';
+      } else if (apiError.code === 'SERVICE_UNAVAILABLE') {
+        description = 'OCR service not configured. Please contact support.';
+      } else if (apiError.error && apiError.error.includes('PERMISSION_DENIED')) {
+        description = 'Google Cloud billing not enabled. Please enable billing on your GCP project.';
+      } else if (apiError.error) {
+        // Display the actual error message if available
+        description = apiError.error.length > 150 ? apiError.error.substring(0, 150) + '...' : apiError.error;
+      }
+      
+      toast({
+        title: tCommon('error'),
+        description,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  /**
+   * Handle upload button click - show warning first
+   */
+  const handleUploadClick = () => {
+    // Show warning dialog before allowing file selection
+    setShowWarningDialog(true);
+  };
+  
+  /**
+   * Handle warning confirmation - proceed with file selection
+   */
+  const handleWarningConfirm = () => {
+    setShowWarningDialog(false);
+    // Trigger the file input
+    document.getElementById('ocr-file-input')?.click();
+  };
+
+  /**
+   * Handle file selection
+   */
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: tCommon('error'),
+        description: tTrades('imageTooLarge') || 'Image is too large (max 10MB).',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+
+    setIsProcessingOcr(true);
+    setOcrProgress('converting');
+
+    try {
+      // Convert to Base64
+      const base64Image = await imageToBase64(file);
+      setLastImageBase64(base64Image);
+      
+      // Process via API
+      await processImage(base64Image);
+
+    } catch (error) {
+      console.error('File processing error:', error);
       toast({
         title: tCommon('error'),
         description: tTrades('ocrError'),
@@ -202,11 +328,47 @@ export function OcrImportDialog({
       });
     } finally {
       setIsProcessingOcr(false);
+      setOcrProgress(null);
       e.target.value = '';
     }
   };
 
-  // Create account handler
+  /**
+   * Retry last failed OCR
+   */
+  const handleRetry = async () => {
+    if (retryCount >= MAX_RETRIES) {
+      toast({
+        title: tCommon('error'),
+        description: tTrades('maxRetriesReached') || 'Maximum retry attempts reached.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!lastImageBase64) {
+      toast({
+        title: tCommon('error'),
+        description: 'No image to retry. Please upload again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setRetryCount(prev => prev + 1);
+    setIsProcessingOcr(true);
+    
+    try {
+      await processImage(lastImageBase64);
+    } finally {
+      setIsProcessingOcr(false);
+      setOcrProgress(null);
+    }
+  };
+
+  /**
+   * Create account handler
+   */
   const handleCreateAccount = async () => {
     if (!newAccountName.trim()) return;
     setIsCreatingAccountLoading(true);
@@ -236,7 +398,10 @@ export function OcrImportDialog({
     }
   };
 
-  // Confirm import handler
+  /**
+   * Confirm enrichment handler
+   * Now only enriches existing trades - no new trades created
+   */
   const handleConfirm = async () => {
     if (!symbol.trim()) {
       toast({
@@ -249,21 +414,18 @@ export function OcrImportDialog({
 
     setIsProcessingOcr(true);
     try {
-      const result = await createTradesFromOcr(
+      const result = await enrichTradesFromOcr(
         parsedTrades,
         symbol.trim(),
         accountId && accountId !== 'none' ? accountId : null
       );
       
       const parts: string[] = [];
-      if (result.createdCount > 0) {
-        parts.push(tTrades('ocrCreated', { count: result.createdCount }));
+      if (result.enrichedCount > 0) {
+        parts.push(tTrades('ocrEnrichedCount', { count: result.enrichedCount }));
       }
-      if (result.updatedCount > 0) {
-        parts.push(tTrades('ocrUpdated', { count: result.updatedCount }));
-      }
-      if (result.skippedCount > 0) {
-        parts.push(tTrades('ocrSkipped', { count: result.skippedCount }));
+      if (result.notFoundCount > 0) {
+        parts.push(tTrades('ocrNotFoundCount', { count: result.notFoundCount }));
       }
       const description = parts.length > 0 ? parts.join(', ') : tTrades('ocrNoChanges');
       
@@ -276,7 +438,7 @@ export function OcrImportDialog({
       onSuccess?.();
       router.refresh();
     } catch (error) {
-      console.error('Error creating trades:', error);
+      console.error('Error enriching trades:', error);
       toast({
         title: tCommon('error'),
         description: tTrades('ocrError'),
@@ -287,8 +449,55 @@ export function OcrImportDialog({
     }
   };
 
+  /**
+   * Get progress message
+   */
+  const getProgressMessage = (): string => {
+    switch (ocrProgress) {
+      case 'converting':
+        return tTrades('ocrConverting') || 'Preparing image...';
+      case 'uploading':
+        return tTrades('ocrUploading') || 'Uploading...';
+      case 'analyzing':
+        return tTrades('ocrAnalyzing') || 'Analyzing...';
+      default:
+        return tTrades('processingOcr');
+    }
+  };
+
   return (
     <>
+      {/* Warning Dialog - Shown before upload */}
+      <Dialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              {tTrades('screenshotWarningTitle')}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {tTrades('screenshotWarningMessage')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <Info className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                {tTrades('screenshotWarningMessage')}
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowWarningDialog(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={handleWarningConfirm}>
+              {tTrades('screenshotWarningConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Main OCR Dialog */}
       <Dialog open={open} onOpenChange={handleMainDialogClose}>
         <DialogContent className={cn("transition-all duration-300", showOcrExample && "max-w-4xl")}>
@@ -323,6 +532,25 @@ export function OcrImportDialog({
                 />
               </div>
             )}
+
+            {/* Error with retry option */}
+            {lastError && lastError.retryable && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{lastError.error}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    disabled={isProcessingOcr || retryCount >= MAX_RETRIES}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    {tTrades('ocrRetry') || 'Retry'}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             
             <input
               type="file"
@@ -334,13 +562,13 @@ export function OcrImportDialog({
             <Button
               variant="outline"
               className="w-full h-32 border-dashed"
-              onClick={() => document.getElementById('ocr-file-input')?.click()}
+              onClick={handleUploadClick}
               disabled={isProcessingOcr}
             >
               {isProcessingOcr ? (
                 <>
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  {tTrades('processingOcr')}
+                  {getProgressMessage()}
                 </>
               ) : (
                 <>
@@ -363,11 +591,26 @@ export function OcrImportDialog({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{tTrades('ocrConfirmTitle')}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {tTrades('ocrConfirmDescription', { count: parsedTrades.length })}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              {tTrades('ocrConfirmDescription', { count: parsedTrades.length })}
-            </p>
+            <Alert className="border-blue-500/50 bg-blue-500/10">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm">
+                {tTrades('ocrConfirmDescription', { count: parsedTrades.length })}
+                {' '}{tTrades('screenshotWarningMessage')?.split('.')[1]?.trim() || 'Only existing trades will be updated.'}
+              </AlertDescription>
+            </Alert>
+
+            {/* Quality warning */}
+            {qualityWarning && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{qualityWarning}</AlertDescription>
+              </Alert>
+            )}
             
             <div className="space-y-2">
               <Label>{tTrade('symbol')} *</Label>
@@ -460,7 +703,6 @@ export function OcrImportDialog({
             {parsedTrades.length > 0 && (
               <div className="space-y-2">
                 <Label>{tTrades('preview')}</Label>
-                {/* Check if any trade has DD/RU to show extended header */}
                 {(() => {
                   const hasDrawdownRunup = parsedTrades.some(t => t.drawdown !== undefined || t.runup !== undefined);
                   return (
@@ -531,4 +773,3 @@ export function OcrImportDialog({
     </>
   );
 }
-
