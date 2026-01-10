@@ -9,6 +9,29 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-10 20:00] - Epic 1: Réactivation TypeScript/ESLint (Quinn QA)
+
+### 📝 Demande utilisateur
+> Compléter l'Epic 1 de la ROADMAP_TO_LAUNCH : réactiver les vérifications TypeScript et ESLint dans le build.
+
+### 🔧 Modifications techniques
+
+**Fichiers modifiés :**
+- `next.config.mjs` — Suppression des options `ignoreDuringBuilds`
+- `tsconfig.json` — Upgrade target ES2017 → ES2022 (support regex flag 's')
+- `src/app/(dashboard)/comptes/brokers/brokers-content.tsx` — Ajout TRADOVATE au BROKER_INFO
+- `src/app/(dashboard)/settings/page.tsx` — Ajout champ `nickname` manquant
+- `src/app/actions/trades.ts` — Correction type MatchScore (était 'never')
+- `src/services/broker/ibkr-flex-query-provider.ts` — Définition variables XML manquantes
+- `src/services/trade-service.ts` — Ajout tradePlaybooks à TradeWithTags
+
+### 💡 Résultat
+- 17 erreurs TypeScript corrigées
+- Build validé : ✅ 0 erreur
+- Epic 1 de ROADMAP_TO_LAUNCH : **TERMINÉ**
+
+---
+
 ## [2026-01-10 19:00] - Pre-Release Sanitation Audit (Quinn QA)
 
 ### 📝 Demande utilisateur
