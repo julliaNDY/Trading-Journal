@@ -13,6 +13,7 @@ export default async function SettingsPage() {
     select: {
       id: true,
       email: true,
+      nickname: true,
       discordUsername: true,
       avatarUrl: true,
       preferredLocale: true,

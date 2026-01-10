@@ -776,6 +776,11 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       },
     };
     
+    // Check for root elements in the XML
+    const hasFlexQueryResponse = xmlText.includes('<FlexQueryResponse');
+    const hasFlexStatement = xmlText.includes('<FlexStatement');
+    const hasTrades = xmlText.includes('<Trades');
+    const hasTradeConfirms = xmlText.includes('<TradeConfirm');
     
     // Validate root structure according to IBKR spec
     if (!hasFlexQueryResponse && !hasFlexStatement) {

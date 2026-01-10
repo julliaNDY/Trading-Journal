@@ -10,7 +10,7 @@ import {
   type PartialExitInput 
 } from '@/services/trade-service';
 import { calculateTradeFees, calculateGrossPnl } from '@/lib/utils';
-import type { Direction } from '@prisma/client';
+import type { Direction, Trade } from '@prisma/client';
 
 export interface CreateManualTradeInput {
   symbol: string;
@@ -466,7 +466,7 @@ function symbolsMatch(ocrSymbol: string, dbSymbol: string): boolean {
 }
 
 interface MatchScore {
-  trade: typeof prisma.trade extends { findMany: (...args: unknown[]) => Promise<infer T> } ? T extends (infer U)[] ? U : never : never;
+  trade: Trade;
   score: number;
   reasons: string[];
 }

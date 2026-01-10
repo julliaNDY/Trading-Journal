@@ -15,15 +15,8 @@ const nextConfig = {
     },
   },
 
-  // ESLINT OFF
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
-  // TYPESCRIPT OFF
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // ESLint et TypeScript vérifiés pendant le build
+  // (Corrections appliquées le 2026-01-10 par Quinn QA)
 };
 
 export default withNextIntl(nextConfig);

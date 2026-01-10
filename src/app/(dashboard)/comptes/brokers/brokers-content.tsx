@@ -134,6 +134,11 @@ const BROKER_INFO: Record<BrokerType, { name: string; logo: string; description:
     logo: '🏦',
     description: 'Multi-asset brokerage (via Flex Query)',
   },
+  TRADOVATE: {
+    name: 'Tradovate',
+    logo: '📈',
+    description: 'Futures trading platform',
+  },
 };
 
 // ============================================================================
