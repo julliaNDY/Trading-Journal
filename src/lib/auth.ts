@@ -98,6 +98,6 @@ export async function requireAuth(): Promise<UserSession> {
  */
 export async function requireAdmin(): Promise<UserSession> {
   const user = await requireAuth()
-  // TODO: Ajouter vérification admin si nécessaire
+  // Note: La vérification admin est gérée dans src/app/actions/admin.ts via ADMIN_EMAILS
   return user
 }

@@ -66,7 +66,7 @@ function getSupportedMimeType(): string | null {
   for (const type of mimeTypes) {
     try {
       if (MediaRecorder.isTypeSupported(type)) {
-        console.log(`[AudioRecorder] Selected MIME type: ${type}`);
+        if (process.env.NODE_ENV === 'development') console.log(`[AudioRecorder] Selected MIME type: ${type}`);
         return type;
       }
     } catch {
@@ -198,7 +198,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       mimeTypeRef.current = mimeType;
       setDetectedMimeType(mimeType);
       
-      console.log(`[AudioRecorder] Initializing with MIME type: ${mimeType || 'browser default'}`);
+      if (process.env.NODE_ENV === 'development') console.log(`[AudioRecorder] Initializing with MIME type: ${mimeType || 'browser default'}`);
       
       // Create MediaRecorder - with or without explicit MIME type
       let mediaRecorder: MediaRecorder;
@@ -216,7 +216,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           mediaRecorder = new MediaRecorder(stream);
           mimeTypeRef.current = mediaRecorder.mimeType || null;
           setDetectedMimeType(mediaRecorder.mimeType || null);
-          console.log(`[AudioRecorder] Fallback to browser default: ${mediaRecorder.mimeType}`);
+          if (process.env.NODE_ENV === 'development') console.log(`[AudioRecorder] Fallback to browser default: ${mediaRecorder.mimeType}`);
         } catch (fallbackError) {
           // MediaRecorder completely failed
           console.error('[AudioRecorder] MediaRecorder creation failed:', fallbackError);
@@ -233,7 +233,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       
       // Get the actual MIME type being used
       const actualMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
-      console.log(`[AudioRecorder] Actual MIME type in use: ${actualMimeType}`);
+      if (process.env.NODE_ENV === 'development') console.log(`[AudioRecorder] Actual MIME type in use: ${actualMimeType}`);
       
       // Handle data available
       mediaRecorder.ondataavailable = (event) => {
@@ -272,7 +272,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           return;
         }
         
-        console.log(`[AudioRecorder] Recording complete: ${blob.size} bytes, type: ${blob.type}`);
+        if (process.env.NODE_ENV === 'development') console.log(`[AudioRecorder] Recording complete: ${blob.size} bytes, type: ${blob.type}`);
         
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);

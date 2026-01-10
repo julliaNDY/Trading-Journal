@@ -82,7 +82,7 @@ export function JournalVoiceNotesSection({ dateStr, timezoneOffset, initialVoice
       const extension = getExtensionForMimeType(mimeType || recordedBlob.type);
       const fileName = `recording.${extension}`;
       
-      console.log(`[JournalVoiceNotes] Uploading: ${fileName}, MIME: ${recordedBlob.type}, size: ${recordedBlob.size}`);
+      if (process.env.NODE_ENV === 'development') console.log(`[JournalVoiceNotes] Uploading: ${fileName}, MIME: ${recordedBlob.type}, size: ${recordedBlob.size}`);
       
       const formData = new FormData();
       formData.append('file', recordedBlob, fileName);

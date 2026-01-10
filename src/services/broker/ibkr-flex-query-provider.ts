@@ -52,6 +52,7 @@ import {
   BrokerAuthError,
   BrokerApiError,
 } from './types';
+import { brokerLogger } from '@/lib/logger';
 
 // ============================================================================
 // IBKR FLEX QUERY TYPES
@@ -354,7 +355,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     this.queryId = queryId;
     this.accountId = accountId;
     
-    console.log(`[IBKR] Fetching trades from Activity Flex Query${since ? ` since ${since.toISOString()}` : ''}`);
+    brokerLogger.debug(`[IBKR] Fetching trades from Activity Flex Query${since ? ` since ${since.toISOString()}` : ''}`);
     
     const statement = await this.fetchFlexStatement();
     const trades: BrokerTrade[] = [];
@@ -362,13 +363,13 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     const flexStatement = statement.FlexStatements?.FlexStatement;
     if (!flexStatement) {
       const errorMsg = '[IBKR] No FlexStatement found in response';
-      console.error(errorMsg);
+      brokerLogger.error(errorMsg);
       throw new BrokerApiError(errorMsg);
     }
     
     // Log the date range from the query response
     if (flexStatement.$?.fromDate && flexStatement.$?.toDate) {
-      console.log(`[IBKR] Query date range: ${flexStatement.$.fromDate} to ${flexStatement.$.toDate}`);
+      brokerLogger.debug(`[IBKR] Query date range: ${flexStatement.$.fromDate} to ${flexStatement.$.toDate}`);
     }
     
     // Extract trades from Activity Flex Query's <Trades> section
@@ -379,26 +380,26 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     
     if (!rawTrades) {
       const warningMsg = '[IBKR] No trades found in Flex Query response. Ensure the "Trades" section is enabled in your Activity Flex Query configuration.';
-      console.warn(warningMsg);
+      brokerLogger.warn(warningMsg);
       return trades; // Return empty array if no trades (user might not have any)
     }
     
     // Ensure array
     const tradeList = Array.isArray(rawTrades) ? rawTrades : [rawTrades];
     
-    console.log(`[IBKR] Found ${tradeList.length} raw trade executions`);
+    brokerLogger.debug(`[IBKR] Found ${tradeList.length} raw trade executions`);
     
     // Group trades by symbol and aggregate to create full round-trip trades
     const aggregatedTrades = this.aggregateTradesToRoundTrips(tradeList, since);
     
-    console.log(`[IBKR] Aggregated into ${aggregatedTrades.length} round-trip trades`);
+    brokerLogger.debug(`[IBKR] Aggregated into ${aggregatedTrades.length} round-trip trades`);
     
     
     // CRITICAL: If we have raw trades but aggregated to zero, log warning but don't fail
     // (This can happen if all trades are opening positions without closes)
     if (tradeList.length > 0 && aggregatedTrades.length === 0) {
       const warningMsg = `[IBKR] Found ${tradeList.length} raw trade executions but aggregated to 0 round-trip trades. This may indicate all trades are open positions without closes, or an aggregation issue.`;
-      console.warn(warningMsg);
+      brokerLogger.warn(warningMsg);
     }
     
     return aggregatedTrades;
@@ -532,17 +533,17 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     // Validate that we have the expected root element
     if (isXML && !responseText.includes('<FlexQueryResponse>') && !responseText.includes('<FlexStatement')) {
       const errorMsg = `[IBKR] Invalid XML response: missing FlexQueryResponse or FlexStatement root element. Response starts with: ${responseText.substring(0, 200)}`;
-      console.error(errorMsg);
+      brokerLogger.error(errorMsg);
       throw new BrokerApiError(errorMsg);
     }
     
     if (isCSV) {
-      console.log('[IBKR] Detected CSV format, parsing...');
+      brokerLogger.debug('[IBKR] Detected CSV format, parsing...');
       const result = this.parseCSVStatement(responseText);
       return result;
     }
     
-    console.log('[IBKR] Detected XML format, parsing...');
+    brokerLogger.debug('[IBKR] Detected XML format, parsing...');
     const result = this.parseXMLStatement(responseText);
     return result;
   }
@@ -576,13 +577,13 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     
     const lines = csvText.trim().split('\n');
     if (lines.length < 2) {
-      console.warn('[IBKR] CSV has no data rows');
+      brokerLogger.warn('[IBKR] CSV has no data rows');
       return statement;
     }
     
     // Parse header row
     const headers = this.parseCSVRow(lines[0]);
-    console.log('[IBKR] CSV Headers:', headers);
+    brokerLogger.debug('[IBKR] CSV Headers:', headers);
     
     // Create header index map (case-insensitive, trim whitespace)
     const headerMap = new Map<string, number>();
@@ -645,7 +646,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     }
     
     
-    console.log('[IBKR] Field mappings found:', Object.keys(fieldIndices));
+    brokerLogger.debug('[IBKR] Field mappings found:', Object.keys(fieldIndices));
     
     // Parse data rows
     const trades: FlexTradeConfirmation[] = [];
@@ -709,19 +710,19 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       if (missingFields.length > 0) {
         const reason = `Missing required fields: ${missingFields.join(', ')}`;
         invalidRows.push({ row: i + 1, reason, trade });
-        console.warn(`[IBKR] CSV row ${i + 1}: ${reason}`, { symbol: trade.symbol, quantity: trade.quantity, buySell: trade.buySell, price: trade.price || trade.tradePrice, dateTime: trade.dateTime || trade.tradeDate });
+        brokerLogger.warn(`[IBKR] CSV row ${i + 1}: ${reason}`, { symbol: trade.symbol, quantity: trade.quantity, buySell: trade.buySell, price: trade.price || trade.tradePrice, dateTime: trade.dateTime || trade.tradeDate });
         continue;
       }
       
       trades.push(trade as FlexTradeConfirmation);
     }
     
-    console.log(`[IBKR] Parsed ${trades.length} valid trades from ${lines.length - 1} CSV rows (${invalidRows.length} invalid rows skipped)`);
+    brokerLogger.debug(`[IBKR] Parsed ${trades.length} valid trades from ${lines.length - 1} CSV rows (${invalidRows.length} invalid rows skipped)`);
     
     // CRITICAL: If we have data rows but parsed zero trades, that's an error
     if (lines.length > 1 && trades.length === 0 && invalidRows.length > 0) {
       const errorMsg = `[IBKR] CSV has ${lines.length - 1} data rows but parsed 0 valid trades. Invalid rows: ${invalidRows.slice(0, 3).map(r => `Row ${r.row}: ${r.reason}`).join('; ')}`;
-      console.error(errorMsg);
+      brokerLogger.error(errorMsg);
       throw new BrokerApiError(errorMsg);
     }
     
@@ -785,7 +786,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     // Validate root structure according to IBKR spec
     if (!hasFlexQueryResponse && !hasFlexStatement) {
       const errorMsg = `[IBKR] Invalid XML: missing FlexQueryResponse or FlexStatement root. Found structure: ${xmlText.substring(0, 300)}`;
-      console.error(errorMsg);
+      brokerLogger.error(errorMsg);
       throw new BrokerApiError(errorMsg);
     }
     
@@ -808,7 +809,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
     
     // Log date range for debugging
     if (fromDateMatch && toDateMatch) {
-      console.log(`[IBKR] Parsing Activity Flex Query: ${fromDateMatch[1]} to ${toDateMatch[1]}`);
+      brokerLogger.debug(`[IBKR] Parsing Activity Flex Query: ${fromDateMatch[1]} to ${toDateMatch[1]}`);
     }
     
     // Extract trades from Activity Flex Query's <Trades> section
@@ -848,7 +849,7 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
         .map(([field]) => field);
       
       if (missingFields.length > 0) {
-        console.warn(`[IBKR] Trade ${matchCount} missing required fields: ${missingFields.join(', ')}`, {
+        brokerLogger.warn(`[IBKR] Trade ${matchCount} missing required fields: ${missingFields.join(', ')}`, {
           symbol: trade.symbol,
           buySell: trade.buySell,
           quantity: trade.quantity,
@@ -861,18 +862,18 @@ export class IBKRFlexQueryProvider implements BrokerProvider {
       trades.push(trade);
     }
     
-    console.log(`[IBKR] Parsed ${trades.length} valid trades from ${matchCount} trade elements in XML`);
+    brokerLogger.debug(`[IBKR] Parsed ${trades.length} valid trades from ${matchCount} trade elements in XML`);
     
     // CRITICAL: If we found trade elements but parsed zero trades, that's an error
     if (matchCount > 0 && trades.length === 0) {
       const errorMsg = `[IBKR] Found ${matchCount} trade elements but parsed 0 valid trades. This indicates a parsing or validation issue. Check required fields (symbol, buySell, quantity, price, dateTime).`;
-      console.error(errorMsg);
+      brokerLogger.error(errorMsg);
       throw new BrokerApiError(errorMsg);
     }
     
     // If no trades found and no trade elements, warn but don't fail (user might not have trades)
     if (matchCount === 0 && !hasTrades && !hasTradeConfirms) {
-      console.warn('[IBKR] No trade elements found in XML response. Ensure your Activity Flex Query has the Trades section enabled.');
+      brokerLogger.warn('[IBKR] No trade elements found in XML response. Ensure your Activity Flex Query has the Trades section enabled.');
     }
     
     if (statement.FlexStatements?.FlexStatement?.Trades) {

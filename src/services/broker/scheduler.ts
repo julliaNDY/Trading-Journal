@@ -17,6 +17,7 @@
 
 import prisma from '@/lib/prisma';
 import { syncBrokerTrades } from './broker-sync-service';
+import { brokerLogger } from '@/lib/logger';
 
 // ============================================================================
 // TYPES
@@ -92,7 +93,7 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
       
       // Run sync
       try {
-        console.log(`[Scheduler] Syncing connection ${connection.id} (${connection.brokerType}/${connection.brokerAccountName})`);
+        brokerLogger.debug(`[Scheduler] Syncing connection ${connection.id} (${connection.brokerType}/${connection.brokerAccountName})`);
         
         const syncResult = await syncBrokerTrades(
           connection.id,
@@ -104,12 +105,12 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
         result.totalTradesImported += syncResult.tradesImported;
         result.totalTradesSkipped += syncResult.tradesSkipped;
         
-        console.log(`[Scheduler] Sync complete for ${connection.id}: ${syncResult.tradesImported} imported, ${syncResult.tradesSkipped} skipped`);
+        brokerLogger.debug(`[Scheduler] Sync complete for ${connection.id}: ${syncResult.tradesImported} imported, ${syncResult.tradesSkipped} skipped`);
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
-        console.error(`[Scheduler] Sync failed for ${connection.id}:`, errorMessage);
+        brokerLogger.error(`[Scheduler] Sync failed for ${connection.id}:`, errorMessage);
         
         result.errors.push({
           connectionId: connection.id,
@@ -123,7 +124,7 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
     result.success = true;
     
   } catch (error) {
-    console.error('[Scheduler] Fatal error:', error);
+    brokerLogger.error('[Scheduler] Fatal error:', error);
     result.errors.push({
       connectionId: 'scheduler',
       brokerType: 'N/A',
@@ -134,7 +135,7 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
   
   result.durationMs = Date.now() - startTime;
   
-  console.log(`[Scheduler] Completed in ${result.durationMs}ms: ${result.connectionsSynced}/${result.connectionsChecked} synced, ${result.totalTradesImported} trades imported`);
+  brokerLogger.debug(`[Scheduler] Completed in ${result.durationMs}ms: ${result.connectionsSynced}/${result.connectionsChecked} synced, ${result.totalTradesImported} trades imported`);
   
   return result;
 }

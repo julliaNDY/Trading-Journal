@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
+import { authLogger } from '@/lib/logger';
 
 // List of admin emails - ONLY these users can access admin page
 const ADMIN_EMAILS = [
@@ -109,7 +110,7 @@ export async function cleanupOrphanedUsers(): Promise<{
     const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError) {
-      console.error('Error fetching auth users:', authError);
+      authLogger.error('Error fetching auth users:', authError);
       return {
         success: false,
         deletedCount: 0,
@@ -132,7 +133,7 @@ export async function cleanupOrphanedUsers(): Promise<{
       };
     }
     
-    console.log(`Found ${orphanedUsers.length} orphaned users:`, orphanedUsers.map(u => u.email));
+    authLogger.debug(`Found ${orphanedUsers.length} orphaned users`, { emails: orphanedUsers.map(u => u.email) });
     
     // Delete orphaned users from public.users
     // This will cascade to all child tables via Prisma's onDelete: Cascade
@@ -144,7 +145,7 @@ export async function cleanupOrphanedUsers(): Promise<{
       },
     });
     
-    console.log(`Deleted ${deleteResult.count} orphaned users`);
+    authLogger.debug(`Deleted ${deleteResult.count} orphaned users`);
     
     revalidatePath('/admin');
     
@@ -155,7 +156,7 @@ export async function cleanupOrphanedUsers(): Promise<{
     };
     
   } catch (error) {
-    console.error('Error cleaning up orphaned users:', error);
+    authLogger.error('Error cleaning up orphaned users:', error);
     return {
       success: false,
       deletedCount: 0,
@@ -199,7 +200,7 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; er
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     
     if (authError) {
-      console.error('Error deleting from auth.users:', authError);
+      authLogger.error('Error deleting from auth.users:', authError);
       // Continue anyway - the user might already be deleted from auth
     }
 
@@ -213,7 +214,7 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; er
     return { success: true };
     
   } catch (error) {
-    console.error('Error deleting user:', error);
+    authLogger.error('Error deleting user:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

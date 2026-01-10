@@ -162,9 +162,6 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
   // Check if times were manually set for duration display
   const hasManualTimes = localTimesManuallySet;
   
-  // Debug log
-  console.log('[TradeDetailContent] hasManualTimes:', hasManualTimes, 'localTimesManuallySet:', localTimesManuallySet, 'trade.timesManuallySet:', trade.timesManuallySet);
-  
   // Playbook dialog
   const [isAssigningPlaybook, setIsAssigningPlaybook] = useState(false);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState('');
@@ -278,15 +275,7 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
       const newClosedAt = new Date(trade.closedAt);
       newClosedAt.setHours(closeHours, closeMinutes, closeSeconds, 0);
       
-      console.log('[handleSaveTimes] Input openTime:', openTime, 'closeTime:', closeTime);
-      console.log('[handleSaveTimes] Parsed openHours:', openHours, 'openMinutes:', openMinutes, 'openSeconds:', openSeconds);
-      console.log('[handleSaveTimes] newOpenedAt:', newOpenedAt.toISOString());
-      console.log('[handleSaveTimes] newClosedAt:', newClosedAt.toISOString());
-      console.log('[handleSaveTimes] Calling updateTradeTimes...');
-      
       const result = await updateTradeTimes(trade.id, newOpenedAt, newClosedAt);
-      
-      console.log('[handleSaveTimes] Server response:', result);
       
       // Update local state immediately for UI
       setLocalOpenedAt(newOpenedAt);
@@ -296,8 +285,6 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
       // Update the time input fields to reflect saved values
       setOpenTime(formatTimeForInputWithSeconds(newOpenedAt));
       setCloseTime(formatTimeForInputWithSeconds(newClosedAt));
-      
-      console.log('[handleSaveTimes] Local state updated, localTimesManuallySet set to true');
       
       setIsEditingTimes(false);
     } catch (error) {
