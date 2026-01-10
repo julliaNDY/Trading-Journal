@@ -13,7 +13,7 @@
 | Sécurité | ✅ OK | Aucune vulnérabilité npm |
 | Build | ✅ OK | Compile sans erreur |
 | Secrets | ✅ OK | Aucun secret en dur |
-| Performance | ⚠️ À optimiser | Assets lourds (optionnel) |
+| Performance | ✅ OPTIMISÉ | Bundle 102KB, lazy loading OK |
 | Dette technique | ✅ CORRIGÉ | console.log remplacés par logger |
 | Configuration | ✅ CORRIGÉ | ESLint/TS réactivés en build |
 
@@ -117,36 +117,37 @@
 
 ---
 
-## 🟢 EPIC 4: OPTIMISATION PERFORMANCE (Priorité: BASSE)
+## ✅ EPIC 4: OPTIMISATION PERFORMANCE (Priorité: BASSE) — TERMINÉ
 
 ### 4.1 Taille du bundle
 
+**Statut:** ✅ **Analysé le 2026-01-10**
+
 **Statistiques actuelles:**
-- First Load JS shared: 102 KB ✅ (acceptable)
-- Plus grande page: `/importer` - 219 KB (à surveiller)
-- Middleware: 80.2 KB
+- First Load JS shared: 102 KB ✅ (très bon)
+- Plus grande page: `/importer` - 219 KB (normal avec CSV parsing)
+- Middleware: 80.5 KB
 
-**Recommandations:**
-- [ ] Analyser le bundle avec `@next/bundle-analyzer`
-- [ ] Lazy load les composants lourds (Recharts, lightweight-charts)
+**Actions réalisées:**
+- [x] Installé `@next/bundle-analyzer`
+- [x] Configuré dans `next.config.mjs` (ANALYZE=true npm run build)
+- [x] Lazy loading déjà implémenté pour tous les charts
 
-### 4.2 Dépendances à mettre à jour
+### 4.2 Dépendances mises à jour
 
-| Package | Actuel | Disponible | Breaking Changes |
-|---------|--------|------------|------------------|
-| `@prisma/client` | 5.22.0 | 7.2.0 | Oui (majeur) |
-| `next` | 15.5.9 | 16.1.1 | Oui (majeur) |
-| `react` | 18.3.1 | 19.2.3 | Oui (majeur) |
-| `tailwindcss` | 3.4.19 | 4.1.18 | Oui (majeur) |
+**Mises à jour patches appliquées:**
+- [x] `@supabase/supabase-js`: 2.89.0 → 2.90.1
+- [x] `openai`: 6.15.0 → 6.16.0
+- [x] `stripe`: 20.1.1 → 20.1.2
 
-**Note:** Ne pas mettre à jour les versions majeures avant le lancement. Planifier pour une version future.
+**Mises à jour majeures (planifiées post-launch):**
 
-**Mises à jour sûres (patch):**
-- [ ] `@supabase/supabase-js`: 2.89.0 → 2.90.1
-- [ ] `openai`: 6.15.0 → 6.16.0
-- [ ] `stripe`: 20.1.1 → 20.1.2
-
-**Effort estimé:** 30 minutes (patches seulement)
+| Package | Actuel | Disponible | Status |
+|---------|--------|------------|--------|
+| `@prisma/client` | 5.22.0 | 7.2.0 | ⏳ Post-launch |
+| `next` | 15.5.9 | 16.1.1 | ⏳ Post-launch |
+| `react` | 18.3.1 | 19.2.3 | ⏳ Post-launch |
+| `tailwindcss` | 3.4.19 | 4.1.18 | ⏳ Post-launch |
 
 ---
 
