@@ -13,8 +13,8 @@
 | Sécurité | ✅ OK | Aucune vulnérabilité npm |
 | Build | ✅ OK | Compile sans erreur |
 | Secrets | ✅ OK | Aucun secret en dur |
-| Performance | ⚠️ À optimiser | Assets lourds, console.log |
-| Dette technique | ⚠️ À nettoyer | Fichiers orphelins, code debug |
+| Performance | ⚠️ À optimiser | Assets lourds (optionnel) |
+| Dette technique | ✅ CORRIGÉ | console.log remplacés par logger |
 | Configuration | ✅ CORRIGÉ | ESLint/TS réactivés en build |
 
 ---
@@ -46,43 +46,37 @@
 
 ---
 
-## 🟡 EPIC 2: NETTOYAGE DES FICHIERS (Priorité: MOYENNE)
+## ✅ EPIC 2: NETTOYAGE DES FICHIERS (Priorité: MOYENNE) — TERMINÉ
 
 ### 2.1 Fichiers à supprimer (racine du projet)
 
-| Fichier | Taille | Raison |
-|---------|--------|--------|
-| `CTTP Logo.png` | 33 KB | Doublon de `public/cttp-logo.png` |
-| `Capture 1.png` | 1.8 MB | Fichier de test |
-| `Capture 2.png` | 1.8 MB | Fichier de test |
-| `Capture 3.png` | 1.8 MB | Fichier de test |
-| `Capture 4.png` | 1.8 MB | Fichier de test |
-| `csv.csv` | 4.6 KB | Fichier de test CSV |
-| `.env 2` | 409 B | ⚠️ Fichier env dupliqué (risque sécurité) |
+**Statut:** ✅ **CORRIGÉ pendant l'audit initial (2026-01-10)**
 
-**Action requise:**
-- [ ] Supprimer tous les fichiers listés ci-dessus
-- [ ] Valider que le build fonctionne toujours
+| Fichier | Statut |
+|---------|--------|
+| `CTTP Logo.png` | ✅ Supprimé |
+| `Capture 1-4.png` | ✅ Supprimés |
+| `csv.csv` | ✅ Supprimé |
+| `.env 2` | ✅ Supprimé (risque sécurité) |
 
 ### 2.2 Dossiers dupliqués à supprimer
 
-| Dossier | Raison |
+| Dossier | Statut |
 |---------|--------|
-| `.github/workflows 2/` | Doublon de `.github/workflows/` |
+| `.github/workflows 2/` | ✅ Supprimé |
 
 ### 2.3 Fichiers volumineux dans Git
 
-| Fichier | Taille | Action |
-|---------|--------|--------|
-| `eng.traineddata` | 5 MB | Ajouter au .gitignore, télécharger à la demande |
-| `public/ocr-example.png` | 1.8 MB | Compresser ou remplacer par image plus légère |
-| `public/Capture ex.png` | 1.7 MB | Supprimer (fichier exemple non nécessaire) |
+| Fichier | Statut |
+|---------|--------|
+| `eng.traineddata` | ✅ Ajouté au .gitignore |
+| `public/Capture ex.png` | ✅ Supprimé |
 
-**Effort estimé:** 30 minutes
+**Note:** `public/ocr-example.png` (1.8 MB) reste mais peut être compressé ultérieurement si nécessaire.
 
 ---
 
-## 🟡 EPIC 3: QUALITÉ DU CODE (Priorité: MOYENNE)
+## ✅ EPIC 3: QUALITÉ DU CODE (Priorité: MOYENNE) — TERMINÉ
 
 ### 3.1 Suppression des console.log en production
 
@@ -106,22 +100,20 @@
 | `src/components/audio/voice-notes-section.tsx` | 1 | Log upload |
 | `src/components/audio/journal-voice-notes-section.tsx` | 1 | Log upload |
 
-**Action requise:**
-- [ ] Remplacer les console.log par le logger existant (`src/lib/logger.ts`)
-- [ ] Configurer le logger pour être silencieux en production
-- [ ] Garder uniquement les logs critiques (erreurs)
+**Statut:** ✅ **CORRIGÉ le 2026-01-10**
 
-**Effort estimé:** 2-3 heures
+**Corrections appliquées:**
+- [x] Remplacé 58 console.log par le logger (brokerLogger, tradeLogger, ocrLogger, authLogger)
+- [x] Client-side: logs conditionnés au mode développement
+- [x] Logger déjà configuré pour être silencieux en production (level: 'error')
 
-### 3.2 TODOs à résoudre
+### 3.2 TODOs résolus
 
-| Fichier | Ligne | TODO |
-|---------|-------|------|
-| `src/app/actions/contact.ts` | 48 | Implémenter envoi email réel |
-| `src/services/__tests__/import-service.test.ts` | 172 | Fix parseNumber pour séparateurs décimaux locaux |
-| `src/lib/auth.ts` | 101 | Ajouter vérification admin si nécessaire |
-
-**Effort estimé:** 1-2 heures
+| Fichier | Statut | Action |
+|---------|--------|--------|
+| `contact.ts` | ✅ | Documenté comme feature v2 |
+| `import-service.test.ts` | ✅ | Documenté comme limitation connue |
+| `auth.ts` | ✅ | Clarifié que l'admin check est dans admin.ts |
 
 ---
 
@@ -196,16 +188,16 @@
 ## 📋 CHECKLIST PRÉ-LANCEMENT
 
 ### Obligatoire (BLOQUANT)
-- [ ] Supprimer `.env 2` (risque sécurité)
+- [x] Supprimer `.env 2` (risque sécurité) ✅
 - [ ] Valider que toutes les variables d'environnement sont configurées en production
 - [ ] Configurer le domaine et les certificats SSL
 - [ ] Configurer Stripe en mode live (webhooks, clés API)
 - [ ] Tester le flow complet d'inscription/connexion en production
 
 ### Recommandé
-- [ ] Supprimer les fichiers de test (Capture*.png, csv.csv)
-- [ ] Supprimer ou réduire les console.log
-- [ ] Compresser les images lourdes dans `/public`
+- [x] Supprimer les fichiers de test (Capture*.png, csv.csv) ✅
+- [x] Supprimer ou réduire les console.log ✅
+- [ ] Compresser les images lourdes dans `/public` (optionnel)
 - [ ] Configurer les backups automatiques (script existant)
 
 ### Optionnel
