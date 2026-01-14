@@ -83,11 +83,12 @@ export const PLAN_PRICES = {
   FREE: 0,
   PRO_MONTHLY: 19,
   PRO_QUARTERLY: 49,
-  PRO_BIANNUAL: 89,
+  PRO_BIANNUAL: 20,
   PRO_ANNUAL: 149,
 } as const;
 
 export const PLAN_INTERVALS_MONTHS: Record<PlanInterval, number> = {
+  BETA: 6,
   MONTHLY: 1,
   QUARTERLY: 3,
   BIANNUAL: 6,
@@ -175,7 +176,7 @@ export function isSubscriptionActive(subscription: Subscription): boolean {
     return now < subscription.trialEndsAt;
   }
   
-  if (subscription.status === 'ACTIVE' || subscription.status === 'PAST_DUE') {
+  if (subscription.status === 'ACTIVE' || subscription.status === 'PAST_DUE' || subscription.status === 'BETA_ACCESS') {
     return now < subscription.currentPeriodEnd;
   }
   

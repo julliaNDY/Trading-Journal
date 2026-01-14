@@ -33,12 +33,33 @@ export class FilesystemStorage implements StorageProvider {
   private baseDir: string;
 
   constructor() {
-    this.baseDir = path.join(process.cwd(), UPLOAD_DIR);
+    const cwd = process.cwd();
+    this.baseDir = path.join(cwd, UPLOAD_DIR);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:35',message:'FilesystemStorage constructor',data:{UPLOAD_DIR,processCwd:cwd,baseDir:this.baseDir},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
   }
 
   async save(file: File, subdir: string): Promise<string> {
     const dir = path.join(this.baseDir, subdir);
-    await fs.mkdir(dir, { recursive: true });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:39',message:'save() called - before mkdir',data:{subdir,fullDir:dir,fileName:file.name,fileSize:file.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    try {
+      await fs.mkdir(dir, { recursive: true });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:43',message:'mkdir successful',data:{dir},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:46',message:'mkdir failed',data:{dir,error:error?.message,errorCode:error?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
 
     // Generate unique filename with sanitized basename
     const ext = path.extname(file.name);
@@ -51,9 +72,24 @@ export class FilesystemStorage implements StorageProvider {
     const filePath = path.join(dir, filename);
     const relativePath = path.join(subdir, filename);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:57',message:'before writeFile',data:{filePath,relativePath,bufferSize:file.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
     // Write file
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(filePath, buffer);
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await fs.writeFile(filePath, buffer);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:62',message:'writeFile successful',data:{filePath,relativePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/services/storage-service.ts:66',message:'writeFile failed',data:{filePath,error:error?.message,errorCode:error?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
 
     return relativePath;
   }

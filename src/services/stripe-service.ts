@@ -29,10 +29,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 // ============================================================================
 
 export const PLAN_CONFIG = {
+  BETA: {
+    name: 'beta_access',
+    displayName: 'Beta Access (6 mois)',
+    price: 2000, // 20$ in cents
+    interval: 'month' as const,
+    intervalCount: 6,
+    trialDays: 0,
+    savings: '-89%',
+    sortOrder: 0, // Afficher en premier
+  },
   MONTHLY: {
     name: 'pro_monthly',
     displayName: 'Pro Mensuel',
-    price: 1000, // 10€ in cents
+    price: 3000, // 30$ in cents
     interval: 'month' as const,
     intervalCount: 1,
     trialDays: 7,
@@ -51,12 +61,12 @@ export const PLAN_CONFIG = {
   },
   BIANNUAL: {
     name: 'pro_biannual',
-    displayName: 'Pro Semestriel',
-    price: 5000, // 50€ in cents
+    displayName: 'Accès Beta (6 mois)',
+    price: 2000, // 20€ in cents
     interval: 'month' as const,
     intervalCount: 6,
-    trialDays: 7,
-    savings: '-17%',
+    trialDays: 0,
+    savings: '-89%',
     sortOrder: 3,
   },
   ANNUAL: {
@@ -127,11 +137,9 @@ export async function createCheckoutSession(
   input: CreateCheckoutSessionInput
 ): Promise<string> {
   const { userId, planInterval, successUrl, cancelUrl } = input;
-  const fs = await import('fs');const logEntry = JSON.stringify({location:'stripe-service.ts:createCheckoutSession',message:'Creating checkout session',data:{userId,planInterval,successUrl,cancelUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry)}catch(e){}
 
   // Get or create Stripe customer
   const customerId = await getOrCreateStripeCustomer(userId);
-  const logEntry2 = JSON.stringify({location:'stripe-service.ts:createCheckoutSession:customer',message:'Got customer ID',data:{hasCustomerId:!!customerId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry2)}catch(e){}
 
   // Get the plan from database
   const plan = await prisma.plan.findFirst({
@@ -140,7 +148,6 @@ export async function createCheckoutSession(
       isActive: true,
     },
   });
-  const logEntry3 = JSON.stringify({location:'stripe-service.ts:createCheckoutSession:plan',message:'Plan lookup result',data:{hasPlan:!!plan,planName:plan?.name,hasStripePriceId:!!plan?.stripePriceId,planInterval},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry3)}catch(e){}
 
   if (!plan) {
     stripeLogger.error(`Plan not found for interval: ${planInterval}. Please run: npx tsx scripts/init-stripe-plans.ts`);
@@ -150,6 +157,19 @@ export async function createCheckoutSession(
   if (!plan.stripePriceId) {
     stripeLogger.error(`Plan ${plan.name} has no Stripe price ID. Please run: npx tsx scripts/init-stripe-plans.ts`);
     throw new Error(`Plan not configured. Please contact support.`);
+  }
+
+  // Prepare subscription_data - only include trial_period_days if > 0
+  const subscriptionData: any = {
+    metadata: {
+      userId,
+      planId: plan.id,
+    },
+  };
+  
+  // Stripe requires minimum 1 day for trial, so only include if trialDays > 0
+  if (plan.trialDays > 0) {
+    subscriptionData.trial_period_days = plan.trialDays;
   }
 
   // Create checkout session
@@ -163,13 +183,7 @@ export async function createCheckoutSession(
         quantity: 1,
       },
     ],
-    subscription_data: {
-      trial_period_days: plan.trialDays,
-      metadata: {
-        userId,
-        planId: plan.id,
-      },
-    },
+    subscription_data: subscriptionData,
     success_url: successUrl,
     cancel_url: cancelUrl,
     allow_promotion_codes: true,
@@ -304,7 +318,7 @@ export async function getSubscriptionStatus(userId: string): Promise<{
     };
   }
 
-  const hasActiveSubscription = ['ACTIVE', 'TRIAL'].includes(subscription.status);
+  const hasActiveSubscription = ['ACTIVE', 'TRIAL', 'BETA_ACCESS'].includes(subscription.status);
   const isTrialing = subscription.status === 'TRIAL';
 
   return {

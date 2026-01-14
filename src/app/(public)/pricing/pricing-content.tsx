@@ -35,6 +35,7 @@ interface Plan {
 // ============================================================================
 
 const PLAN_ICONS: Record<PlanInterval, React.ReactNode> = {
+  BETA: <Sparkles className="h-6 w-6 text-primary" />,
   MONTHLY: <Zap className="h-6 w-6" />,
   QUARTERLY: <Sparkles className="h-6 w-6" />,
   BIANNUAL: <Crown className="h-6 w-6" />,

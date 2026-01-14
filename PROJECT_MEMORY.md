@@ -9,6 +9,301 @@
 
 <!-- Les entrées sont ajoutées ci-dessous, les plus récentes en haut -->
 
+## [2026-01-14 23:24] - Fix build: add BETA to plan intervals
+
+### 📝 Demande utilisateur
+> Corriger l’erreur build liée à l’intervalle BETA dans les types d’abonnement.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `src/types/subscription.ts`
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** `PLAN_INTERVALS_MONTHS` dans `src/types/subscription.ts`
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Le build échouait car la table des durées n’incluait pas la valeur `BETA`.
+
+### 🔗 Contexte additionnel (optionnel)
+Le plan bêta est aligné sur 6 mois.
+
+---
+
+## [2026-01-14 23:18] - Fix build: pricing icons for BETA
+
+### 📝 Demande utilisateur
+> Corriger l’erreur build liée au plan BETA dans la page pricing.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `src/app/(public)/pricing/pricing-content.tsx`
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** `PLAN_ICONS` dans `src/app/(public)/pricing/pricing-content.tsx`
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Le build échouait car la map d’icônes ne couvrait pas l’intervalle `BETA`.
+
+### 🔗 Contexte additionnel (optionnel)
+Ajout d’une icône dédiée pour le plan bêta.
+
+---
+
+## [2026-01-14 23:12] - Fix build: add BETA plan in update script
+
+### 📝 Demande utilisateur
+> Corriger l’erreur build liée au plan BETA dans le script Stripe.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `scripts/update-stripe-price-ids.ts`
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** `getPlanConfig()` dans `scripts/update-stripe-price-ids.ts`
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Le build échouait car le script de mise à jour des price IDs ne gérait pas l’intervalle `BETA`.
+
+### 🔗 Contexte additionnel (optionnel)
+Ajout du price id bêta et propagation des `trialDays` par plan.
+
+---
+
+## [2026-01-14 22:36] - Beta Access landing + gating abonnement
+
+### 📝 Demande utilisateur
+> Créer une landing page Beta Access, connecter Stripe semestriel 20$, et verrouiller les routes payantes.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `src/content/beta-landing.ts`, `src/components/landing/beta-access-landing.tsx`, `src/app/api/subscription/status/route.ts`
+- **Fichiers modifiés :** `src/app/page.tsx`, `src/services/stripe-service.ts`, `src/types/subscription.ts`, `src/lib/subscription-check.ts`, `src/middleware.ts`, `prisma/schema.prisma`
+- **Fonctions ajoutées :** `BetaAccessLanding()` dans `src/components/landing/beta-access-landing.tsx`
+- **Fonctions modifiées :** `isSubscriptionActive()` dans `src/types/subscription.ts`, `getSubscriptionStatus()` dans `src/services/stripe-service.ts`
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Mettre en place la monétisation Beta (20$/6 mois), présenter la valeur produit et protéger l’accès aux modules principaux sans abonnement actif.
+
+### 🔗 Contexte additionnel (optionnel)
+La protection passe par un endpoint `/api/subscription/status` consommé par le middleware pour rediriger vers la landing.
+
+---
+
+## [2026-01-14 22:34] - Creation stories manquantes Epic 2-9
+
+### 📝 Demande utilisateur
+> Créer toutes les stories manquantes pour chaque epic.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** 
+  - Epic 2 (Market Replay) : `docs/stories/2.1.story.md` à `docs/stories/2.5.story.md` (5 stories)
+  - Epic 3 (Multi-Compte & Broker Sync) : `docs/stories/3.1.story.md` à `docs/stories/3.5.story.md` (5 stories)
+  - Epic 4 (AI & Intelligence) : `docs/stories/4.1.story.md` à `docs/stories/4.6.story.md` (6 stories)
+  - Epic 5 (Analytics Avancées) : `docs/stories/5.1.story.md` à `docs/stories/5.5.story.md` (5 stories)
+  - Epic 6 (Replay & Visualisation) : `docs/stories/6.1.story.md` à `docs/stories/6.4.story.md` (4 stories)
+  - Epic 7 (Journalisation & Partage) : `docs/stories/7.1.story.md` à `docs/stories/7.4.story.md` (4 stories)
+  - Epic 8 (Killer Features) : `docs/stories/8.1.story.md` à `docs/stories/8.3.story.md` (3 stories)
+  - Epic 9 (Pages Publiques) : `docs/stories/9.1.story.md` à `docs/stories/9.7.story.md` (7 stories)
+- **Fichiers modifiés :** N/A
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** N/A
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Créer toutes les stories manquantes pour chaque epic (Epic 2 à 9) selon la roadmap et le PRD. Chaque story suit le format standard (Status, Story, Acceptance Criteria, Tasks, Dev Notes) et référence la roadmap et l'architecture.
+
+### 🔗 Contexte additionnel (optionnel)
+Total : 39 nouvelles stories créées (en plus des 4 existantes pour Epic 1 = 43 stories au total). Toutes les stories incluent les avertissements API (notification immédiate PM) selon les governance rules de la roadmap. Les stories Epic 7 et 9 prennent en compte les fonctionnalités partiellement implémentées (Voice Notes, Playbooks Sharing, Tags).
+
+## [2026-01-14 22:14] - Preparation dev: Phase 0 POCs + Epic 1 stories
+
+### 📝 Demande utilisateur
+> Faire les deux: formaliser les POCs Phase 0 et preparer les stories Epic 1.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `docs/specs/phase-0-poc-plan.md`, `docs/stories/1.1.story.md`, `docs/stories/1.2.story.md`, `docs/stories/1.3.story.md`, `docs/stories/1.4.story.md`
+- **Fichiers modifiés :** `docs/dev-preparation-checklist.md`
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** N/A
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Structurer la Phase 0 (POCs critiques) et fournir des stories prêtes pour demarrer Epic 1.
+
+### 🔗 Contexte additionnel (optionnel)
+Les stories Epic 1 couvrent TimescaleDB, Redis/BullMQ, Vector DB et observabilite.
+
+## [2026-01-14 22:08] - Preparation dev: docs techniques
+
+### 📝 Demande utilisateur
+> Préparer tout ce qu'il y a à préparer pour que le dev puisse commencer la roadmap Trading Path Journal.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `docs/architecture/coding-standards.md`, `docs/architecture/tech-stack.md`, `docs/architecture/source-tree.md`
+- **Fichiers modifiés :** `docs/dev-preparation-checklist.md`
+- **Fonctions ajoutées :** N/A
+- **Fonctions modifiées :** N/A
+- **Dépendances ajoutées :** N/A
+
+### 💡 Pourquoi (Raison du changement)
+Fournir la documentation technique requise par la configuration (devLoadAlwaysFiles) et finaliser la checklist de preparation avant demarrage.
+
+### 🔗 Contexte additionnel (optionnel)
+La checklist confirme que la Phase 0 (POC/infra) reste un prerequis avant le debut d'Epic 1.
+
+## [2026-01-14 21:50] - Architecture: Introduction full-stack et règles transverses
+
+### 📝 Demande utilisateur
+> Mettre à jour l’architecture existante pour y intégrer l’introduction full‑stack et les règles API/brokers.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `docs/architecture-trading-path-journal.md`
+- **Sections ajoutées :**
+  - `Introduction` (full‑stack scope, brownfield constraints, sources de vérité)
+  - `Governance Rules` (notification immédiate APIs, research brokers)
+  - Mise à jour de la table des matières
+
+### 💡 Pourquoi (Raison du changement)
+Aligner l’architecture sur la demande full‑stack et intégrer explicitement les contraintes de gouvernance pour APIs externes et intégrations brokers.
+
+### 🔗 Contexte additionnel (optionnel)
+Cette introduction clarifie la nature brownfield du projet et formalise les règles de validation/budget avant intégration d’APIs externes.
+
+---
+
+## [2026-01-14 21:51] - Architecture: Clarifications gouvernance et sources de vérité
+
+### 📝 Demande utilisateur
+> Renforcer l’introduction (gouvernance, roadmap canonique, références valides).
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `docs/architecture-trading-path-journal.md`
+- **Sections modifiées :**
+  - `Governance Rules`: ajout de la règle d’exécution via review + checklist
+  - `Source of Truth`: clarification roadmap canonique + maintien des docs non conflictuelles
+
+### 💡 Pourquoi (Raison du changement)
+Réduire les ambiguïtés de gouvernance et clarifier les documents de référence pour éviter les conflits de scope.
+
+### 🔗 Contexte additionnel (optionnel)
+`docs/roadmap-trading-path-journal.md` devient la roadmap de référence pour cette initiative.
+
+---
+
+## [2026-01-XX] - Création Roadmap Trading Path Journal
+
+### 📝 Demande utilisateur
+> Créer roadmap détaillée avec priorités + notification immédiate si fonction nécessite API + directives recherche pour développeurs (brokers et implémentations).
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `docs/roadmap-trading-path-journal.md`
+- **Sections créées :**
+  - Vue d'Ensemble : Principes directeurs, scope & limitations
+  - 9 Phases détaillées : Phase 0 (POC) → Phase 9 (Pages Publiques)
+  - Epics détaillés : 9 Epics avec statut, phase, durée, dépendances
+  - Dépendances & Ordre de développement : Graphique de dépendances, ordre recommandé, chemin critique
+  - **Directives pour Développeurs** : Section complète avec :
+    - **Notification Immédiate APIs** : Processus obligatoire pour notifier Product Manager avant toute API externe
+    - **Research Obligatoire** : Checklist recherche approfondie pour brokers et implémentations
+    - **Format de notification** : Template pour notification APIs
+    - **Format de Research** : Template pour documenter recherches
+    - Checklist Pré-Implémentation
+  - Métriques de Succès : Techniques, Produit, Business
+  - Risques & Mitigations : Techniques, Business, Produit
+  - Timeline Global : Q1 2026 → Q4 2027 (15-22 mois)
+  - Milestones Clés : 8 milestones identifiés
+
+### 💡 Pourquoi (Raison du changement)
+Roadmap détaillée requise pour planifier transformation majeure Trading Path Journal avec processus clairs pour développeurs (notification APIs, research obligatoire).
+
+### 🔗 Contexte additionnel (optionnel)
+- **Notification APIs** : Processus critique pour contrôler coûts et valider budget avant implémentation
+- **Research Obligatoire** : Garantir efficacité maximale et éviter erreurs coûteuses
+- **Chemin Critique** : MVP estimé 12-16 mois (Phases 0-4)
+- **Total Estimé** : 15-22 mois avec équipe dédiée (Phases 0-9)
+
+---
+
+## [2026-01-XX] - Création PRD Trading Path Journal
+
+### 📝 Demande utilisateur
+> Créer le PRD complet basé sur l'architecture Trading Path Journal.
+
+### 🔧 Modifications techniques
+- **Fichiers créés :** `docs/prd-trading-path-journal.md`
+- **Sections créées :**
+  - Résumé Exécutif : Vision complète Trading Path Journal
+  - Intro Project Analysis : État actuel vs vision
+  - Requirements : 8 Modules (A-H) + Killer Features + Pages Publiques
+  - Non-Functional Requirements : Performance, Scalability, Reliability, Security, Usability
+  - Compatibility Requirements : Migration données, API, UI, Auth, i18n
+  - UI Enhancement Goals : Nouveaux screens, screens modifiés, consistency
+  - Technical Constraints : Stack technique, intégration, code organization, deployment, risks
+  - Epic Structure : 9 Epics identifiés (Foundation, Market Replay, Multi-Compte, AI, Analytics, Replay/Visualisation, Journalisation, Killer Features, Pages Publiques)
+  - Success Metrics : Technical, Product, Business metrics
+
+### 💡 Pourquoi (Raison du changement)
+Document PRD formel requis pour transformer l'application actuelle en plateforme complète Trading Path Journal intégrant 100% des fonctionnalités Premium des 5 leaders du marché.
+
+### 🔗 Contexte additionnel (optionnel)
+- PRD structuré avec 9 Epics majeurs
+- Estimation grossière : 15-22 mois avec équipe dédiée
+- Open Questions identifiées : Priorisation, Ressources, Timeline, Budget, MVP, Pricing
+- Next Steps : Validation PRD → Définition détaillée Epics → Roadmap détaillée
+
+---
+
+## [2026-01-XX] - Architecture Trading Path Journal: Mises à jour et précisions
+
+### 📝 Demande utilisateur
+> Mises à jour de l'architecture Trading Path Journal :
+> - Zella Score → TTP Score (Trading Path Score)
+> - Market Replay = infrastructure complète pour backtesting tick-by-tick (nécessite sources de données)
+> - Sharing inclut aussi les playbooks
+> - Tags assignables aux trades ET aux journées
+> - Notes vocales : enregistrement vocal pour trades/journées (transcription Whisper + synthèse IA OpenAI)
+> - Support comptes illimités par utilisateur
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `docs/architecture-trading-path-journal.md`
+- **Sections modifiées :** 
+  - Module C : "Zella Score" → "TTP Score" (Trading Path Score)
+  - Module C : Market Replay clarifié comme infrastructure complète backtesting tick-by-tick
+  - Module G : Sharing inclut maintenant playbooks + Voice Notes ajoutées + Tags confirmés
+  - Section 2.3.3 : "Replay Engine" → "Market Replay & Backtesting Infrastructure" avec sources de données (Barchart, IBKR, Intrinio, CQG, LSEG, TickData, AllTick, MarketTick, FirstRate Data)
+  - Schema SQL : `zella_score` → `ttp_score`, tables `voice_notes` et `day_voice_notes` ajoutées
+  - Module E : "50+ Comptes" → "Comptes Illimités" + section 2.3.5 "Unlimited Accounts Architecture"
+  - Relations DB : ajoutées VoiceNotes et DayVoiceNotes aux relations
+
+### 💡 Pourquoi (Raison du changement)
+- **TTP Score** : Branding propre (Trading Path) vs référence concurrent
+- **Market Replay/Backtesting** : Infrastructure complète nécessite sources de données historiques identifiées
+- **Sharing Playbooks** : Fonctionnalité clé pour communauté
+- **Voice Notes** : Fonctionnalité déjà implémentée dans le codebase actuel, doit être dans l'architecture
+- **Comptes Illimités** : Différenciation vs concurrents (Trademetria limite à 50)
+
+### 🔗 Contexte additionnel (optionnel)
+- **Sources données tick** : Barchart Market Replay, Interactive Brokers reqHistoricalTicks, Intrinio, CQG, LSEG, TickData, AllTick, MarketTick, FirstRate Data identifiées
+- **Voice Notes** : Architecture existante (Whisper API pour transcription, OpenAI LLM pour synthèse) documentée
+- **Tags** : Système many-to-many déjà dans le schéma (trade_tags, day_tags)
+- **Architecture comptes illimités** : Lazy loading, virtual scrolling, caching Redis, grouping/filtering, workers parallélisés
+
+---
+
+## [2026-01-14 16:45] - OCR enrichissement: logs et affichage DD/RU
+
+### 📝 Demande utilisateur
+> Corriger les durées OCR et afficher Drawdown/Runup sur la page détail d’un trade.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** `src/app/actions/trades.ts`, `src/app/(dashboard)/trades/[id]/trade-detail-content.tsx`, `src/app/(dashboard)/trades/trades-content.tsx`, `src/lib/utils.ts`
+- **Fonctions modifiées :** `enrichTradesFromOcr()` dans `src/app/actions/trades.ts`, `getDurationSeconds()` dans `src/lib/utils.ts`
+
+### 💡 Pourquoi (Raison du changement)
+Tracer et corriger les anomalies de durées lors de l’enrichissement OCR, et rendre visibles les valeurs DD/RU pour vérification.
+
+### 🔗 Contexte additionnel (optionnel)
+Instrumentation temporaire ajoutée pour diagnostic (logs NDJSON).
+
+---
+
 ## [2026-01-10 22:00] - Epic 4: Optimisation Performance (Quinn QA)
 
 ### 📝 Demande utilisateur

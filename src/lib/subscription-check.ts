@@ -9,6 +9,20 @@ import prisma from '@/lib/prisma';
 import { SubscriptionStatus } from '@prisma/client';
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+// Date limite pour l'accès gratuit : 15/01/2026 7AM EST = 15/01/2026 12:00 UTC
+const EARLY_ACCESS_CUTOFF_DATE = new Date('2026-01-15T12:00:00.000Z');
+
+/**
+ * Check if user has early access based on account creation date
+ */
+function hasEarlyAccess(createdAt: Date): boolean {
+  return createdAt < EARLY_ACCESS_CUTOFF_DATE;
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -43,6 +57,22 @@ export async function checkSubscription(): Promise<SubscriptionInfo> {
     };
   }
 
+  // Check early access first
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+  });
+
+  if (dbUser && hasEarlyAccess(dbUser.createdAt)) {
+    return {
+      hasActiveSubscription: true,
+      isTrialing: false,
+      status: 'ACTIVE' as SubscriptionStatus, // Use ACTIVE status for early access users
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+      planName: 'Early Access',
+    };
+  }
+
   const subscription = await prisma.subscription.findUnique({
     where: { userId: user.id },
     include: { plan: true },
@@ -59,7 +89,7 @@ export async function checkSubscription(): Promise<SubscriptionInfo> {
     };
   }
 
-  const activeStatuses: SubscriptionStatus[] = ['ACTIVE', 'TRIAL'];
+  const activeStatuses: SubscriptionStatus[] = ['ACTIVE', 'TRIAL', 'BETA_ACCESS'];
   const hasActiveSubscription = activeStatuses.includes(subscription.status);
   const isTrialing = subscription.status === 'TRIAL';
 
@@ -143,12 +173,21 @@ export const FREE_TIER_LIMITS = {
  * Note: Uses the current authenticated user's subscription status
  */
 export async function hasExceededTradeLimit(userId: string): Promise<boolean> {
+  // Check early access first
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (dbUser && hasEarlyAccess(dbUser.createdAt)) {
+    return false; // No limit for early access users
+  }
+
   // Check subscription for the specific userId, not current session
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
   });
 
-  const activeStatuses: SubscriptionStatus[] = ['ACTIVE', 'TRIAL'];
+  const activeStatuses: SubscriptionStatus[] = ['ACTIVE', 'TRIAL', 'BETA_ACCESS'];
   const hasActiveSubscription = subscription && activeStatuses.includes(subscription.status);
   
   if (hasActiveSubscription) {

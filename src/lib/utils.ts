@@ -66,7 +66,18 @@ export function getDurationMinutes(start: Date, end: Date): number {
 }
 
 export function getDurationSeconds(start: Date, end: Date): number {
-  return Math.round((end.getTime() - start.getTime()) / 1000);
+  const startTime = start.getTime();
+  const endTime = end.getTime();
+  const durationMs = endTime - startTime;
+  const durationSeconds = Math.round(durationMs / 1000);
+  
+  // #region agent log
+  if (durationSeconds < 0 || durationSeconds === 0) {
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/lib/utils.ts:68',message:'getDurationSeconds - invalid duration detected',data:{start:start.toISOString(),end:end.toISOString(),startTime,endTime,durationMs,durationSeconds,isNegative:durationSeconds<0,isZero:durationSeconds===0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
+  
+  return durationSeconds;
 }
 
 export function formatDuration(minutes: number): string {

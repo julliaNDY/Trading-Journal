@@ -468,7 +468,23 @@ export async function uploadTradeScreenshot(tradeId: string, formData: FormData)
     throw new Error('File too large. Maximum size is 10MB.');
   }
 
-  const filePath = await storage.save(file, `trades/${tradeId}`);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/journal.ts:470',message:'uploadTradeScreenshot - before storage.save',data:{tradeId,fileName:file.name,fileSize:file.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+
+  let filePath: string;
+  try {
+    filePath = await storage.save(file, `trades/${tradeId}`);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/journal.ts:476',message:'storage.save successful',data:{filePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+  } catch (error: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/journal.ts:480',message:'storage.save failed',data:{error:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    throw error;
+  }
 
   const screenshot = await prisma.screenshot.create({
     data: {

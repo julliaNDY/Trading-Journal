@@ -8,29 +8,29 @@ datasource db {
 }
 
 model User {
-  id                   String              @id @db.Uuid
-  email                String              @unique
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  discordUsername      String?
-  nickname             String?             // Surnom public pour le partage de playbooks
-  isBlocked            Boolean             @default(false)
-  stripeCustomerId     String?             @unique // Stripe Customer ID
-  avatarUrl            String?             // URL de l'avatar (stocké dans Supabase Storage)
-  preferredLocale      String?             @default("fr") // Langue préférée (fr/en)
-  accounts             Account[]
-  dayJournals          DayJournal[]
-  dayVoiceNotes        DayVoiceNote[]
-  importProfiles       ImportProfile[]
-  playbooks            Playbook[]
-  screenshots          Screenshot[]
-  tags                 Tag[]
-  trades               Trade[]
-  voiceNotes           VoiceNote[]
-  subscription         Subscription?
-  brokerConnections    BrokerConnection[]
-  coachConversations   CoachConversation[]
-  feedbacks            UserFeedback[]
+  id                 String              @id @db.Uuid
+  email              String              @unique
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  discordUsername    String?
+  nickname           String? // Surnom public pour le partage de playbooks
+  isBlocked          Boolean             @default(false)
+  stripeCustomerId   String?             @unique // Stripe Customer ID
+  avatarUrl          String? // URL de l'avatar (stocké dans Supabase Storage)
+  preferredLocale    String?             @default("fr") // Langue préférée (fr/en)
+  accounts           Account[]
+  dayJournals        DayJournal[]
+  dayVoiceNotes      DayVoiceNote[]
+  importProfiles     ImportProfile[]
+  playbooks          Playbook[]
+  screenshots        Screenshot[]
+  tags               Tag[]
+  trades             Trade[]
+  voiceNotes         VoiceNote[]
+  subscription       Subscription?
+  brokerConnections  BrokerConnection[]
+  coachConversations CoachConversation[]
+  feedbacks          UserFeedback[]
 
   @@map("users")
 }
@@ -101,14 +101,14 @@ model TradeExit {
 }
 
 model DayJournal {
-  id          String          @id @default(uuid()) @db.Uuid
-  userId      String          @db.Uuid
-  date        DateTime        @db.Date
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @db.Uuid
+  date        DateTime       @db.Date
   note        String?
   youtubeUrl  String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags        DayTag[]
   screenshots Screenshot[]
   voiceNotes  DayVoiceNote[]
@@ -119,17 +119,17 @@ model DayJournal {
 }
 
 model DayVoiceNote {
-  id                String      @id @default(uuid()) @db.Uuid
-  dayJournalId      String      @db.Uuid
-  userId            String      @db.Uuid
+  id                String     @id @default(uuid()) @db.Uuid
+  dayJournalId      String     @db.Uuid
+  userId            String     @db.Uuid
   filePath          String
-  duration          Int         // duration in seconds
-  transcription     String?     // Filled by Whisper API
-  transcriptionHash String?     // MD5 hash for cache invalidation
-  summary           String?     // Filled by LLM (JSON stringified)
-  createdAt         DateTime    @default(now())
-  dayJournal        DayJournal  @relation(fields: [dayJournalId], references: [id], onDelete: Cascade)
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  duration          Int // duration in seconds
+  transcription     String? // Filled by Whisper API
+  transcriptionHash String? // MD5 hash for cache invalidation
+  summary           String? // Filled by LLM (JSON stringified)
+  createdAt         DateTime   @default(now())
+  dayJournal        DayJournal @relation(fields: [dayJournalId], references: [id], onDelete: Cascade)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([dayJournalId])
   @@index([userId])
@@ -309,10 +309,10 @@ model VoiceNote {
   tradeId           String   @db.Uuid
   userId            String   @db.Uuid
   filePath          String
-  duration          Int      // duration in seconds
-  transcription     String?  // Filled by story 5.2 (Whisper transcription)
-  transcriptionHash String?  // MD5 hash for cache invalidation
-  summary           String?  // Filled by story 5.3 (LLM summary) - JSON stringified Summary
+  duration          Int // duration in seconds
+  transcription     String? // Filled by story 5.2 (Whisper transcription)
+  transcriptionHash String? // MD5 hash for cache invalidation
+  summary           String? // Filled by story 5.3 (LLM summary) - JSON stringified Summary
   createdAt         DateTime @default(now())
   trade             Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -339,12 +339,14 @@ enum PlaybookVisibility {
 enum SubscriptionStatus {
   TRIAL
   ACTIVE
+  BETA_ACCESS
   PAST_DUE
   CANCELED
   EXPIRED
 }
 
 enum PlanInterval {
+  BETA
   MONTHLY
   QUARTERLY
   BIANNUAL
@@ -361,7 +363,7 @@ enum PaymentStatus {
 model Plan {
   id            String         @id @default(uuid()) @db.Uuid
   name          String         @unique
-  displayName   String?        // Display name for UI (e.g., "Pro Mensuel")
+  displayName   String? // Display name for UI (e.g., "Pro Mensuel")
   description   String?
   price         Decimal        @db.Decimal(10, 2)
   interval      PlanInterval
@@ -370,7 +372,7 @@ model Plan {
   isActive      Boolean        @default(true)
   trialDays     Int            @default(7) // 7 days trial by default
   sortOrder     Int            @default(0) // For ordering in UI
-  savings       String?        // e.g., "-33%" for display
+  savings       String? // e.g., "-33%" for display
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   subscriptions Subscription[]
@@ -379,21 +381,21 @@ model Plan {
 }
 
 model Subscription {
-  id                     String             @id @default(uuid()) @db.Uuid
-  userId                 String             @unique @db.Uuid
-  planId                 String             @db.Uuid
-  stripeSubscriptionId   String?            @unique // Stripe Subscription ID
-  status                 SubscriptionStatus @default(TRIAL)
-  currentPeriodStart     DateTime
-  currentPeriodEnd       DateTime
-  cancelAtPeriodEnd      Boolean            @default(false)
-  canceledAt             DateTime?
-  trialEndsAt            DateTime?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan                   Plan               @relation(fields: [planId], references: [id])
-  invoices               Invoice[]
+  id                   String             @id @default(uuid()) @db.Uuid
+  userId               String             @unique @db.Uuid
+  planId               String             @db.Uuid
+  stripeSubscriptionId String?            @unique // Stripe Subscription ID
+  status               SubscriptionStatus @default(TRIAL)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  trialEndsAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  invoices             Invoice[]
 
   @@index([userId])
   @@index([planId])
@@ -403,20 +405,20 @@ model Subscription {
 }
 
 model Invoice {
-  id               String        @id @default(uuid()) @db.Uuid
-  subscriptionId   String        @db.Uuid
-  stripeInvoiceId  String?       @unique // Stripe Invoice ID
-  invoiceNumber    String        @unique
-  amount           Decimal       @db.Decimal(10, 2)
-  currency         String        @default("EUR")
-  status           PaymentStatus @default(PENDING)
-  dueDate          DateTime
-  paidAt           DateTime?
-  invoicePdfUrl    String?       // Stripe hosted invoice PDF URL
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  subscription     Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  payments         Payment[]
+  id              String        @id @default(uuid()) @db.Uuid
+  subscriptionId  String        @db.Uuid
+  stripeInvoiceId String?       @unique // Stripe Invoice ID
+  invoiceNumber   String        @unique
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("EUR")
+  status          PaymentStatus @default(PENDING)
+  dueDate         DateTime
+  paidAt          DateTime?
+  invoicePdfUrl   String? // Stripe hosted invoice PDF URL
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payments        Payment[]
 
   @@index([subscriptionId])
   @@index([status])
@@ -453,9 +455,9 @@ enum BrokerType {
 }
 
 enum BrokerConnectionStatus {
-  PENDING      // Credentials entered, not validated yet
-  CONNECTED    // Validated and active
-  ERROR        // Connection error (invalid credentials, rate limit, etc.)
+  PENDING // Credentials entered, not validated yet
+  CONNECTED // Validated and active
+  ERROR // Connection error (invalid credentials, rate limit, etc.)
   DISCONNECTED // User manually disconnected
 }
 
@@ -467,40 +469,40 @@ enum SyncStatus {
 }
 
 model BrokerConnection {
-  id              String                 @id @default(uuid()) @db.Uuid
-  userId          String                 @db.Uuid
-  brokerType      BrokerType
-  status          BrokerConnectionStatus @default(PENDING)
-  
+  id         String                 @id @default(uuid()) @db.Uuid
+  userId     String                 @db.Uuid
+  brokerType BrokerType
+  status     BrokerConnectionStatus @default(PENDING)
+
   // Encrypted credentials (API Key + Secret for Tradovate)
   encryptedApiKey    String?
   encryptedApiSecret String?
-  
+
   // Tradovate-specific: access token (refreshed periodically)
-  accessToken     String?
-  tokenExpiresAt  DateTime?
-  
+  accessToken    String?
+  tokenExpiresAt DateTime?
+
   // Broker account info (fetched after auth)
-  brokerAccountId String?    // The account ID from the broker
-  brokerAccountName String?  // Display name
-  
+  brokerAccountId   String? // The account ID from the broker
+  brokerAccountName String? // Display name
+
   // Sync configuration
   syncEnabled     Boolean   @default(true)
   syncIntervalMin Int       @default(15) // Sync every N minutes
   lastSyncAt      DateTime?
   lastSyncError   String?
-  
+
   // Link to local trading account
-  accountId       String?   @db.Uuid
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  accountId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account         Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  syncLogs        SyncLog[]
-  
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  syncLogs SyncLog[]
+
   @@unique([userId, brokerType, brokerAccountId])
   @@index([userId])
   @@index([brokerType])
@@ -509,29 +511,29 @@ model BrokerConnection {
 }
 
 model SyncLog {
-  id                  String           @id @default(uuid()) @db.Uuid
-  brokerConnectionId  String           @db.Uuid
-  status              SyncStatus       @default(PENDING)
-  
+  id                 String     @id @default(uuid()) @db.Uuid
+  brokerConnectionId String     @db.Uuid
+  status             SyncStatus @default(PENDING)
+
   // Sync results
-  tradesImported      Int              @default(0)
-  tradesSkipped       Int              @default(0) // Duplicates
-  tradesUpdated       Int              @default(0)
-  
+  tradesImported Int @default(0)
+  tradesSkipped  Int @default(0) // Duplicates
+  tradesUpdated  Int @default(0)
+
   // Timing
-  startedAt           DateTime         @default(now())
-  completedAt         DateTime?
-  durationMs          Int?
-  
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+
   // Error details
-  errorMessage        String?
-  errorDetails        Json?
-  
+  errorMessage String?
+  errorDetails Json?
+
   // Metadata
-  syncType            String           @default("scheduled") // "scheduled" | "manual"
-  
-  brokerConnection    BrokerConnection @relation(fields: [brokerConnectionId], references: [id], onDelete: Cascade)
-  
+  syncType String @default("scheduled") // "scheduled" | "manual"
+
+  brokerConnection BrokerConnection @relation(fields: [brokerConnectionId], references: [id], onDelete: Cascade)
+
   @@index([brokerConnectionId])
   @@index([status])
   @@index([startedAt])
@@ -548,17 +550,17 @@ enum FeedbackType {
 }
 
 enum FeedbackCategory {
-  SUGGESTION       // User suggestion for improvement
-  BUG_REPORT       // Bug or issue report
-  COACH_FEEDBACK   // Feedback on AI coach response
-  GENERAL          // General feedback
+  SUGGESTION // User suggestion for improvement
+  BUG_REPORT // Bug or issue report
+  COACH_FEEDBACK // Feedback on AI coach response
+  GENERAL // General feedback
 }
 
 model CoachConversation {
   id        String         @id @default(uuid()) @db.Uuid
   userId    String         @db.Uuid
   title     String?
-  context   Json?          // Trading context at conversation start (stats, recent trades)
+  context   Json? // Trading context at conversation start (stats, recent trades)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   messages  CoachMessage[]
@@ -572,9 +574,9 @@ model CoachConversation {
 model CoachMessage {
   id             String            @id @default(uuid()) @db.Uuid
   conversationId String            @db.Uuid
-  role           String            // "user" | "assistant"
+  role           String // "user" | "assistant"
   content        String
-  feedback       FeedbackType?     // User feedback on assistant messages
+  feedback       FeedbackType? // User feedback on assistant messages
   createdAt      DateTime          @default(now())
   conversation   CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -588,7 +590,7 @@ model UserFeedback {
   category  FeedbackCategory
   title     String?
   content   String
-  metadata  Json?            // Additional context (page, feature, etc.)
+  metadata  Json? // Additional context (page, feature, etc.)
   resolved  Boolean          @default(false)
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)

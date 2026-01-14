@@ -269,11 +269,57 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
       const closeMinutes = closeParts[1] || 0;
       const closeSeconds = closeParts[2] || 0;
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/(dashboard)/trades/[id]/trade-detail-content.tsx:272',message:'handleSaveTimes - before date manipulation',data:{originalOpenedAt:trade.openedAt,originalClosedAt:trade.closedAt,openTime,closeTime,openHours,openMinutes,openSeconds,closeHours,closeMinutes,closeSeconds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const newOpenedAt = new Date(trade.openedAt);
       newOpenedAt.setHours(openHours, openMinutes, openSeconds, 0);
       
       const newClosedAt = new Date(trade.closedAt);
       newClosedAt.setHours(closeHours, closeMinutes, closeSeconds, 0);
+      
+      // #region agent log
+      let durationMs = newClosedAt.getTime() - newOpenedAt.getTime();
+      let durationSeconds = Math.round(durationMs / 1000);
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/(dashboard)/trades/[id]/trade-detail-content.tsx:277',message:'handleSaveTimes - after date manipulation (before fix)',data:{newOpenedAt:newOpenedAt.toISOString(),newClosedAt:newClosedAt.toISOString(),durationMs,durationSeconds,isNegative:durationMs<0,isZero:durationMs===0,tradeId:trade.id,realizedPnlUsd:trade.realizedPnlUsd},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Fix: Ensure closedAt is always after openedAt with at least 1 second duration
+      if (newClosedAt.getTime() <= newOpenedAt.getTime()) {
+        // Check if times are exactly the same (same hour, minute, second)
+        const sameTime = newClosedAt.getTime() === newOpenedAt.getTime();
+        
+        if (sameTime) {
+          // Same exact time - just add 1 second (don't move to next day)
+          newClosedAt.setSeconds(newClosedAt.getSeconds() + 1);
+        } else {
+          // Close time is before open time - need to adjust
+          // Check if it's the same date (both dates normalized to midnight)
+          const openedAtDate = new Date(newOpenedAt);
+          openedAtDate.setHours(0, 0, 0, 0);
+          const closedAtDate = new Date(newClosedAt);
+          closedAtDate.setHours(0, 0, 0, 0);
+          
+          if (openedAtDate.getTime() === closedAtDate.getTime()) {
+            // Same day but close time is before open time - move close to next day
+            newClosedAt.setDate(newClosedAt.getDate() + 1);
+          } else {
+            // Different dates but close is still before open - swap to ensure close >= open
+            const temp = new Date(newOpenedAt);
+            newOpenedAt.setTime(newClosedAt.getTime());
+            newClosedAt.setTime(temp.getTime());
+            // Then add a day to closedAt to ensure positive duration
+            newClosedAt.setDate(newClosedAt.getDate() + 1);
+          }
+        }
+      }
+      
+      // #region agent log
+      durationMs = newClosedAt.getTime() - newOpenedAt.getTime();
+      durationSeconds = Math.round(durationMs / 1000);
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/(dashboard)/trades/[id]/trade-detail-content.tsx:298',message:'handleSaveTimes - after fix applied',data:{newOpenedAt:newOpenedAt.toISOString(),newClosedAt:newClosedAt.toISOString(),durationMs,durationSeconds,isNegative:durationMs<0,isZero:durationMs===0},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       const result = await updateTradeTimes(trade.id, newOpenedAt, newClosedAt);
       
@@ -514,6 +560,26 @@ export function TradeDetailContent({ trade: initialTrade, playbooks, voiceNotes:
                     {grossPnl >= 0 ? '+' : ''}{formatCurrency(grossPnl)}
                   </p>
                 </div>
+
+                {/* Drawdown */}
+                {trade.floatingDrawdownUsd !== null && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground mb-1">{t('drawdown')}</p>
+                    <p className="font-semibold text-destructive">
+                      {formatCurrency(Number(trade.floatingDrawdownUsd))}
+                    </p>
+                  </div>
+                )}
+
+                {/* Runup */}
+                {trade.floatingRunupUsd !== null && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground mb-1">{t('runup')}</p>
+                    <p className="font-semibold text-success">
+                      {formatCurrency(Number(trade.floatingRunupUsd))}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

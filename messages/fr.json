@@ -1187,5 +1187,63 @@
     "error": "Erreur",
     "free": "Gratuit",
     "noPlan": "Aucun abonnement actif"
+  },
+  "landing": {
+    "login": "Connexion",
+    "betaAccessBadge": "Beta Access limité",
+    "title": "Accès anticipé à The Trading Path Journal",
+    "subtitle": "Rejoignez la Beta et bloquez un tarif unique pendant 6 mois avant le lancement public.",
+    "betaAccess": "Accès Beta",
+    "perSemester": "/ semestre",
+    "publicPrice": "Prix public prévu",
+    "perMonth": "/mois",
+    "joinBeta": "Rejoindre la Beta pour 20$",
+    "redirectingToStripe": "Redirection vers Stripe...",
+    "securePayment": "Paiement sécurisé Stripe • accès immédiat après validation",
+    "availableNow": "Déjà disponible",
+    "comingSoon": "Bientôt disponible",
+    "whyJoin": "Pourquoi rejoindre maintenant ?",
+    "whyJoinDescription": "La Beta finance les prochaines fonctionnalités et garantit un accès privilégié aux futures releases, avec un tarif bloqué et des échanges directs avec l'équipe produit.",
+    "footerMadeWith": "Fait avec passion pour les traders",
+    "legal": "Légal",
+    "cgv": "CGV",
+    "cgu": "CGU",
+    "mentions": "Mentions légales",
+    "privacy": "Confidentialité",
+    "contact": "Contact",
+    "copyright": "© {year} Trading Path Journal. Tous droits réservés.",
+    "paymentUnavailable": "Paiement indisponible",
+    "paymentError": "Erreur de paiement",
+    "paymentErrorDescription": "Impossible de démarrer le paiement.",
+    "tryAgain": "Veuillez réessayer.",
+    "features": {
+      "available": [
+        "Dashboard avec KPIs clés et equity curve",
+        "Journal quotidien avec notes, tags et screenshots",
+        "Calendrier PnL et statistiques par période",
+        "Import CSV avec mapping et déduplication",
+        "Playbooks privés + partage public",
+        "Notes vocales avec transcription et synthèse IA",
+        "Gestion des comptes et connexions brokers (beta)",
+        "Une IA implémentée qui analyse tes statistiques et te donne des conseils d'amélioration par chat",
+        "Synchronisation automatique avec 2 brokers",
+        "Imports par screenshot, vidéo"
+      ],
+      "upcoming": [
+        "Market Replay tick-by-tick + backtesting ultra-rapide",
+        "Synchronisation 240+ brokers (APIs + fichiers)",
+        "AI Feedback avancé, coach contextuel, tiltmeter",
+        "TTP Score et analytics de discipline",
+        "The Trading Path University",
+        "IA qui analyse les vidéos des utilisateurs pour les conseiller précisément dans leur trading",
+        "Partage tes meilleurs trades et stratégies avec la communauté",
+        "Compare tes performances avec des benchmarks de traders anonymisés",
+        "Rapports PDF professionnels pour candidatures prop firms",
+        "Application mobile pour suivre tes trades en déplacement",
+        "Défis et compétitions de trading avec récompenses",
+        "Parcours d'apprentissage personnalisés basés sur tes faiblesses",
+        "Et bien plus encore"
+      ]
+    }
   }
 }

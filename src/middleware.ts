@@ -79,15 +79,62 @@ export async function middleware(request: NextRequest) {
     '/settings',
   ]
 
+  const subscriptionProtectedPaths = [
+    '/dashboard',
+    '/journal',
+    '/statistiques',
+    '/calendar',
+    '/calendrier',
+    '/playbooks',
+    '/import',
+    '/importer',
+    '/accounts',
+    '/comptes',
+  ]
+
   const isProtectedRoute = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   )
+  const isSubscriptionProtectedRoute = subscriptionProtectedPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  )
+
+  // Redirect to landing if not authenticated on subscription route
+  if (!user && isSubscriptionProtectedRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
 
   // Redirect to login if not authenticated on protected route
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
+  }
+
+  // Enforce subscription on gated routes
+  if (user && isSubscriptionProtectedRoute) {
+    const apiUrl = `${request.nextUrl.origin}/api/subscription/status`
+    const apiResponse = await fetch(apiUrl, {
+      headers: {
+        cookie: request.headers.get('cookie') ?? '',
+      },
+      cache: 'no-store',
+    })
+
+    if (!apiResponse.ok) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    const data = await apiResponse.json()
+    if (!data?.hasAccess) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
   // Auth routes that should redirect to dashboard if already logged in

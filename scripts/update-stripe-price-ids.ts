@@ -21,10 +21,11 @@ const prisma = new PrismaClient();
 
 // Your Stripe Price IDs (from Stripe Dashboard)
 const STRIPE_PRICE_IDS: Record<PlanInterval, string> = {
-  MONTHLY: 'price_1SmntkASK0h6caZHzhIBMFg0',
-  QUARTERLY: 'price_1SnPwlASK0h6caZHRG8EdLBQ',
-  BIANNUAL: 'price_1SnQ0kASK0h6caZHe5idPfpw',
-  ANNUAL: 'price_1SnQ1SASK0h6caZHu4GpYsHj',
+  BETA: 'price_1SpcSWASK0h6caZHNmvrveSz',
+  MONTHLY: 'price_1SpcN2ASK0h6caZHwOAdoMiZ',
+  QUARTERLY: 'price_1SpciNASK0h6caZHySy7lMk6',
+  BIANNUAL: 'price_1SpcjFASK0h6caZHkqufLKF7',
+  ANNUAL: 'price_1SpcjfASK0h6caZHlkcwhSV6',
 };
 
 async function main() {
@@ -59,7 +60,7 @@ async function main() {
           price: planConfig.price,
           interval: interval as PlanInterval,
           stripePriceId: priceId,
-          trialDays: 7,
+          trialDays: planConfig.trialDays,
           sortOrder: planConfig.sortOrder,
           savings: planConfig.savings,
           features: planConfig.features,
@@ -75,6 +76,23 @@ async function main() {
 
 function getPlanConfig(interval: PlanInterval) {
   const configs = {
+    BETA: {
+      name: 'Beta Access',
+      displayName: 'Beta (6 Months)',
+      description: 'Billed every 6 months (beta access)',
+      price: 20,
+      sortOrder: 0,
+      savings: '-89%',
+      trialDays: 0,
+      features: [
+        'Unlimited trade imports',
+        'Advanced statistics',
+        'AI Trading Coach',
+        'Voice notes & transcription',
+        'Broker sync',
+        'Priority support',
+      ],
+    },
     MONTHLY: {
       name: 'Pro Monthly',
       displayName: 'Monthly',
@@ -82,6 +100,7 @@ function getPlanConfig(interval: PlanInterval) {
       price: 15,
       sortOrder: 0,
       savings: null,
+      trialDays: 7,
       features: [
         'Unlimited trade imports',
         'Advanced statistics',
@@ -98,6 +117,7 @@ function getPlanConfig(interval: PlanInterval) {
       price: 25,
       sortOrder: 1,
       savings: '-44%',
+      trialDays: 7,
       features: [
         'Unlimited trade imports',
         'Advanced statistics',
@@ -114,6 +134,7 @@ function getPlanConfig(interval: PlanInterval) {
       price: 40,
       sortOrder: 2,
       savings: '-56%',
+      trialDays: 7,
       features: [
         'Unlimited trade imports',
         'Advanced statistics',
@@ -130,6 +151,7 @@ function getPlanConfig(interval: PlanInterval) {
       price: 75,
       sortOrder: 3,
       savings: '-58%',
+      trialDays: 7,
       features: [
         'Unlimited trade imports',
         'Advanced statistics',

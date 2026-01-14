@@ -516,6 +516,10 @@ export async function enrichTradesFromOcr(
       const ocrOpenedAt = parseOcrDate(data.entryDt);
       const ocrClosedAt = parseOcrDate(data.exitDt);
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/trades.ts:516',message:'enrichTradesFromOcr - parsed OCR dates',data:{ocrIndex:ocrIndex+1,entryDt:data.entryDt,exitDt:data.exitDt,ocrOpenedAt:ocrOpenedAt?.toISOString(),ocrClosedAt:ocrClosedAt?.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
       if (!ocrOpenedAt || !ocrClosedAt) {
         const reason = `OCR Trade #${ocrIndex + 1}: Could not parse dates - entry: "${data.entryDt}", exit: "${data.exitDt}"`;
         debugLogs.push(reason);
@@ -523,6 +527,12 @@ export async function enrichTradesFromOcr(
         notFoundCount++;
         continue;
       }
+
+      // #region agent log
+      const ocrDurationMs = ocrClosedAt.getTime() - ocrOpenedAt.getTime();
+      const ocrDurationSeconds = Math.round(ocrDurationMs / 1000);
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/trades.ts:524',message:'enrichTradesFromOcr - OCR duration calculated',data:{ocrIndex:ocrIndex+1,ocrDurationMs,ocrDurationSeconds,isNegative:ocrDurationMs<0,isZero:ocrDurationMs===0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // Infer direction from OCR data (used as scoring factor, not filter)
       const priceMove = data.exitPrice - data.entryPrice;
@@ -728,47 +738,48 @@ export async function enrichTradesFromOcr(
         timesManuallySet?: boolean;
       } = {};
 
-      // Check if existing times are placeholders
-      const existingOpenTime = trade.openedAt;
-      const existingCloseTime = trade.closedAt;
-      const existingOpenHours = existingOpenTime.getHours();
-      const existingOpenMinutes = existingOpenTime.getMinutes();
-      const existingCloseHours = existingCloseTime.getHours();
-      const existingCloseMinutes = existingCloseTime.getMinutes();
-      
-      const isOpenPlaceholder = (existingOpenHours === 0 && existingOpenMinutes === 0) ||
-                                (existingOpenHours === 9 && existingOpenMinutes === 0);
-      const isClosePlaceholder = (existingCloseHours === 0 && existingCloseMinutes === 0) ||
-                                 (existingCloseHours === 9 && existingCloseMinutes === 0);
-
-      // Check if new times are precise
+      // Always update dates from OCR (full date + time, not just time)
+      // OCR provides complete date/time information, so we should use it as-is (no validation needed)
       const newOpenHours = ocrOpenedAt.getHours();
       const newOpenMinutes = ocrOpenedAt.getMinutes();
       const newCloseHours = ocrClosedAt.getHours();
       const newCloseMinutes = ocrClosedAt.getMinutes();
       
+      // Check if new times are precise (not placeholder times like 00:00:00 or 09:00:00)
       const isNewOpenPrecise = !(newOpenHours === 0 && newOpenMinutes === 0) &&
                                !(newOpenHours === 9 && newOpenMinutes === 0);
       const isNewClosePrecise = !(newCloseHours === 0 && newCloseMinutes === 0) &&
                                 !(newCloseHours === 9 && newCloseMinutes === 0);
 
-      if (isOpenPlaceholder && isNewOpenPrecise) {
+      // #region agent log
+      const ocrDurationMsToSave = ocrClosedAt.getTime() - ocrOpenedAt.getTime();
+      const ocrDurationSecondsToSave = Math.round(ocrDurationMsToSave / 1000);
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/trades.ts:742',message:'enrichTradesFromOcr - OCR dates to save',data:{ocrIndex:ocrIndex+1,tradeId:trade.id,ocrOpenedAt:ocrOpenedAt.toISOString(),ocrClosedAt:ocrClosedAt.toISOString(),ocrDurationMs:ocrDurationMsToSave,ocrDurationSeconds:ocrDurationSecondsToSave,isNewOpenPrecise,isNewClosePrecise},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      // Update openedAt if OCR provides precise time (always update date + time from OCR, as-is)
+      if (isNewOpenPrecise) {
         updateData.openedAt = ocrOpenedAt;
         updateData.timesManuallySet = true;
       }
 
-      if (isClosePlaceholder && isNewClosePrecise) {
+      // Update closedAt if OCR provides precise time (always update date + time from OCR, as-is)
+      if (isNewClosePrecise) {
         updateData.closedAt = ocrClosedAt;
         updateData.timesManuallySet = true;
       }
 
-      // Update drawdown if provided and existing is null
-      if (data.drawdown !== undefined && data.drawdown !== null && trade.floatingDrawdownUsd === null) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5b880551-a79c-4cdc-a97b-e6cdfcf52409',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/actions/trades.ts:810',message:'enrichTradesFromOcr - checking DD/RU values',data:{ocrIndex:ocrIndex+1,tradeId:trade.id,ocrDrawdown:data.drawdown,ocrRunup:data.runup,existingDrawdown:trade.floatingDrawdownUsd,existingRunup:trade.floatingRunupUsd},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      // Update drawdown if provided (always update from OCR if provided, regardless of existing value)
+      if (data.drawdown !== undefined && data.drawdown !== null) {
         updateData.floatingDrawdownUsd = data.drawdown;
       }
 
-      // Update runup if provided and existing is null
-      if (data.runup !== undefined && data.runup !== null && trade.floatingRunupUsd === null) {
+      // Update runup if provided (always update from OCR if provided, regardless of existing value)
+      if (data.runup !== undefined && data.runup !== null) {
         updateData.floatingRunupUsd = data.runup;
       }
 
