@@ -17,7 +17,7 @@ model User {
   isBlocked          Boolean             @default(false)
   stripeCustomerId   String?             @unique // Stripe Customer ID
   avatarUrl          String? // URL de l'avatar (stocké dans Supabase Storage)
-  preferredLocale    String?             @default("fr") // Langue préférée (fr/en)
+  preferredLocale    String?             @default("en") // Langue préférée (en/fr) - English is default
   accounts           Account[]
   dayJournals        DayJournal[]
   dayVoiceNotes      DayVoiceNote[]
@@ -31,6 +31,7 @@ model User {
   brokerConnections  BrokerConnection[]
   coachConversations CoachConversation[]
   feedbacks          UserFeedback[]
+  votes              Vote[]
 
   @@map("users")
 }
@@ -193,16 +194,19 @@ model Screenshot {
 }
 
 model ImportProfile {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  name      String
-  mapping   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  name       String
+  brokerName String? // Broker identifier (e.g., "tradovate", "ibkr", "mt4")
+  mapping    String // JSON stringified CsvMapping
+  isSystem   Boolean  @default(false) // System profiles cannot be deleted/modified
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([brokerName])
   @@map("import_profiles")
 }
 
@@ -301,6 +305,9 @@ model Account {
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([broker])
+  @@index([createdAt])
+  @@index([userId, broker])
   @@map("accounts")
 }
 
@@ -451,6 +458,19 @@ model Payment {
 enum BrokerType {
   TRADOVATE
   IBKR
+  ALPACA
+  NINJATRADER
+  TD_AMERITRADE
+  TRADESTATION
+  THINKORSWIM
+  ETRADE
+  ROBINHOOD
+  WEBULL
+  AMP_FUTURES
+  BINANCE
+  APEX_TRADER
+  OANDA
+  TOPSTEPX
   // Future brokers can be added here
 }
 
@@ -599,4 +619,96 @@ model UserFeedback {
   @@index([category])
   @@index([resolved])
   @@map("user_feedbacks")
+}
+
+model VotingOption {
+  id          String                 @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  status      VotingOptionStatus     @default(ACTIVE)
+  category    VotingOptionCategory   @default(GENERAL)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  votes       Vote[]
+
+  @@index([status])
+  @@index([category])
+  @@map("voting_options")
+}
+
+model Vote {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @db.Uuid
+  optionId     String       @db.Uuid
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votingOption VotingOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, optionId])
+  @@index([userId])
+  @@index([optionId])
+  @@index([createdAt])
+  @@map("votes")
+}
+
+enum VotingOptionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum VotingOptionCategory {
+  ROADMAP
+  GENERAL
+}
+
+// ============================================================================
+// BROKER DATABASE (Story 3.8)
+// ============================================================================
+
+enum BrokerAssetType {
+  FOREX
+  FUTURES
+  STOCKS
+  CRYPTO
+  MULTI_ASSET
+  PROP_FIRM
+  OPTIONS
+}
+
+enum IntegrationStatus {
+  API              // Full API integration available
+  FILE_UPLOAD      // CSV/Excel upload only
+  COMING_SOON      // Planned for future
+}
+
+model Broker {
+  id                   String              @id @default(uuid()) @db.Uuid
+  name                 String              @unique
+  displayName          String? // Display name for UI
+  country              String? // ISO country code (US, UK, EU, etc.)
+  region               String? // Broader region (North America, Europe, Asia, Global)
+  
+  // Integration details
+  integrationStatus    IntegrationStatus   @default(COMING_SOON)
+  supportedAssets      BrokerAssetType[]   // Array of supported asset types
+  
+  // URLs and resources
+  logoUrl              String?
+  websiteUrl           String?
+  apiDocumentationUrl  String? // For API integrations
+  csvTemplateUrl       String? // For file upload integrations
+  
+  // Metadata
+  description          String?
+  isActive             Boolean             @default(true)
+  priority             Int                 @default(0) // Higher priority = shown first
+  
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  
+  @@index([integrationStatus])
+  @@index([country])
+  @@index([priority])
+  @@index([isActive])
+  @@map("brokers")
 }
