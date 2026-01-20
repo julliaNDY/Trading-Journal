@@ -39,6 +39,8 @@ import {
   ExternalLink,
   Info,
   BookOpen,
+  Clock,
+  Power,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,6 +72,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -139,6 +142,71 @@ const BROKER_INFO: Record<BrokerType, { name: string; logo: string; description:
     logo: '📈',
     description: 'Futures trading platform',
   },
+  ALPACA: {
+    name: 'Alpaca',
+    logo: '🦙',
+    description: 'Commission-free stock & options trading',
+  },
+  NINJATRADER: {
+    name: 'NinjaTrader',
+    logo: '⚔️',
+    description: 'Advanced futures & forex platform',
+  },
+  TD_AMERITRADE: {
+    name: 'TD Ameritrade',
+    logo: '🎯',
+    description: 'Full-service brokerage platform',
+  },
+  TRADESTATION: {
+    name: 'TradeStation',
+    logo: '📊',
+    description: 'Professional trading tools & analysis',
+  },
+  THINKORSWIM: {
+    name: 'thinkorswim',
+    logo: '💡',
+    description: 'Advanced trading platform by TD',
+  },
+  ETRADE: {
+    name: 'E*TRADE',
+    logo: '💰',
+    description: 'Full-service online brokerage',
+  },
+  ROBINHOOD: {
+    name: 'Robinhood',
+    logo: '🦅',
+    description: 'Commission-free trading app',
+  },
+  WEBULL: {
+    name: 'Webull',
+    logo: '📱',
+    description: 'Mobile-first trading platform',
+  },
+  AMP_FUTURES: {
+    name: 'AMP Futures',
+    logo: '⚡',
+    description: 'Low-cost futures trading',
+  },
+  BINANCE: {
+    name: 'Binance',
+    logo: '🔶',
+    description: 'World\'s largest crypto exchange',
+  },
+  APEX_TRADER: {
+    name: 'Apex Trader',
+    logo: '🎯',
+    description: 'Prop trading firm',
+  },
+  OANDA: {
+    name: 'OANDA',
+    logo: '💱',
+    description: 'Forex & CFD trading platform',
+  },
+  TOPSTEPX: {
+    name: 'TopstepX',
+    logo: '🎓',
+    description: 'Futures prop firm',
+  },
 };
 
 // ============================================================================
@@ -179,6 +247,14 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
   // ==========================================================================
   
   const handleConnect = async () => {
+    // Handle OAuth brokers (TradeStation)
+    if (formData.brokerType === 'TRADESTATION') {
+      // Redirect to OAuth authorization endpoint
+      window.location.href = `/api/broker/tradestation/authorize?environment=${formData.environment || 'live'}`;
+      return;
+    }
+    
+    // Handle API key brokers (IBKR, etc.)
     if (!formData.apiKey || !formData.apiSecret) {
       toast({
         title: t('error'),
@@ -288,6 +364,50 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
       toast({
         title: t('accountLinked'),
         description: t('accountLinkedDescription'),
+      });
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleToggleSyncEnabled = async (connectionId: string, enabled: boolean) => {
+    try {
+      await updateBrokerSyncSettings(connectionId, { syncEnabled: enabled });
+      toast({
+        title: enabled ? t('autoSyncEnabled') : t('autoSyncDisabled'),
+        description: enabled ? t('autoSyncEnabledDescription') : t('autoSyncDisabledDescription'),
+      });
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleUpdateSyncInterval = async (connectionId: string, intervalMin: number) => {
+    // Validate interval (5min - 60min)
+    if (intervalMin < 5 || intervalMin > 60) {
+      toast({
+        title: t('error'),
+        description: t('invalidSyncInterval'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      await updateBrokerSyncSettings(connectionId, { syncIntervalMin: intervalMin });
+      toast({
+        title: t('syncIntervalUpdated'),
+        description: t('syncIntervalUpdatedDescription', { interval: intervalMin }),
       });
       router.refresh();
     } catch (error) {
@@ -439,6 +559,46 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                   </Select>
                 </div>
                 
+                {/* Auto-Sync Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Power className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{t('autoSync')}</div>
+                      <div className="text-xs text-muted-foreground">{t('autoSyncDescription')}</div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={connection.syncEnabled}
+                    onCheckedChange={(checked) => handleToggleSyncEnabled(connection.id, checked)}
+                  />
+                </div>
+                
+                {/* Sync Interval */}
+                {connection.syncEnabled && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{t('syncInterval')}:</span>
+                    </div>
+                    <Select
+                      value={connection.syncIntervalMin.toString()}
+                      onValueChange={(value) => handleUpdateSyncInterval(connection.id, parseInt(value))}
+                    >
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">{t('interval5min')}</SelectItem>
+                        <SelectItem value="10">{t('interval10min')}</SelectItem>
+                        <SelectItem value="15">{t('interval15min')}</SelectItem>
+                        <SelectItem value="30">{t('interval30min')}</SelectItem>
+                        <SelectItem value="60">{t('interval60min')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
                 {/* Recent Syncs */}
                 {connection.recentSyncs.length > 0 && (
                   <div className="space-y-2">
@@ -532,6 +692,21 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                     <div className="flex items-center gap-2">
                       <span>{BROKER_INFO.IBKR.logo}</span>
                       <span>{BROKER_INFO.IBKR.name}</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="TRADESTATION">
+                    <div className="flex items-center gap-2">
+                      <span>{BROKER_INFO.TRADESTATION.logo}</span>
+                      <span>{BROKER_INFO.TRADESTATION.name}</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="TRADOVATE" disabled>
+                    <div className="flex items-center gap-2">
+                      <span>{BROKER_INFO.TRADOVATE.logo}</span>
+                      <span>{BROKER_INFO.TRADOVATE.name}</span>
+                      <Badge variant="outline" className="ml-2 text-blue-500 border-blue-500">
+                        Coming Soon
+                      </Badge>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -731,36 +906,78 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
               </div>
             )}
             
-            {/* API Key / Flex Token */}
-            <div className="space-y-2">
-              <Label>
-                {formData.brokerType === 'IBKR' ? t('flexToken') : t('apiKey')}
-              </Label>
-              <Input
-                type="text"
-                value={formData.apiKey}
-                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                placeholder={formData.brokerType === 'IBKR' ? t('flexTokenPlaceholder') : t('apiKeyPlaceholder')}
-              />
-            </div>
+            {/* TradeStation Environment Selection */}
+            {formData.brokerType === 'TRADESTATION' && (
+              <div className="space-y-2">
+                <Label>Environment</Label>
+                <Select
+                  value={formData.environment || 'live'}
+                  onValueChange={(value) => setFormData({ ...formData, environment: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="live">Live Trading</SelectItem>
+                    <SelectItem value="sim">Sim (Paper Trading)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
-            {/* API Secret / Query ID */}
-            <div className="space-y-2">
-              <Label>
-                {formData.brokerType === 'IBKR' ? t('flexQueryId') : t('apiSecret')}
-              </Label>
-              <Input
-                type={formData.brokerType === 'IBKR' ? 'text' : 'password'}
-                value={formData.apiSecret}
-                onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
-                placeholder={formData.brokerType === 'IBKR' ? t('flexQueryIdPlaceholder') : t('apiSecretPlaceholder')}
-              />
-              {formData.brokerType === 'IBKR' && (
-                <p className="text-xs text-muted-foreground">
-                  {t('flexQueryIdHelp')}
-                </p>
-              )}
-            </div>
+            {/* OAuth Notice for TradeStation */}
+            {formData.brokerType === 'TRADESTATION' && (
+              <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">OAuth 2.0 Authentication</h4>
+                    <p className="text-xs text-muted-foreground">
+                      TradeStation uses secure OAuth 2.0 authentication. When you click "Connect", 
+                      you'll be redirected to TradeStation's login page to authorize this application.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      No API keys needed - just log in with your TradeStation credentials.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* API Key / Flex Token (only for non-OAuth brokers) */}
+            {formData.brokerType !== 'TRADESTATION' && (
+              <>
+                <div className="space-y-2">
+                  <Label>
+                    {formData.brokerType === 'IBKR' ? t('flexToken') : t('apiKey')}
+                  </Label>
+                  <Input
+                    type="text"
+                    value={formData.apiKey}
+                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                    placeholder={formData.brokerType === 'IBKR' ? t('flexTokenPlaceholder') : t('apiKeyPlaceholder')}
+                  />
+                </div>
+                
+                {/* API Secret / Query ID */}
+                <div className="space-y-2">
+                  <Label>
+                    {formData.brokerType === 'IBKR' ? t('flexQueryId') : t('apiSecret')}
+                  </Label>
+                  <Input
+                    type={formData.brokerType === 'IBKR' ? 'text' : 'password'}
+                    value={formData.apiSecret}
+                    onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
+                    placeholder={formData.brokerType === 'IBKR' ? t('flexQueryIdPlaceholder') : t('apiSecretPlaceholder')}
+                  />
+                  {formData.brokerType === 'IBKR' && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('flexQueryIdHelp')}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
             
             {/* Link to Account */}
             <div className="space-y-2">

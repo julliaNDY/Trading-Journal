@@ -38,7 +38,9 @@ import {
 import { commitImport, checkDuplicates } from '@/app/actions/import';
 import { createAccount } from '@/app/actions/accounts';
 import { useToast } from '@/hooks/use-toast';
-import { CreateTradeDialog, OcrImportDialog } from '@/components/import';
+import { CreateTradeDialog, OcrImportDialog, ImportProfileSelector } from '@/components/import';
+import { detectBrokerFromHeaders } from '@/services/broker-detection-service';
+import type { ImportProfile } from '@/app/actions/import-profiles';
 
 interface Account {
   id: string;
@@ -100,6 +102,23 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
   const [newAccountBroker, setNewAccountBroker] = useState('');
   const [isCreatingAccountLoading, setIsCreatingAccountLoading] = useState(false);
 
+  // Import profile selection
+  const [selectedProfile, setSelectedProfile] = useState<ImportProfile | null>(null);
+  
+  // Available brokers with FILE_UPLOAD integration (Story 3.9)
+  const [fileUploadBrokers, setFileUploadBrokers] = useState<Array<{
+    name: string;
+    displayName: string | null;
+    country: string | null;
+    region: string | null;
+    csvTemplateUrl: string | null;
+  }>>([]);
+  const [loadingBrokers, setLoadingBrokers] = useState(false);
+  const [detectedBroker, setDetectedBroker] = useState<{
+    brokerName: string;
+    displayName: string;
+  } | null>(null);
+
   // Handlers for account creation
   const handleAccountCreated = (newAccount: Account) => {
     setAccounts(prev => [...prev, newAccount]);
@@ -125,6 +144,38 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     checkDuplicatesForAccount();
   }, [parsedTrades, selectedAccountId, step]);
 
+  // Load file upload brokers on mount
+  useEffect(() => {
+    const fetchFileUploadBrokers = async () => {
+      try {
+        setLoadingBrokers(true);
+        const params = new URLSearchParams({
+          integrationStatus: 'FILE_UPLOAD',
+          limit: '100',
+        });
+        
+        const response = await fetch(`/api/brokers?${params}`);
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.data)) {
+          setFileUploadBrokers(data.data.map((broker: any) => ({
+            name: broker.name,
+            displayName: broker.displayName || broker.name,
+            country: broker.country,
+            region: broker.region,
+            csvTemplateUrl: broker.csvTemplateUrl,
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching file upload brokers:', error);
+      } finally {
+        setLoadingBrokers(false);
+      }
+    };
+    
+    fetchFileUploadBrokers();
+  }, []);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file) return;
@@ -137,6 +188,16 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
       const previewData = parseCsv(content);
       setPreview(previewData);
 
+      // Detect broker from CSV headers
+      const detected = detectBrokerFromHeaders(previewData.headers);
+      if (detected) {
+        setDetectedBroker({
+          brokerName: detected.brokerName,
+          displayName: detected.displayName,
+        });
+      }
+
+      // Use FIXED_MAPPING for initial preview (will be replaced by profile mapping)
       const dateFormat = detectDateFormat(previewData.rows, FIXED_MAPPING.date);
       const rows = parseCsvFull(content, previewData.detectedDelimiter);
       const result = processImport(rows, FIXED_MAPPING, dateFormat);
@@ -189,9 +250,13 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     setStep('importing');
 
     try {
-      const dateFormat = detectDateFormat(preview.rows, FIXED_MAPPING.date);
+      // Use selected profile mapping or fallback to FIXED_MAPPING
+      const mapping = selectedProfile?.mapping || FIXED_MAPPING;
+      const dateColumn = mapping.date || mapping.openedAt || 'DT';
+      
+      const dateFormat = detectDateFormat(preview.rows, dateColumn);
       const rows = parseCsvFull(fileContent, preview.detectedDelimiter);
-      const result = processImport(rows, FIXED_MAPPING, dateFormat);
+      const result = processImport(rows, mapping, dateFormat);
 
       const importRes = await commitImport(result.trades, selectedAccountId || undefined);
 
@@ -223,6 +288,8 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
     setIsCreatingAccount(false);
     setNewAccountName('');
     setNewAccountBroker('');
+    setSelectedProfile(null);
+    setDetectedBroker(null);
   };
 
   const steps = [
@@ -300,36 +367,115 @@ export function ImportContent({ userId, accounts: initialAccounts }: ImportConte
 
       {/* Step Content */}
       {step === 'upload' && (
-        <Card>
-          <CardContent className="pt-6">
-            <div
-              {...getRootProps()}
-              className={cn(
-                'border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors',
-                isDragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/30 hover:border-primary/50'
-              )}
-            >
-              <input {...getInputProps()} />
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-4 rounded-full bg-muted">
-                  <Upload className="w-8 h-8 text-muted-foreground" />
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div
+                {...getRootProps()}
+                className={cn(
+                  'border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors',
+                  isDragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/30 hover:border-primary/50'
+                )}
+              >
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center gap-4">
+                  <div className="p-4 rounded-full bg-muted">
+                    <Upload className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-medium">{t('dropzone')}</p>
+                    <p className="text-muted-foreground">{t('dropzoneOr')}</p>
+                  </div>
+                  <Button variant="secondary">{t('browse')}</Button>
+                  <p className="text-sm text-muted-foreground">{t('supportedFormats')}</p>
                 </div>
-                <div>
-                  <p className="text-lg font-medium">{t('dropzone')}</p>
-                  <p className="text-muted-foreground">{t('dropzoneOr')}</p>
-                </div>
-                <Button variant="secondary">{t('browse')}</Button>
-                <p className="text-sm text-muted-foreground">{t('supportedFormats')}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Compatible Brokers List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-success" />
+                {t('compatibleBrokers') || 'Compatible Brokers'}
+              </CardTitle>
+              <CardDescription>
+                {t('compatibleBrokersDescription') || 'List of brokers that support CSV file upload'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingBrokers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : fileUploadBrokers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {t('noCompatibleBrokers') || 'No compatible brokers found'}
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto">
+                  {fileUploadBrokers.map((broker) => (
+                    <div
+                      key={broker.name}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {broker.displayName || broker.name}
+                        </p>
+                        {broker.country && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {broker.country} {broker.region ? `• ${broker.region}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      {broker.csvTemplateUrl && (
+                        <a
+                          href={broker.csvTemplateUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-xs flex-shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Template
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!loadingBrokers && fileUploadBrokers.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-4 text-center">
+                  {t('compatibleBrokersCount', { count: fileUploadBrokers.length }) || 
+                   `${fileUploadBrokers.length} brokers compatible with CSV import`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {step === 'preview' && preview && validationResult && (
         <div className="space-y-6">
+          {/* Import Profile Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('importProfile')}</CardTitle>
+              <CardDescription>{t('importProfileDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ImportProfileSelector
+                csvHeaders={preview.headers}
+                selectedProfileId={selectedProfile?.id}
+                onProfileSelect={setSelectedProfile}
+                detectedBroker={detectedBroker}
+              />
+            </CardContent>
+          </Card>
+
           {/* Account Selection */}
           <Card>
             <CardHeader>

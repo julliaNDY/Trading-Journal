@@ -27,6 +27,7 @@ import {
   Shield,
   LogOut,
   Check,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,7 @@ interface UserProfile {
 
 interface SettingsContentProps {
   profile: UserProfile | null;
+  isAdmin?: boolean;
 }
 
 type Identity = UserIdentity;
@@ -123,7 +125,7 @@ const LANGUAGES = [
 // COMPONENT
 // ============================================================================
 
-export function SettingsContent({ profile }: SettingsContentProps) {
+export function SettingsContent({ profile, isAdmin = false }: SettingsContentProps) {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -384,11 +386,23 @@ export function SettingsContent({ profile }: SettingsContentProps) {
   // ==================== RENDER ====================
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">{t('title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
+        </div>
+        {isAdmin && (
+          <Button 
+            variant="outline" 
+            className="gap-2 border-primary/50 hover:bg-primary/5"
+            onClick={() => router.push('/admin')}
+          >
+            <Lock className="h-4 w-4" />
+            {t('adminPanel')}
+          </Button>
+        )}
       </div>
 
       {/* Profile Card with Avatar */}
@@ -570,13 +584,9 @@ export function SettingsContent({ profile }: SettingsContentProps) {
                 {!profile?.subscription && t('noSubscription')}
               </p>
             </div>
-            {profile?.subscription ? (
+            {profile?.subscription && (
               <Button variant="outline" onClick={handleManageBilling}>
                 {t('manageBilling')}
-              </Button>
-            ) : (
-              <Button onClick={() => router.push('/pricing')}>
-                {t('upgradeToPro')}
               </Button>
             )}
           </div>

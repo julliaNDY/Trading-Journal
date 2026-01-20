@@ -37,19 +37,22 @@ Valider les choix techniques critiques avant de demarrer Epic 1.
 - Recommendation + fallback.
 - Notification API au PM (voir roadmap).
 
-## POC-3: AI Architecture (OpenAI + Embeddings)
+## POC-3: AI Architecture (Google Gemini + Embeddings)
 
 ### Scope
-- Tester latence pour feedback IA (coach).
-- Tester embeddings (text-embedding-3-large).
+- Tester latence pour feedback IA (coach) avec Google Gemini API.
+- Tester embeddings (Google Gemini Embeddings ou OpenAI text-embedding-3-large en fallback si nécessaire).
+- Comparer coûts et latence Google Gemini vs OpenAI.
 
 ### Succes
-- Latence < 2s pour feedback.
+- Latence < 2s pour feedback avec Google Gemini.
 - Embeddings generes sans timeout.
+- Coûts estimés documentés (Gemini vs OpenAI).
 
 ### Deliverables
-- Temps de reponse moyen (p50/p95).
-- Estimation cout par requete.
+- Temps de reponse moyen (p50/p95) pour Google Gemini.
+- Estimation cout par requete (Gemini vs OpenAI).
+- Recommendation API (Gemini préféré si performance/couts acceptables).
 
 ## POC-4: Queue/Async Jobs (Redis + BullMQ)
 

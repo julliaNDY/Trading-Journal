@@ -15,8 +15,8 @@ export default async function BrokersPage() {
     return null;
   }
   
-  const [connections, accounts] = await Promise.all([
-    getUserBrokerConnections(),
+  const [{ connections, pagination }, accounts] = await Promise.all([
+    getUserBrokerConnections({ page: 1, pageSize: 20 }),
     prisma.account.findMany({
       where: { userId: user.id },
       select: { id: true, name: true, color: true },
@@ -32,7 +32,7 @@ export default async function BrokersPage() {
       </div>
       
       <BrokersContent 
-        initialConnections={connections} 
+        initialConnections={connections}
         accounts={accounts}
       />
     </div>

@@ -45,7 +45,7 @@ async function testOandaIntegration() {
       console.log(`   Account ${index + 1}:`);
       console.log(`     ID: ${account.id}`);
       console.log(`     Name: ${account.name}`);
-      console.log(`     Balance: ${account.currency} ${account.balance.toFixed(2)}`);
+      console.log(`     Balance: ${account.currency} ${account.balance?.toFixed(2) ?? 'N/A'}`);
     });
     console.log('');
 

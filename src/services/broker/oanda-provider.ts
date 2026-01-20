@@ -249,7 +249,7 @@ export class OandaProvider implements BrokerProvider {
         userId: accountsResponse.accounts[0].id,
       };
     } catch (error) {
-      if (error instanceof BrokerAuthError || error instanceof BrokerApiError) {
+      if (error instanceof BrokerAuthError || error instanceof BrokerApiError || error instanceof BrokerRateLimitError) {
         throw error;
       }
       throw new BrokerAuthError(

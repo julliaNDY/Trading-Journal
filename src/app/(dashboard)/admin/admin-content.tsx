@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -24,9 +24,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Shield, Users, Ban, CheckCircle, Loader2, Trash2, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Shield, Users, Ban, CheckCircle, Loader2, Trash2, RefreshCcw, AlertTriangle, Vote as VoteIcon, Link2 } from 'lucide-react';
 import { toggleUserBlock, cleanupOrphanedUsers, deleteUser } from '@/app/actions/admin';
+import { getAdminVotingOptions } from '@/app/actions/admin-voting';
 import { useToast } from '@/hooks/use-toast';
+import { VotesManagement } from '@/components/admin/votes-management';
+import Link from 'next/link';
 
 // Admin emails list (must match the one in admin.ts)
 const ADMIN_EMAILS = [
@@ -53,6 +57,17 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [votingOptions, setVotingOptions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadVotingOptions = async () => {
+      const result = await getAdminVotingOptions();
+      if (result.success) {
+        setVotingOptions(result.options);
+      }
+    };
+    loadVotingOptions();
+  }, []);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -182,6 +197,29 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
         </Card>
       </div>
 
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('quickActions')}</CardTitle>
+          <CardDescription>{t('quickActionsDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Link href="/admin/brokers">
+              <Button variant="outline" className="w-full h-auto py-4 flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <Link2 className="w-6 h-6 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold">{t('manageBrokers')}</p>
+                  <p className="text-sm text-muted-foreground">{t('manageBrokersDescription')}</p>
+                </div>
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Maintenance Section */}
       <Card className="border-yellow-500/20 bg-yellow-500/5">
         <CardHeader>
@@ -218,8 +256,22 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
         </CardContent>
       </Card>
 
-      {/* Users Table */}
-      <Card>
+      {/* Tabs: Users & Votes */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            {t('usersList')}
+          </TabsTrigger>
+          <TabsTrigger value="votes" className="flex items-center gap-2">
+            <VoteIcon className="h-4 w-4" />
+            {t('votes')}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-6">
+          {/* Users Table */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -345,6 +397,12 @@ export function AdminContent({ users: initialUsers }: AdminContentProps) {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="votes" className="space-y-6">
+          <VotesManagement initialOptions={votingOptions} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,14 +1,12 @@
 import { requireAuth } from '@/lib/auth';
-import { getAccounts } from '@/app/actions/accounts';
-import { AccountsContent } from './accounts-content';
+import { AccountsContentV2 } from './accounts-content-v2';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AccountsPage() {
-  const user = await requireAuth();
-  const accounts = await getAccounts();
+  await requireAuth();
 
-  return <AccountsContent accounts={accounts} />;
+  return <AccountsContentV2 />;
 }
 
 

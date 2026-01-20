@@ -17,6 +17,7 @@ import { createBinanceProvider } from './binance-provider';
 import { createAlpacaProvider } from './alpaca-provider';
 import { createOandaProvider } from './oanda-provider';
 import { createTopstepXProvider } from './topstepx-provider';
+import { createTradeStationProvider } from './tradestation-provider';
 import { brokerLogger } from '@/lib/logger';
 
 // ============================================================================
@@ -352,6 +353,12 @@ registry.register('OANDA', (options) => {
 // Register TopstepX
 registry.register('TOPSTEPX', () => {
   return createTopstepXProvider();
+});
+
+// Register TradeStation
+registry.register('TRADESTATION', (options) => {
+  const environment = (options?.environment as 'sim' | 'live') || 'live';
+  return createTradeStationProvider(environment);
 });
 
 // ============================================================================

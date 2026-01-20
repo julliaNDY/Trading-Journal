@@ -11,6 +11,7 @@ const defaultLocale: Locale = 'en';
 // This ensures consistent experience regardless of browser settings
 
 export async function middleware(request: NextRequest) {
+  
   // ========================================
   // 1. LOCALE HANDLING
   // ========================================

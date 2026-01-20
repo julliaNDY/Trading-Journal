@@ -34,6 +34,13 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+export interface DetectedBrokerInfo {
+  brokerName: string;
+  displayName: string;
+  confidence: 'high' | 'medium' | 'low';
+  suggestedMapping: CsvMapping;
+}
+
 // Fixed mapping for the expected CSV format (DT, Symbol, Quantity, Entry, Exit, ProfitLoss)
 export const FIXED_MAPPING: CsvMapping = {
   symbol: 'Symbol',
@@ -186,6 +193,46 @@ export function detectDateFormat(rows: ParsedCsvRow[], dateColumn: string): Date
 
   // Default to ISO if can't determine
   return 'iso';
+}
+
+/**
+ * Validate that a mapping is compatible with CSV headers
+ */
+export function validateMapping(headers: string[], mapping: CsvMapping): {
+  valid: boolean;
+  missingColumns: string[];
+} {
+  const missingColumns: string[] = [];
+  
+  // Check required fields
+  const requiredFields: (keyof CsvMapping)[] = [
+    'symbol',
+    'entryPrice',
+    'exitPrice',
+    'quantity',
+    'realizedPnlUsd',
+  ];
+  
+  for (const field of requiredFields) {
+    const columnName = mapping[field];
+    if (columnName && !headers.includes(columnName)) {
+      missingColumns.push(columnName);
+    }
+  }
+  
+  // Check date fields (either date OR openedAt/closedAt)
+  const hasDate = mapping.date && headers.includes(mapping.date);
+  const hasOpenedAt = mapping.openedAt && headers.includes(mapping.openedAt);
+  const hasClosedAt = mapping.closedAt && headers.includes(mapping.closedAt);
+  
+  if (!hasDate && !hasOpenedAt) {
+    missingColumns.push(mapping.date || mapping.openedAt || 'date/openedAt');
+  }
+  
+  return {
+    valid: missingColumns.length === 0,
+    missingColumns,
+  };
 }
 
 export function processImport(

@@ -17,6 +17,9 @@ import {
   ClipboardList,
   ListChecks,
   Wallet,
+  Sparkles,
+  Link2,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +29,7 @@ import { LanguageSwitcher } from './language-switcher';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
+  { href: '/daily-bias', icon: Target, labelKey: 'dailyBias' },
   { href: '/statistiques', icon: BarChart3, labelKey: 'statistics' },
   { href: '/trades', icon: ClipboardList, labelKey: 'trades' },
   { href: '/journal', icon: BookOpen, labelKey: 'journal' },
@@ -33,6 +37,8 @@ const navItems = [
   { href: '/playbooks', icon: ListChecks, labelKey: 'playbooks' },
   { href: '/importer', icon: Upload, labelKey: 'import' },
   { href: '/comptes', icon: Wallet, labelKey: 'accounts' },
+  { href: '/brokers', icon: Link2, labelKey: 'brokers' },
+  { href: '/beta', icon: Sparkles, labelKey: 'beta' },
   { href: '/settings', icon: Settings, labelKey: 'profile' },
 ];
 

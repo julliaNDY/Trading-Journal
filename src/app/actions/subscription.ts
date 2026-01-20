@@ -50,12 +50,10 @@ function getAppUrl(): string {
  * Get available plans
  */
 export async function getPlans() {
-  const fs = await import('fs');const logEntry = JSON.stringify({location:'subscription.ts:getPlans',message:'Getting plans',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry)}catch(e){}
   const plans = await prisma.plan.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: 'asc' },
   });
-  const logEntry2 = JSON.stringify({location:'subscription.ts:getPlans:result',message:'Plans loaded',data:{count:plans.length,plans:plans.map(p=>({name:p.name,interval:p.interval,hasStripeId:!!p.stripePriceId}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry2)}catch(e){}
 
   return plans.map(plan => ({
     id: plan.id,
@@ -72,33 +70,30 @@ export async function getPlans() {
 
 /**
  * Create a checkout session and return the URL
+ * Can be called without authentication - will use customer_email in Stripe
  */
 export async function createCheckoutSessionAction(
   planInterval: PlanInterval
 ): Promise<ActionResult<{ url: string }>> {
-  const fs = await import('fs');const logEntry = JSON.stringify({location:'subscription.ts:createCheckoutSessionAction',message:'Creating checkout session',data:{planInterval},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry)}catch(e){}
   try {
     const userId = await getCurrentUserId();
-    const logEntry2 = JSON.stringify({location:'subscription.ts:createCheckoutSessionAction:userId',message:'User ID check',data:{hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry2)}catch(e){}
-    
-    if (!userId) {
-      return { success: false, error: 'Not authenticated' };
-    }
-
     const appUrl = getAppUrl();
-    const logEntry3 = JSON.stringify({location:'subscription.ts:createCheckoutSessionAction:calling',message:'Calling createCheckoutSession',data:{appUrl,planInterval},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry3)}catch(e){}
+    
+    // If user is authenticated, redirect to settings. Otherwise, redirect to account creation page
+    // Note: (auth) route group doesn't appear in URL, so it's /create-account not /auth/create-account
+    const successUrl = userId 
+      ? `${appUrl}/settings?subscription=success`
+      : `${appUrl}/create-account?session_id={CHECKOUT_SESSION_ID}`;
     
     const checkoutUrl = await createCheckoutSession({
-      userId,
+      userId: userId || undefined,
       planInterval,
-      successUrl: `${appUrl}/settings?subscription=success`,
+      successUrl,
       cancelUrl: `${appUrl}/pricing?subscription=canceled`,
     });
-    const logEntry4 = JSON.stringify({location:'subscription.ts:createCheckoutSessionAction:success',message:'Checkout session created',data:{hasUrl:!!checkoutUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry4)}catch(e){}
 
     return { success: true, data: { url: checkoutUrl } };
   } catch (error) {
-    const logEntry5 = JSON.stringify({location:'subscription.ts:createCheckoutSessionAction:error',message:'Checkout session error',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STRIPE'})+'\n';try{fs.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',logEntry5)}catch(e){}
     subscriptionLogger.error('Error creating checkout session:', error);
     return { 
       success: false, 

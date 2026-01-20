@@ -275,11 +275,18 @@ describe('OandaProvider', () => {
 
   describe('error handling', () => {
     it('should throw BrokerRateLimitError on 429 response', async () => {
+      const mockHeaders = {
+        get: (key: string) => {
+          if (key === 'X-RateLimit-Reset') return '1234567890';
+          return null;
+        },
+      };
+      
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 429,
         text: async () => 'Rate limit exceeded',
-        headers: new Map([['X-RateLimit-Reset', '1234567890']]),
+        headers: mockHeaders,
       });
 
       await expect(
@@ -291,10 +298,15 @@ describe('OandaProvider', () => {
     });
 
     it('should throw BrokerApiError on other API errors', async () => {
+      const mockHeaders = {
+        get: () => null,
+      };
+      
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 500,
         text: async () => 'Internal Server Error',
+        headers: mockHeaders,
       });
 
       await expect(

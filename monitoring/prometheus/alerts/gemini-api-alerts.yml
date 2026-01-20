@@ -1,0 +1,135 @@
+groups:
+  - name: gemini_api_alerts
+    interval: 1m
+    rules:
+      # High API Request Rate
+      - alert: HighAPIRequestRate
+        expr: rate(gemini_api_requests_total[1m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "High Gemini API request rate detected"
+          description: "Gemini API request rate is {{ $value }} req/sec (threshold: 10 req/sec)"
+          runbook: "Check application load, consider scaling"
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: (rate(gemini_api_errors_total[5m]) / rate(gemini_api_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: gemini-api
+        annotations:
+          summary: "High Gemini API error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook: "Investigate errors immediately, check Gemini API status"
+
+      # Slow API Response Time
+      - alert: SlowAPIResponseTime
+        expr: histogram_quantile(0.95, rate(gemini_api_duration_seconds_bucket[5m])) > 3
+        for: 3m
+        labels:
+          severity: critical
+          component: gemini-api
+        annotations:
+          summary: "Slow Gemini API response time (p95)"
+          description: "p95 latency is {{ $value }}s (SLA: 3s)"
+          runbook: "Check Gemini API health, investigate bottlenecks"
+
+      # Circuit Breaker Open
+      - alert: CircuitBreakerOpen
+        expr: gemini_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: gemini-api
+        annotations:
+          summary: "Gemini API circuit breaker is OPEN"
+          description: "Circuit breaker has opened, all requests are being blocked"
+          runbook: "IMMEDIATE INVESTIGATION REQUIRED. Fallback active. Check Gemini API status."
+
+      # High Fallback Usage
+      - alert: HighFallbackUsage
+        expr: rate(gemini_fallback_usage_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "High fallback usage to OpenAI"
+          description: "Fallback rate is {{ $value }} fallbacks/sec"
+          runbook: "Check Gemini API health, investigate why fallback is being triggered"
+
+      # Low Cache Hit Rate
+      - alert: LowCacheHitRate
+        expr: (rate(gemini_cache_hits_total[5m]) / (rate(gemini_cache_hits_total[5m]) + rate(gemini_cache_misses_total[5m]))) * 100 < 50
+        for: 10m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (target: >80%)"
+          runbook: "Check Redis health, review cache TTL configuration"
+
+      # High Token Consumption
+      - alert: HighTokenConsumption
+        expr: rate(gemini_tokens_consumed_total[1m]) * 60 > 100000
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "High token consumption rate"
+          description: "Token consumption is {{ $value }} TPM (threshold: 100k TPM)"
+          runbook: "Review usage patterns, check for potential abuse or optimization opportunities"
+
+      # Rate Limit Frequently Exceeded
+      - alert: RateLimitFrequentlyExceeded
+        expr: rate(gemini_rate_limit_exceeded_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "Rate limit being exceeded frequently"
+          description: "Rate limit exceeded {{ $value }} times/sec"
+          runbook: "Review rate limit configuration, check for abusive users"
+
+      # Low API Uptime
+      - alert: LowAPIUptime
+        expr: (1 - (sum(increase(gemini_api_errors_total[1h])) / sum(increase(gemini_api_requests_total[1h])))) * 100 < 99
+        for: 5m
+        labels:
+          severity: critical
+          component: gemini-api
+        annotations:
+          summary: "API uptime below SLA"
+          description: "Uptime is {{ $value | humanizePercentage }} (SLA: 99.9%)"
+          runbook: "CRITICAL: Investigate all errors, check infrastructure"
+
+      # No Recent Requests (API Down?)
+      - alert: NoRecentRequests
+        expr: rate(gemini_api_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "No recent API requests detected"
+          description: "No requests in the last 10 minutes. API may be down or unreachable."
+          runbook: "Check application health, verify API is accessible"
+
+      # High Retry Rate
+      - alert: HighRetryRate
+        expr: rate(gemini_retry_attempts_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini-api
+        annotations:
+          summary: "High retry attempt rate"
+          description: "Retry rate is {{ $value }} retries/sec"
+          runbook: "Check Gemini API stability, investigate transient errors"

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getUser } from '@/lib/auth';
 import { BrokerType } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import {
   connectBroker,
   disconnectBroker,
@@ -15,38 +16,56 @@ import {
 // GET CONNECTIONS
 // ============================================================================
 
-export async function getUserBrokerConnections() {
+export async function getUserBrokerConnections(options?: {
+  page?: number;
+  pageSize?: number;
+}) {
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
   
-  const connections = await getBrokerConnections(user.id);
+  const page = options?.page || 1;
+  const pageSize = options?.pageSize || 20;
+  const skip = (page - 1) * pageSize;
   
-  return connections.map(conn => ({
-    id: conn.id,
-    brokerType: conn.brokerType,
-    status: conn.status,
-    brokerAccountId: conn.brokerAccountId,
-    brokerAccountName: conn.brokerAccountName,
-    syncEnabled: conn.syncEnabled,
-    syncIntervalMin: conn.syncIntervalMin,
-    lastSyncAt: conn.lastSyncAt?.toISOString() || null,
-    lastSyncError: conn.lastSyncError,
-    linkedAccount: conn.account ? {
-      id: conn.account.id,
-      name: conn.account.name,
-      color: conn.account.color,
-    } : null,
-    recentSyncs: conn.syncLogs.map(log => ({
-      id: log.id,
-      status: log.status,
-      tradesImported: log.tradesImported,
-      tradesSkipped: log.tradesSkipped,
-      startedAt: log.startedAt.toISOString(),
-      completedAt: log.completedAt?.toISOString() || null,
-      durationMs: log.durationMs,
-      errorMessage: log.errorMessage,
+  const [connections, totalCount] = await Promise.all([
+    getBrokerConnections(user.id, { skip, take: pageSize }),
+    prisma.brokerConnection.count({ where: { userId: user.id } }),
+  ]);
+  
+  return {
+    connections: connections.map(conn => ({
+      id: conn.id,
+      brokerType: conn.brokerType,
+      status: conn.status,
+      brokerAccountId: conn.brokerAccountId,
+      brokerAccountName: conn.brokerAccountName,
+      syncEnabled: conn.syncEnabled,
+      syncIntervalMin: conn.syncIntervalMin,
+      lastSyncAt: conn.lastSyncAt?.toISOString() || null,
+      lastSyncError: conn.lastSyncError,
+      linkedAccount: conn.account ? {
+        id: conn.account.id,
+        name: conn.account.name,
+        color: conn.account.color,
+      } : null,
+      recentSyncs: conn.syncLogs.map(log => ({
+        id: log.id,
+        status: log.status,
+        tradesImported: log.tradesImported,
+        tradesSkipped: log.tradesSkipped,
+        startedAt: log.startedAt.toISOString(),
+        completedAt: log.completedAt?.toISOString() || null,
+        durationMs: log.durationMs,
+        errorMessage: log.errorMessage,
+      })),
     })),
-  }));
+    pagination: {
+      page,
+      pageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / pageSize),
+    },
+  };
 }
 
 // ============================================================================
@@ -163,8 +182,6 @@ export async function syncBrokerTradesAction(connectionId: string) {
 // ============================================================================
 // UPDATE SYNC SETTINGS
 // ============================================================================
-
-import prisma from '@/lib/prisma';
 
 export async function updateBrokerSyncSettings(
   connectionId: string,

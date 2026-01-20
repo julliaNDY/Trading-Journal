@@ -7,8 +7,6 @@
 
 import prisma from '@/lib/prisma';
 import { BrokerType, BrokerConnectionStatus, SyncStatus } from '@prisma/client';
-import { createTradovateProvider } from './tradovate-provider';
-import { createIBKRFlexQueryProvider } from './ibkr-flex-query-provider';
 import { brokerLogger } from '@/lib/logger';
 import { 
   BrokerProvider, 
@@ -20,6 +18,9 @@ import {
   IBKRFlexQueryCredentials,
 } from './types';
 import { calculateTradeSignature } from '@/services/trade-service';
+import { getBrokerProvider } from './provider-factory';
+import { withRetry, classifyError, BROKER_RETRY_CONFIGS } from './error-handler';
+import { createRateLimiter } from './rate-limiter';
 
 // ============================================================================
 // ENCRYPTION HELPERS
@@ -67,17 +68,8 @@ export function decryptCredential(encrypted: string): string {
 // ============================================================================
 // BROKER PROVIDER FACTORY
 // ============================================================================
-
-function getBrokerProvider(brokerType: BrokerType, options?: { environment?: 'demo' | 'live' }): BrokerProvider {
-  switch (brokerType) {
-    case 'TRADOVATE':
-      return createTradovateProvider(options?.environment || 'live');
-    case 'IBKR':
-      return createIBKRFlexQueryProvider();
-    default:
-      throw new Error(`Unknown broker type: ${brokerType}`);
-  }
-}
+// Note: Factory moved to provider-factory.ts (Story 3.3)
+// Import getBrokerProvider from './provider-factory' instead
 
 // ============================================================================
 // CONNECTION MANAGEMENT
@@ -98,20 +90,30 @@ export async function connectBroker(input: ConnectBrokerInput): Promise<{
 }> {
   const { userId, brokerType, apiKey, apiSecret, accountId, environment } = input;
   
+  brokerLogger.info(`[${brokerType}] Connecting broker for user ${userId}`);
+  
   // Get the appropriate provider
   const provider = getBrokerProvider(brokerType, { environment });
   
-  // Authenticate with the broker
+  // Authenticate with the broker (with retry logic)
   const credentials: TradovateCredentials = {
     apiKey,
     apiSecret,
     environment,
   };
   
-  const authResult = await provider.authenticate(credentials);
+  const authResult = await withRetry(
+    () => provider.authenticate(credentials),
+    BROKER_RETRY_CONFIGS[brokerType],
+    { operation: 'authenticate', brokerType }
+  );
   
-  // Get list of broker accounts
-  const brokerAccounts = await provider.getAccounts(authResult.accessToken);
+  // Get list of broker accounts (with retry logic)
+  const brokerAccounts = await withRetry(
+    () => provider.getAccounts(authResult.accessToken),
+    BROKER_RETRY_CONFIGS[brokerType],
+    { operation: 'getAccounts', brokerType }
+  );
   
   if (brokerAccounts.length === 0) {
     throw new BrokerAuthError('No trading accounts found on this broker');
@@ -201,7 +203,10 @@ export async function disconnectBroker(connectionId: string, userId: string): Pr
   brokerLogger.debug(`[Broker] Deleted broker connection ${connectionId} for user ${userId}`);
 }
 
-export async function getBrokerConnections(userId: string) {
+export async function getBrokerConnections(
+  userId: string,
+  options?: { skip?: number; take?: number }
+) {
   return prisma.brokerConnection.findMany({
     where: { userId },
     include: {
@@ -214,6 +219,8 @@ export async function getBrokerConnections(userId: string) {
       },
     },
     orderBy: { createdAt: 'desc' },
+    skip: options?.skip,
+    take: options?.take,
   });
 }
 
@@ -260,9 +267,12 @@ export async function syncBrokerTrades(
     const provider = getBrokerProvider(connection.brokerType);
     let accessToken = connection.accessToken;
     
+    // Create rate limiter for this broker/account
+    const rateLimiter = createRateLimiter(connection.brokerType, connection.brokerAccountId || undefined);
+    
     // Check if token is expired or about to expire
     if (!accessToken || (connection.tokenExpiresAt && connection.tokenExpiresAt < new Date())) {
-      // Re-authenticate
+      // Re-authenticate (with retry and rate limiting)
       if (!connection.encryptedApiKey || !connection.encryptedApiSecret) {
         throw new BrokerAuthError('Missing credentials for re-authentication');
       }
@@ -272,7 +282,12 @@ export async function syncBrokerTrades(
         apiSecret: decryptCredential(connection.encryptedApiSecret),
       };
       
-      const authResult = await provider.authenticate(credentials);
+      await rateLimiter.checkLimit();
+      const authResult = await withRetry(
+        () => provider.authenticate(credentials),
+        BROKER_RETRY_CONFIGS[connection.brokerType],
+        { operation: 'authenticate', brokerType: connection.brokerType }
+      );
       accessToken = authResult.accessToken;
       
       // Update token in DB
@@ -289,17 +304,24 @@ export async function syncBrokerTrades(
       throw new BrokerAuthError('No access token available');
     }
     
-    // Fetch trades from broker
+    // Fetch trades from broker (with retry and rate limiting)
     // For manual syncs, don't filter by lastSyncAt - import ALL trades and rely on deduplication
     // This allows users to re-import historical data without issues
     // For scheduled syncs, use lastSyncAt to avoid re-processing old trades
     const sinceDate = syncType === 'scheduled' ? (connection.lastSyncAt || undefined) : undefined;
     
-    const brokerTrades = await provider.getTrades(
-      accessToken,
-      connection.brokerAccountId!,
-      sinceDate
+    brokerLogger.info(
+      `[${connection.brokerType}] Fetching trades${sinceDate ? ` since ${sinceDate.toISOString()}` : ' (all historical)'}`
     );
+    
+    await rateLimiter.checkLimit();
+    const brokerTrades = await withRetry(
+      () => provider.getTrades(accessToken!, connection.brokerAccountId!, sinceDate),
+      BROKER_RETRY_CONFIGS[connection.brokerType],
+      { operation: 'getTrades', brokerType: connection.brokerType }
+    );
+    
+    brokerLogger.info(`[${connection.brokerType}] Fetched ${brokerTrades.length} trades from broker`);
     
     // Process each trade
     for (const brokerTrade of brokerTrades) {

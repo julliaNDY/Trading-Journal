@@ -2,8 +2,8 @@
 
 > **Objectif** : Lister les epics à compléter, leurs dépendances, et les commandes pour exécution avec `@dev`
 
-**Date** : 2026-01-14  
-**Status** : 📋 Planification
+**Date** : 2026-01-18  
+**Status** : 📋 Planification (Epic 3 & 4 stories créées)
 
 ---
 
@@ -11,15 +11,16 @@
 
 | Epic | Phase | Durée | Dépendances | Status | Stories Disponibles |
 |------|-------|-------|-------------|--------|---------------------|
-| **Epic 1** | Phase 1 | 2-3 mois | Phase 0 (POC) | 🚧 Planning | ✅ 1.1, 1.2, 1.3, 1.4 |
-| **Epic 2** | Phase 4 | 4-6 mois | Epic 1 | 📋 Backlog | ❌ À créer |
-| **Epic 3** | Phase 2 | 4-6 mois | Epic 1 | 📋 Backlog | ❌ À créer |
-| **Epic 4** | Phase 3 | 3-4 mois | Epic 3 | 📋 Backlog | ❌ À créer |
+| **Epic 1** | Phase 1 | 2-3 mois | Phase 0 (POC) | 🚧 En cours | ✅ 1.1-1.9 (Complétées/Ready), 1.10 (Draft) |
+| **Epic 2** | Phase 4 | 4-6 mois | Epic 1 | 📋 Backlog | ✅ 2.1 (Completed), ❌ 2.2+ À créer |
+| **Epic 3** | Phase 2 | 4-6 mois | Epic 1 | 📋 Ready | ✅ 3.1-3.8 (Draft) |
+| **Epic 4** | Phase 3 | 3-4 mois | Epic 3 | 📋 Ready | ✅ 4.1-4.6 (Draft) |
 | **Epic 5** | Phase 5 | 3-4 mois | Epic 3 + Epic 2 | 📋 Backlog | ❌ À créer |
 | **Epic 6** | Phase 6 | 3-4 mois | Epic 2 | 📋 Backlog | ❌ À créer |
 | **Epic 7** | Phase 7 | 2-3 mois | Epic 4 + Epic 3 | 📋 Backlog | ❌ À créer |
 | **Epic 8** | Phase 8 | 3-4 mois | Epic 4 + Epic 3 + Epic 5 | 📋 Backlog | ❌ À créer |
 | **Epic 9** | Phase 9 | 2-3 mois | **Aucune** | 📋 Backlog | ❌ À créer |
+| **Epic 12** | Phase 11 | 3-4 mois | Epic 3 + Epic 4 | 📋 Ready | ✅ 12.1-12.9 (Draft) |
 
 ---
 
@@ -34,8 +35,9 @@ Ces epics doivent être complétés AVANT les autres :
    - Stories : Voir `docs/specs/phase-0-poc-plan.md`
 
 2. **Epic 1 : Infrastructure & Foundation** - 2-3 mois
-   - **Dépendances** : Phase 0 complétée
-   - **Stories disponibles** : 1.1, 1.2, 1.3, 1.4
+   - **Dépendances** : Phase 0 complétée ✅
+   - **Stories POC (Phase 0)** : 1.1, 1.2, 1.3, 1.4, 1.5 ✅ Completed
+   - **Stories Production** : 1.6, 1.7, 1.8, 1.9, 1.10 📋 Draft
    - ⚠️ **Bloquant pour** : Epic 2, Epic 3
 
 ---
@@ -47,7 +49,7 @@ Ces epics peuvent être développés EN PARALLÈLE après Epic 1 :
 3. **Epic 3 : Multi-Compte Illimité & Broker Sync 240+** - 4-6 mois
    - **Dépendances** : Epic 1 ✅
    - **Peut être fait en parallèle avec** : Epic 2, Epic 9
-   - **Stories** : ❌ À créer
+   - **Stories** : ✅ 3.1-3.8 (Créées 2026-01-18)
 
 4. **Epic 2 : Market Replay & Backtesting Infrastructure** - 4-6 mois
    - **Dépendances** : Epic 1 ✅
@@ -67,7 +69,7 @@ Ces epics peuvent être développés EN PARALLÈLE après Epic 1 :
 6. **Epic 4 : AI & Intelligence** - 3-4 mois
    - **Dépendances** : Epic 3 ✅
    - **Peut être fait en parallèle avec** : Epic 2 (si complété), Epic 5 (partiellement)
-   - **Stories** : ❌ À créer
+   - **Stories** : ✅ 4.1-4.6 (Créées 2026-01-18)
 
 ---
 
@@ -128,32 +130,40 @@ Le dev agent travaille sur des **STORIES**, pas directement sur des EPICS.
 
 ### **Epic 1 : Infrastructure & Foundation**
 
-**Stories disponibles** :
-- `docs/stories/1.1.story.md` (TimescaleDB + Replay POC)
-- `docs/stories/1.2.story.md` (Redis + BullMQ)
-- `docs/stories/1.3.story.md` (Vector DB + Embeddings)
-- `docs/stories/1.4.story.md` (Observability Baseline)
+**Stories POC (Phase 0)** - ✅ Complétées :
+- `docs/stories/1.1.story.md` (TimescaleDB + Replay POC) ✅
+- `docs/stories/1.2.story.md` (Redis + BullMQ POC) ✅
+- `docs/stories/1.3.story.md` (Vector DB + Embeddings POC) ✅
+- `docs/stories/1.4.story.md` (Observability Baseline) ✅
+- `docs/stories/1.5.story.md` (AI Architecture POC - Gemini) ✅
+
+**Stories Production** - 📋 Draft :
+- `docs/stories/1.6.story.md` (TimescaleDB Production Migration)
+- `docs/stories/1.7.story.md` (Redis Upstash Production)
+- `docs/stories/1.8.story.md` (Vector DB Qdrant Production)
+- `docs/stories/1.9.story.md` (Production Monitoring & Alerting)
+- `docs/stories/1.10.story.md` (Data Migration & Backup Strategy)
 
 **Commandes** :
 ```bash
-# Story 1.1
+# Stories Production (à développer)
 @dev
-*develop-story docs/stories/1.1.story.md
+*develop-story docs/stories/1.6.story.md
 
-# Story 1.2
 @dev
-*develop-story docs/stories/1.2.story.md
+*develop-story docs/stories/1.7.story.md
 
-# Story 1.3
 @dev
-*develop-story docs/stories/1.3.story.md
+*develop-story docs/stories/1.8.story.md
 
-# Story 1.4
 @dev
-*develop-story docs/stories/1.4.story.md
+*develop-story docs/stories/1.9.story.md
+
+@dev
+*develop-story docs/stories/1.10.story.md
 ```
 
-**⚠️ Prérequis** : Phase 0 complétée
+**⚠️ Prérequis** : Phase 0 complétée ✅
 
 ---
 
@@ -173,31 +183,91 @@ Le dev agent travaille sur des **STORIES**, pas directement sur des EPICS.
 
 ### **Epic 3 : Multi-Compte Illimité & Broker Sync 240+**
 
-**Stories** : ❌ À créer (format `docs/stories/3.X.story.md`)
+**Stories** : ✅ Créées (2026-01-18)
 
-**Commande** (une fois story créée) :
+| Story | Description | Status |
+|-------|-------------|--------|
+| 3.1 | Unlimited Accounts - Data Model & Optimizations | 📋 Draft |
+| 3.2 | Unlimited Accounts UI - Virtual Scrolling & Lazy Loading | 📋 Draft |
+| 3.3 | Broker Sync Architecture - Multi-Provider Abstraction | 📋 Draft |
+| 3.4 | Broker Sync - Integration 50+ Priority Brokers | 📋 Draft |
+| 3.5 | Broker Sync - Scheduler & Auto-Sync | 📋 Draft |
+| 3.6 | Broker Connections UI - Management Dashboard | 📋 Draft |
+| 3.7 | Import Profiles - CSV Mapping Configurations | 📋 Draft |
+| 3.8 | Broker List - 240+ Supported Brokers Database | 📋 Draft |
+
+**Commandes** :
 ```bash
 @dev
 *develop-story docs/stories/3.1.story.md
+
+@dev
+*develop-story docs/stories/3.2.story.md
+
+@dev
+*develop-story docs/stories/3.3.story.md
+
+@dev
+*develop-story docs/stories/3.4.story.md
+
+@dev
+*develop-story docs/stories/3.5.story.md
+
+@dev
+*develop-story docs/stories/3.6.story.md
+
+@dev
+*develop-story docs/stories/3.7.story.md
+
+@dev
+*develop-story docs/stories/3.8.story.md
 ```
 
 **⚠️ Prérequis** : Epic 1 complété
 
 **💡 Peut être fait en parallèle avec** : Epic 2, Epic 9
 
+**🔗 Blocage Phase 11** : Epic 3 est prérequis pour Phase 11 (AI Daily Bias Analysis)
+
 ---
 
 ### **Epic 4 : AI & Intelligence**
 
-**Stories** : ❌ À créer (format `docs/stories/4.X.story.md`)
+**Stories** : ✅ Créées (2026-01-18)
 
-**Commande** (une fois story créée) :
+| Story | Description | Status |
+|-------|-------------|--------|
+| 4.1 | AI Feedback - Pattern Analysis & Suggestions | 📋 Draft |
+| 4.2 | AI Assistant - Conversational Coaching | 📋 Draft |
+| 4.3 | Tiltmeter - ML-Based Discipline Detection | 📋 Draft |
+| 4.4 | Efficiency Analysis - Real vs Theoretical Exit Comparison | 📋 Draft |
+| 4.5 | Emotional Journal - Pre/During/Post Trade Journaling | 📋 Draft |
+| 4.6 | Future Simulators - Account Projection | 📋 Draft |
+
+**Commandes** :
 ```bash
 @dev
 *develop-story docs/stories/4.1.story.md
+
+@dev
+*develop-story docs/stories/4.2.story.md
+
+@dev
+*develop-story docs/stories/4.3.story.md
+
+@dev
+*develop-story docs/stories/4.4.story.md
+
+@dev
+*develop-story docs/stories/4.5.story.md
+
+@dev
+*develop-story docs/stories/4.6.story.md
 ```
 
 **⚠️ Prérequis** : Epic 3 complété
+
+**🔗 Blocage Phase 11** : Epic 4 est prérequis pour Phase 11 (AI Daily Bias Analysis)
 
 ---
 

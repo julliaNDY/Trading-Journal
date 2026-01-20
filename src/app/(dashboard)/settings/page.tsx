@@ -1,11 +1,15 @@
 import { requireAuth } from '@/lib/auth';
 import { SettingsContent } from './settings-content';
+import { isAdmin } from '@/app/actions/admin';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const user = await requireAuth();
+  
+  // Check if user is admin
+  const adminStatus = await isAdmin();
   
   // Get user profile data with subscription and counts
   const profile = await prisma.user.findUnique({
@@ -37,6 +41,6 @@ export default async function SettingsPage() {
     },
   });
 
-  return <SettingsContent profile={profile} />;
+  return <SettingsContent profile={profile} isAdmin={adminStatus} />;
 }
 

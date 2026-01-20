@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { DonationBanner } from '@/components/layout/donation-banner';
 import { Footer } from '@/components/layout/footer';
 
 export default async function PublicLayout({
@@ -12,6 +13,9 @@ export default async function PublicLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Donation Banner */}
+      <DonationBanner />
+      
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">

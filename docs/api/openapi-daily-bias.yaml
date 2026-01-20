@@ -1,0 +1,909 @@
+openapi: 3.0.0
+
+info:
+  title: Daily Bias Analysis API
+  version: 1.0.0
+  description: |
+    AI-powered 6-step daily bias analysis for trading instruments
+    
+    ## Overview
+    
+    The Daily Bias Analysis API provides comprehensive market analysis through 6 sequential steps:
+    1. **Security Analysis** - Volatility and risk assessment
+    2. **Macro Analysis** - Economic context and events
+    3. **Institutional Flux** - Volume and order flow analysis
+    4. **Mag 7 Leaders** - Correlation with tech leaders
+    5. **Technical Structure** - Support, resistance, and trend analysis
+    6. **Synthesis** - Final bias aggregation
+    
+    ## Authentication
+    
+    All endpoints require a valid JWT token in the `Authorization` header.
+    
+    ## Rate Limiting
+    
+    - 10 requests per second (burst)
+    - 1 analysis request per user per day (unless admin)
+    - Cache TTL: 5 minutes per instrument
+    
+    ## Performance Targets
+    
+    - Individual steps: < 3s (p95)
+    - Full analysis: < 10s (p95)
+    - Cache hit: < 100ms
+    
+  contact:
+    name: API Support
+    url: https://tradingjournal.app/support
+  
+  license:
+    name: Proprietary
+    url: https://tradingjournal.app/license
+
+servers:
+  - url: https://api.tradingjournal.app
+    description: Production
+  - url: https://staging-api.tradingjournal.app
+    description: Staging
+  - url: http://localhost:3000
+    description: Development
+
+# ============================================================================
+# COMPONENTS
+# ============================================================================
+
+components:
+  
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token required for all endpoints
+  
+  responses:
+    
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized"
+            code: "INVALID_INPUT"
+            timestamp: "2026-01-17T14:30:00Z"
+    
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Rate limit exceeded. 1 analysis per day allowed."
+            code: "RATE_LIMIT"
+            timestamp: "2026-01-17T14:30:00Z"
+    
+    NotFound:
+      description: Instrument not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  
+  schemas:
+    
+    # Enums and basic types
+    
+    BiasDirection:
+      type: string
+      enum: [BEARISH, NEUTRAL, BULLISH]
+      example: BULLISH
+    
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    
+    SentimentLevel:
+      type: string
+      enum: [VERY_BEARISH, BEARISH, NEUTRAL, BULLISH, VERY_BULLISH]
+    
+    TrendDirection:
+      type: string
+      enum: [UP, DOWN, INDETERMINATE]
+    
+    VolumeLevel:
+      type: string
+      enum: [LOW, NORMAL, HIGH, EXTREMELY_HIGH]
+    
+    Mag7Symbol:
+      type: string
+      enum: [AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA]
+    
+    # Shared objects
+    
+    ErrorResponse:
+      type: object
+      required: [error, code, timestamp]
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          enum: [INVALID_INPUT, RATE_LIMIT, SERVICE_UNAVAILABLE, INTERNAL_ERROR]
+        details:
+          type: object
+          description: Additional error context
+        timestamp:
+          type: string
+          format: date-time
+    
+    # Step 1: Security Analysis
+    
+    VolatilityFactor:
+      type: object
+      required: [factor, impact]
+      properties:
+        factor:
+          type: string
+          example: "Fed announcements expected"
+        impact:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+    
+    RiskItem:
+      type: object
+      required: [risk, probability, impact]
+      properties:
+        risk:
+          type: string
+          example: "Gap risk"
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.35
+        impact:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.45
+    
+    SecurityAnalysis:
+      type: object
+      required: [volatilityIndex, riskLevel, securityScore, analysis, timestamp, instrument]
+      properties:
+        volatilityIndex:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Volatility index (0-100)
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        securityScore:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Composite security score
+        analysis:
+          type: object
+          required: [summary, risks, recommendations]
+          properties:
+            summary:
+              type: string
+              maxLength: 500
+            volatilityFactors:
+              type: array
+              items:
+                $ref: '#/components/schemas/VolatilityFactor'
+            risks:
+              type: array
+              items:
+                $ref: '#/components/schemas/RiskItem'
+            recommendations:
+              type: array
+              items:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Step 2: Macro Analysis
+    
+    EconomicEvent:
+      type: object
+      required: [event, time, importance, country]
+      properties:
+        event:
+          type: string
+          example: "US Non-Farm Payrolls"
+        time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "13:30"
+        importance:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        country:
+          type: string
+          example: "US"
+        forecast:
+          type: number
+          nullable: true
+        previous:
+          type: number
+          nullable: true
+        actual:
+          type: number
+          nullable: true
+        impactOnInstrument:
+          type: string
+    
+    MacroAnalysis:
+      type: object
+      required: [economicEvents, macroScore, sentiment, timestamp, instrument]
+      properties:
+        economicEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/EconomicEvent'
+        macroScore:
+          type: number
+          minimum: 0
+          maximum: 10
+        sentiment:
+          $ref: '#/components/schemas/SentimentLevel'
+        analysis:
+          type: object
+          properties:
+            summary:
+              type: string
+              maxLength: 500
+            centralBankPolicy:
+              type: string
+            economicCycle:
+              type: string
+              enum: [EXPANSION, PEAK, CONTRACTION, TROUGH]
+            keyThemes:
+              type: array
+              items:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Step 3: Institutional Flux
+    
+    VolumeHeatMap:
+      type: object
+      required: [priceLevel, volume, intensity]
+      properties:
+        priceLevel:
+          type: string
+          example: "18500-18600"
+        volume:
+          type: number
+          example: 125000
+        intensity:
+          type: number
+          minimum: 0
+          maximum: 1
+    
+    VolumeProfile:
+      type: object
+      required: [volumeLevel, trend, concentration]
+      properties:
+        volumeLevel:
+          $ref: '#/components/schemas/VolumeLevel'
+        trend:
+          type: string
+          enum: [DECREASING, STABLE, INCREASING]
+        concentration:
+          type: number
+          minimum: 0
+          maximum: 1
+        heatMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolumeHeatMap'
+    
+    OrderFlow:
+      type: object
+      required: [buyerDominance]
+      properties:
+        buyerDominance:
+          type: number
+          minimum: 0
+          maximum: 1
+        largeOrders:
+          type: object
+          properties:
+            buyOrders:
+              type: integer
+              minimum: 0
+            sellOrders:
+              type: integer
+              minimum: 0
+            ratio:
+              type: number
+              minimum: 0
+        institutionalPressure:
+          type: string
+          enum: [BULLISH, NEUTRAL, BEARISH]
+    
+    InstitutionalFlux:
+      type: object
+      required: [volumeProfile, orderFlow, fluxScore, timestamp, instrument]
+      properties:
+        volumeProfile:
+          $ref: '#/components/schemas/VolumeProfile'
+        orderFlow:
+          $ref: '#/components/schemas/OrderFlow'
+        fluxScore:
+          type: number
+          minimum: 0
+          maximum: 10
+        analysis:
+          type: object
+          properties:
+            summary:
+              type: string
+              maxLength: 500
+            keyLevels:
+              type: array
+              items:
+                type: object
+                properties:
+                  level:
+                    type: number
+                  type:
+                    type: string
+                    enum: [SUPPORT, RESISTANCE]
+                  strength:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Step 4: Mag 7 Leaders
+    
+    Mag7Correlation:
+      type: object
+      required: [symbol, correlation, trend, strength]
+      properties:
+        symbol:
+          $ref: '#/components/schemas/Mag7Symbol'
+        correlation:
+          type: number
+          minimum: -1
+          maximum: 1
+        trend:
+          $ref: '#/components/schemas/TrendDirection'
+        performancePercent:
+          type: number
+        strength:
+          type: number
+          minimum: 0
+          maximum: 1
+    
+    Mag7Analysis:
+      type: object
+      required: [correlations, leaderScore, sentiment, timestamp, instrument]
+      properties:
+        correlations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mag7Correlation'
+        leaderScore:
+          type: number
+          minimum: 0
+          maximum: 10
+        sentiment:
+          $ref: '#/components/schemas/SentimentLevel'
+        analysis:
+          type: object
+          properties:
+            summary:
+              type: string
+              maxLength: 500
+            leaderDynamics:
+              type: string
+            groupSentiment:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  sentiment:
+                    $ref: '#/components/schemas/SentimentLevel'
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Step 5: Technical Structure
+    
+    SupportLevel:
+      type: object
+      required: [price, strength, type]
+      properties:
+        price:
+          type: number
+        strength:
+          type: number
+          minimum: 0
+          maximum: 1
+        type:
+          type: string
+          enum: [ROUND_NUMBER, MOVING_AVERAGE, PREVIOUS_LOW, TRENDLINE]
+        testedCount:
+          type: integer
+          minimum: 0
+    
+    Trend:
+      type: object
+      required: [direction, strength, timeframe]
+      properties:
+        direction:
+          type: string
+          enum: [UPTREND, DOWNTREND, SIDEWAYS]
+        strength:
+          type: number
+          minimum: 0
+          maximum: 1
+        timeframe:
+          type: string
+          enum: [INTRADAY, DAILY, WEEKLY, MONTHLY]
+        maPrices:
+          type: object
+          properties:
+            ma20:
+              type: number
+            ma50:
+              type: number
+            ma200:
+              type: number
+    
+    TechnicalStructure:
+      type: object
+      required: [supportLevels, resistanceLevels, trend, technicalScore, timestamp, instrument]
+      properties:
+        supportLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportLevel'
+        resistanceLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportLevel'
+        trend:
+          $ref: '#/components/schemas/Trend'
+        technicalScore:
+          type: number
+          minimum: 0
+          maximum: 10
+        analysis:
+          type: object
+          properties:
+            summary:
+              type: string
+              maxLength: 500
+            patterns:
+              type: array
+              items:
+                type: object
+                properties:
+                  pattern:
+                    type: string
+                  bullish:
+                    type: boolean
+            rsi:
+              type: number
+              minimum: 0
+              maximum: 100
+            macd:
+              type: object
+              properties:
+                signal:
+                  type: string
+                  enum: [BULLISH_CROSS, BEARISH_CROSS, NEUTRAL]
+                histogram:
+                  type: number
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Step 6: Synthesis
+    
+    OpeningConfirmation:
+      type: object
+      required: [expectedDirection, confirmationScore]
+      properties:
+        expectedDirection:
+          $ref: '#/components/schemas/TrendDirection'
+        confirmationScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        timeToConfirm:
+          type: string
+          example: "30min"
+    
+    TradingRecommendations:
+      type: object
+      properties:
+        primary:
+          type: string
+        targetUpside:
+          type: number
+        targetDownside:
+          type: number
+        stopLoss:
+          type: number
+        riskRewardRatio:
+          type: number
+          minimum: 0
+    
+    Synthesis:
+      type: object
+      required: [finalBias, confidence, openingConfirmation, timestamp, instrument]
+      properties:
+        finalBias:
+          $ref: '#/components/schemas/BiasDirection'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        openingConfirmation:
+          $ref: '#/components/schemas/OpeningConfirmation'
+        analysis:
+          type: object
+          properties:
+            summary:
+              type: string
+              maxLength: 800
+            stepWeights:
+              type: object
+              properties:
+                security:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                macro:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                flux:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                mag7:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                technical:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+            agreementLevel:
+              type: number
+              minimum: 0
+              maximum: 1
+            keyThesisPoints:
+              type: array
+              items:
+                type: string
+            counterArguments:
+              type: array
+              items:
+                type: string
+            tradingRecommendations:
+              $ref: '#/components/schemas/TradingRecommendations'
+        timestamp:
+          type: string
+          format: date-time
+        instrument:
+          type: string
+    
+    # Aggregate
+    
+    DailyBiasAnalysisResponse:
+      type: object
+      required: [instrument, timestamp, steps, finalBias]
+      properties:
+        instrument:
+          type: string
+          example: "NQ1"
+        timestamp:
+          type: string
+          format: date-time
+        steps:
+          type: object
+          required: [security, macro, flux, mag7, technical, synthesis]
+          properties:
+            security:
+              $ref: '#/components/schemas/SecurityAnalysis'
+            macro:
+              $ref: '#/components/schemas/MacroAnalysis'
+            flux:
+              $ref: '#/components/schemas/InstitutionalFlux'
+            mag7:
+              $ref: '#/components/schemas/Mag7Analysis'
+            technical:
+              $ref: '#/components/schemas/TechnicalStructure'
+            synthesis:
+              $ref: '#/components/schemas/Synthesis'
+        finalBias:
+          $ref: '#/components/schemas/BiasDirection'
+        metadata:
+          type: object
+          properties:
+            processingTime:
+              type: number
+              description: Processing time in milliseconds
+            cached:
+              type: boolean
+            fallbackUsed:
+              type: boolean
+            version:
+              type: string
+
+# ============================================================================
+# PATHS
+# ============================================================================
+
+paths:
+  
+  /api/daily-bias/analyze:
+    post:
+      summary: Perform complete 6-step daily bias analysis
+      description: |
+        Analyzes a trading instrument through all 6 steps and returns a comprehensive analysis.
+        
+        **Rate Limit**: 1 per day per user (use `forceRefresh: true` to bypass for admins)
+        **Cache**: 5 minutes per instrument
+      operationId: analyzeDailyBias
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+                  description: Trading instrument to analyze
+                useCache:
+                  type: boolean
+                  default: true
+                  description: Use cached result if available
+                forceRefresh:
+                  type: boolean
+                  default: false
+                  description: Force refresh (admin only)
+      responses:
+        '200':
+          description: Successful analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyBiasAnalysisResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  
+  /api/daily-bias/security:
+    post:
+      summary: Security Analysis (Step 1 only)
+      operationId: getSecurityAnalysis
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Security analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAnalysis'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/daily-bias/macro:
+    post:
+      summary: Macro Analysis (Step 2 only)
+      operationId: getMacroAnalysis
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Macro analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MacroAnalysis'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/daily-bias/flux:
+    post:
+      summary: Institutional Flux (Step 3 only)
+      operationId: getInstitutionalFlux
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Institutional flux result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionalFlux'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/daily-bias/mag7:
+    post:
+      summary: Mag 7 Leaders (Step 4 only)
+      operationId: getMag7Analysis
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Mag 7 analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mag7Analysis'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/daily-bias/technical:
+    post:
+      summary: Technical Structure (Step 5 only)
+      operationId: getTechnicalStructure
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Technical structure result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalStructure'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/daily-bias/synthesis:
+    post:
+      summary: Synthesis & Final Bias (Step 6 only)
+      description: Requires all 5 previous analyses to be completed
+      operationId: getSynthesis
+      security:
+        - BearerAuth: []
+      tags:
+        - Analysis Steps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument]
+              properties:
+                instrument:
+                  type: string
+                  example: "NQ1"
+      responses:
+        '200':
+          description: Synthesis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Synthesis'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ============================================================================
+# TAGS
+# ============================================================================
+
+tags:
+  - name: Analysis
+    description: Full analysis operations
+  - name: Analysis Steps
+    description: Individual analysis step endpoints
+

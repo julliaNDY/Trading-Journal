@@ -10,6 +10,7 @@ import { authLogger } from '@/lib/logger';
 const ADMIN_EMAILS = [
   'j.bengueche@gmail.com',
   'carmor.ttp@gmail.com',
+  'jordanbirdie@gmail.com',
 ];
 
 export async function getAdminEmails(): Promise<string[]> {
@@ -204,10 +205,24 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; er
       // Continue anyway - the user might already be deleted from auth
     }
 
-    // Delete from public.users (this will cascade to all child tables)
-    await prisma.user.delete({
+    // Check if user still exists in public.users
+    // The trigger on_auth_user_deleted may have already deleted it automatically
+    const userExistsCheck = await prisma.user.findUnique({
       where: { id: userId },
+      select: { id: true },
     });
+
+    // Only delete from public.users if it still exists
+    // The database trigger may have already deleted it when we deleted from auth.users
+    if (userExistsCheck) {
+      // Delete from public.users (this will cascade to all child tables)
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+    } else {
+      // User was already deleted by the database trigger - this is fine
+      authLogger.debug(`User ${userId} was already deleted by database trigger`);
+    }
 
     revalidatePath('/admin');
     

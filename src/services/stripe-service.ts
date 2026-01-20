@@ -124,7 +124,7 @@ export async function getOrCreateStripeCustomer(userId: string): Promise<string>
 // ============================================================================
 
 export interface CreateCheckoutSessionInput {
-  userId: string;
+  userId?: string;
   planInterval: PlanInterval;
   successUrl: string;
   cancelUrl: string;
@@ -132,14 +132,18 @@ export interface CreateCheckoutSessionInput {
 
 /**
  * Create a Stripe checkout session for subscription
+ * If userId is not provided, Stripe will collect customer email in checkout
  */
 export async function createCheckoutSession(
   input: CreateCheckoutSessionInput
 ): Promise<string> {
   const { userId, planInterval, successUrl, cancelUrl } = input;
 
-  // Get or create Stripe customer
-  const customerId = await getOrCreateStripeCustomer(userId);
+  // Get or create Stripe customer if userId is provided
+  let customerId: string | undefined;
+  if (userId) {
+    customerId = await getOrCreateStripeCustomer(userId);
+  }
 
   // Get the plan from database
   const plan = await prisma.plan.findFirst({
@@ -162,10 +166,14 @@ export async function createCheckoutSession(
   // Prepare subscription_data - only include trial_period_days if > 0
   const subscriptionData: any = {
     metadata: {
-      userId,
       planId: plan.id,
     },
   };
+  
+  // Add userId to metadata only if provided
+  if (userId) {
+    subscriptionData.metadata.userId = userId;
+  }
   
   // Stripe requires minimum 1 day for trial, so only include if trialDays > 0
   if (plan.trialDays > 0) {
@@ -173,8 +181,9 @@ export async function createCheckoutSession(
   }
 
   // Create checkout session
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
+  // For BETA plan, use 'if_required' payment method collection to avoid asking
+  // for payment details when a 100% coupon makes the total 0€
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [
@@ -188,16 +197,37 @@ export async function createCheckoutSession(
     cancel_url: cancelUrl,
     allow_promotion_codes: true,
     billing_address_collection: 'required',
-    customer_update: {
-      address: 'auto',
-      name: 'auto',
-    },
     locale: 'fr',
     metadata: {
-      userId,
       planId: plan.id,
     },
-  });
+  };
+
+  // Use customer ID if available, otherwise Stripe will collect email in checkout
+  if (customerId) {
+    sessionParams.customer = customerId;
+    // customer_update can only be used when customer is provided
+    sessionParams.customer_update = {
+      address: 'auto',
+      name: 'auto',
+    };
+  } else {
+    // When no customer ID, Stripe will collect email during checkout
+    // This allows unauthenticated users to start checkout
+  }
+
+  // Add userId to session metadata only if provided
+  if (userId) {
+    sessionParams.metadata = sessionParams.metadata || {};
+    sessionParams.metadata.userId = userId;
+  }
+
+  // Add payment_method_collection for BETA plan only
+  if (planInterval === PlanInterval.BETA) {
+    sessionParams.payment_method_collection = 'if_required';
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   if (!session.url) {
     throw new Error('Failed to create checkout session');

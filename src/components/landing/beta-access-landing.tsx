@@ -31,7 +31,7 @@ export function BetaAccessLanding() {
     try {
       const result = await createCheckoutSessionAction(PlanInterval.BETA);
 
-      if (result.success && result.data?.url) {
+      if (result.success && 'data' in result && result.data?.url) {
         window.location.href = result.data.url;
         return;
       }
@@ -70,6 +70,10 @@ export function BetaAccessLanding() {
             <Link
               href="/login"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                router.push('/login');
+              }}
             >
               {t('login')}
             </Link>

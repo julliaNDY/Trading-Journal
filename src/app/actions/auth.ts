@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 import { authLogger } from '@/lib/logger'
@@ -250,6 +251,199 @@ export async function updatePassword(
   } catch (error) {
     authLogger.error('Update password error', error)
     return { success: false, error: 'An error occurred' }
+  }
+}
+
+/**
+ * Create account from Stripe checkout session and send password creation email
+ */
+export async function createAccountFromStripe(
+  sessionId: string
+): Promise<{ success: boolean; error?: string; email?: string }> {
+  try {
+    authLogger.info('createAccountFromStripe called', { sessionId });
+    
+    // Import Stripe dynamically to avoid loading it in all auth contexts
+    const Stripe = (await import('stripe')).default
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      typescript: true,
+    })
+
+    // Retrieve the checkout session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['customer'],
+    })
+
+    authLogger.info('Stripe session retrieved', { 
+      sessionId: session.id, 
+      hasCustomer: !!session.customer,
+      customerEmail: session.customer_details?.email 
+    });
+
+    if (!session) {
+      authLogger.error('Checkout session not found', { sessionId });
+      return { success: false, error: 'Checkout session not found' }
+    }
+
+    // Get customer email from session
+    let customerEmail: string | null = null
+
+    if (typeof session.customer === 'string') {
+      // Customer is just an ID, need to retrieve it
+      const customer = await stripe.customers.retrieve(session.customer)
+      if (!customer.deleted && customer.email) {
+        customerEmail = customer.email
+      }
+    } else if (session.customer && 'email' in session.customer) {
+      // Customer is already expanded
+      customerEmail = session.customer.email || null
+    } else if (session.customer_details?.email) {
+      // Email in customer_details
+      customerEmail = session.customer_details.email
+    }
+
+    if (!customerEmail) {
+      authLogger.error('No email found in checkout session', { 
+        sessionId,
+        customerType: typeof session.customer,
+        customerDetails: session.customer_details 
+      });
+      return { success: false, error: 'No email found in checkout session' }
+    }
+
+    authLogger.info('Customer email extracted', { email: customerEmail });
+
+    const supabase = await createClient()
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: customerEmail },
+      select: { id: true },
+    })
+    
+    authLogger.info('User lookup result', { 
+      email: customerEmail,
+      exists: !!existingUser,
+      userId: existingUser?.id 
+    });
+
+    if (existingUser) {
+      // User already exists, send password reset email instead
+      const { error } = await supabase.auth.resetPasswordForEmail(customerEmail, {
+        redirectTo: `${getAppUrl()}/auth/callback?type=recovery`,
+      })
+
+      if (error) {
+        authLogger.error('Password reset email error for existing user', error)
+        return { success: false, error: 'Failed to send password creation email' }
+      }
+
+      return { success: true, email: customerEmail }
+    }
+
+    // Create new user in Supabase Auth using admin client to bypass email confirmation
+    // This allows us to send a password reset email immediately
+    const adminClient = createAdminClient()
+    const tempPassword = randomUUID() + randomUUID()
+
+    const { data: adminUserData, error: adminUserError } = await adminClient.auth.admin.createUser({
+      email: customerEmail,
+      password: tempPassword,
+      email_confirm: true, // Mark email as confirmed so we can send reset password email
+    })
+
+    authLogger.info('Supabase admin createUser result', { 
+      email: customerEmail,
+      hasUser: !!adminUserData?.user,
+      userId: adminUserData?.user?.id,
+      hasError: !!adminUserError,
+      errorMessage: adminUserError?.message 
+    });
+
+    if (adminUserError) {
+      authLogger.error('Admin create user error for Stripe checkout', adminUserError)
+      
+      // If user already exists in Auth but not in our DB (edge case)
+      if (adminUserError.message.includes('already registered') || adminUserError.message.includes('already been registered')) {
+        // Try to send password reset email instead
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(customerEmail, {
+          redirectTo: `${getAppUrl()}/auth/callback?type=recovery`,
+        })
+
+        if (resetError) {
+          authLogger.error('Password reset email error for existing user', resetError)
+          return { success: false, error: 'Account exists but failed to send password email' }
+        }
+
+        authLogger.info('Password reset email sent to existing user', { email: customerEmail })
+        return { success: true, email: customerEmail }
+      }
+
+      return { success: false, error: adminUserError.message }
+    }
+
+    if (!adminUserData?.user) {
+      return { success: false, error: 'Failed to create account' }
+    }
+
+    // Create user in our database
+    try {
+      const user = await prisma.user.upsert({
+        where: { id: adminUserData.user.id },
+        create: {
+          id: adminUserData.user.id,
+          email: customerEmail,
+        },
+        update: {
+          email: customerEmail,
+        },
+      });
+      authLogger.info('User created/updated in database', { 
+        userId: user.id,
+        email: user.email 
+      });
+    } catch (e: any) {
+      // Ignore if user already exists (race condition)
+      if (e?.code !== 'P2002') {
+        authLogger.error('Error creating user in database', { 
+          error: e,
+          userId: adminUserData.user.id,
+          email: customerEmail 
+        });
+      } else {
+        authLogger.debug('User already exists in database (race condition)', { 
+          userId: adminUserData.user.id 
+        });
+      }
+    }
+
+    // Send password reset email so user can set their password
+    authLogger.info('Sending password reset email', { 
+      email: customerEmail,
+      redirectTo: `${getAppUrl()}/auth/callback?type=recovery` 
+    });
+    
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(customerEmail, {
+      redirectTo: `${getAppUrl()}/auth/callback?type=recovery`,
+    })
+
+    if (resetError) {
+      authLogger.error('Password reset email error', { 
+        error: resetError,
+        email: customerEmail 
+      });
+      return { success: false, error: 'Account created but failed to send password email' }
+    }
+    
+    authLogger.info('Password reset email sent successfully', { email: customerEmail });
+
+    return { success: true, email: customerEmail }
+  } catch (error) {
+    authLogger.error('Create account from Stripe error', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred' 
+    }
   }
 }
 

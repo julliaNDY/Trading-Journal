@@ -32,6 +32,7 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 - **API-First Approach** : Identifier et valider les APIs nécessaires dès le début
 - **Research-Driven** : Recherches approfondies avant implémentation pour efficacité maximale
 - **Early Validation** : POC et tests précoces pour valider l'approche technique
+- **🤖 Préférence Google Gemini** : Préférer l'API Google Gemini pour les besoins d'IA lorsque c'est possible (au lieu d'OpenAI)
 
 ### 1.3 Scope & Limitations
 
@@ -61,7 +62,7 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 **Activités** :
 - POC TimescaleDB + Replay Engine
 - POC Market Data Providers (validation APIs)
-- POC AI Architecture (OpenAI, embeddings)
+- POC AI Architecture (Google Gemini API préféré, embeddings)
 - Architecture détaillée (approbation technique)
 - Setup infrastructure (TimescaleDB, Redis, Vector DB)
 - Documentation technique initiale
@@ -168,7 +169,7 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 - Future Simulators : Projection compte dans X mois
 
 **Risques** :
-- Coûts API OpenAI/LLM
+- Coûts API Google Gemini/LLM
 - Latence feedback AI
 - Qualité résultats AI
 
@@ -316,7 +317,7 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 **Dépendances** : Phase 3 complétée (AI pour Voice Notes), Phase 2 (données)
 
 **Délivrables** :
-- Voice Notes : Enregistrement vocal pour trades/journées (transcription Whisper + synthèse IA OpenAI)
+- Voice Notes : Enregistrement vocal pour trades/journées (transcription Whisper + synthèse IA Google Gemini API préféré)
 - Playbooks Sharing : Partage playbooks (liens publics, embed)
 - Tags améliorés : Tags assignables aux trades ET aux journées (déjà implémenté partiellement)
 - WYSIWYG Editor : Éditeur amélioré pour notes quotidiennes
@@ -324,19 +325,19 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 - UI Sharing : Interface partage avec permissions
 
 **⚠️ IMPORTANT - APIs Requises** :
-- **OpenAI Whisper API** : Transcription audio (déjà intégré partiellement)
-- **OpenAI GPT-4o API** : Synthèse IA notes vocales (déjà intégré partiellement)
+- **OpenAI Whisper API** : Transcription audio (déjà intégré partiellement) - Note: Google Gemini n'a pas d'API de transcription audio, donc OpenAI Whisper reste pour la transcription
+- **Google Gemini API** : Synthèse IA notes vocales (préféré à OpenAI GPT-4o) - ou OpenAI GPT-4o en fallback si Gemini n'est pas adapté
 
-**⚠️ NOTIFICATION IMMEDIATE REQUISE** : Si nouvelles APIs OpenAI requises (ex: TTS, Voice API), notifier immédiatement le Product Manager.
+**⚠️ NOTIFICATION IMMEDIATE REQUISE** : Si nouvelles APIs AI requises (ex: TTS, Voice API), notifier immédiatement le Product Manager.
 
 **Risques** :
-- Coûts API OpenAI (Whisper + GPT-4o)
+- Coûts API OpenAI Whisper + Google Gemini (ou fallback OpenAI GPT-4o)
 - Qualité transcription/synthèse
 
 **Mitigation** :
 - Caching résultats transcription/synthèse
 - Validation qualité avec utilisateurs
-- Budget OpenAI validé
+- Budget APIs validé
 
 **Critères de Succès** :
 - Transcription < 5s pour 1 minute audio
@@ -362,8 +363,8 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 - **Voice-First Trading Coach** : Coaching vocal temps réel pendant trading
 
 **⚠️ IMPORTANT - APIs Requises** :
-- **OpenAI GPT-4o fine-tuned** : Path Predictor (fine-tuning requis)
-- **OpenAI Voice API** : Voice-First Trading Coach (si disponible)
+- **Google Gemini API (fine-tuned si possible)** : Path Predictor (préféré à OpenAI GPT-4o fine-tuned, ou OpenAI GPT-4o fine-tuned en fallback si Gemini fine-tuning n'est pas disponible)
+- **Google Gemini Voice API (si disponible)** : Voice-First Trading Coach (préféré) - ou OpenAI Voice API en fallback
 - **ElevenLabs TTS API** : Text-to-Speech pour coaching vocal
 - **Qdrant/Pinecone API** : Vector search pour Collective Intelligence
 
@@ -399,35 +400,263 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 **Dépendances** : Aucune dépendance technique (peut être développé en parallèle)
 
 **Délivrables** :
-- Landing Page : Hero, value proposition, social proof, CTA
+- Landing Page : Hero, value proposition, social proof, CTA, **"Join Discord" button (emphasize "Free")**
 - Features Page : Modules détaillés, comparison table, use cases
 - Pricing Page : Plans (Free, Pro, Elite), pricing tiers, feature comparison
 - Backtesting System Page : Description, capabilities, examples
 - Trading Path AI Page : AI features, how it works, privacy
 - Supported Brokers Page : Liste complète 240+ brokers, search/filter, integration status
 - Resources/Academy Page : Trading Path Academy, blog, documentation, community
+- **SEO Advanced Optimization** :
+  - **Sitemap XML dynamique** : Génération automatique sitemap avec toutes les pages publiques
+  - **Robots.txt optimisé** : Configuration correcte pour crawlers avec sitemap reference
+  - **Structured Data (Schema.org)** : JSON-LD pour Organization, SoftwareApplication, WebSite, Article (blog)
+  - **Meta Tags avancés** : Open Graph, Twitter Cards, meta descriptions optimisées
+  - **Canonical URLs** : Gestion des URLs canoniques pour éviter contenu dupliqué
+  - **URL Structure optimisée** : URLs SEO-friendly, breadcrumbs, navigation hiérarchique
+  - **Content Optimization** : Headings optimisés (H1-H6), alt texts images, internal linking
+  - **Performance SEO** : Core Web Vitals, lazy loading, code splitting, compression
+  - **International SEO** : Hreflang tags pour FR/EN/ES/PT, sitemaps multi-langues
+  - **Blog SEO** : Categories, tags, related posts, RSS feed, archive pages
+  - **Local SEO** (si applicable) : Structured data LocalBusiness, Google Business Profile
+  - **Support Multi-Langues Étendu** :
+    - **Traduction Espagnol (ES)** : Traduction complète de l'application (messages, pages publiques, UI)
+    - **Traduction Portugais (PT)** : Traduction complète de l'application (messages, pages publiques, UI)
+    - **Fichiers de traduction** : Extension `messages/es.json` et `messages/pt.json`
+    - **Configuration i18n** : Mise à jour `i18n.ts` et `src/i18n/config.ts` pour supporter ES/PT
+    - **Language Switcher** : Ajout ES/PT dans le sélecteur de langue (UI)
+    - **Middleware i18n** : Support routing multi-langues avec préfixes ES/PT
+    - **SEO multi-langues** : Hreflang tags pour toutes les langues (EN/FR/ES/PT)
+    - **Sitemaps multi-langues** : Génération sitemaps séparés par langue
+    - **Pages publiques traduites** : Landing, Features, Pricing, etc. en ES/PT
 
 **⚠️ IMPORTANT - APIs Requises** :
 - Aucune API externe requise (pages statiques/dynamiques uniquement)
-- Si intégration tiers (ex: newsletter, analytics), notifier Product Manager
+- Si intégration tiers (ex: newsletter, analytics, Google Search Console API), notifier Product Manager
 
 **Risques** :
 - Maintenance liste brokers (240+)
 - SEO et performance pages publiques
+- Complexité optimisation SEO avancée (structured data, sitemaps dynamiques)
+- Complexité maintenance traductions (4 langues : EN/FR/ES/PT)
+- Cohérence terminologie trading entre langues
 
 **Mitigation** :
 - CMS pour contenu (si nécessaire)
-- SEO optimization
+- SEO optimization avancée avec tests réguliers (Google Search Console, Lighthouse)
 - Performance optimization (CDN, lazy loading images)
+- Documentation SEO complète pour maintenance continue
+- Glossaire terminologie trading unifié (toutes langues)
+- Process de traduction avec validation native speakers
+- Tests réguliers cohérence traductions (outils i18n linting)
 
 **Critères de Succès** :
 - Pages publiques load < 2s
 - SEO score > 90 (Lighthouse)
 - Conversion Landing → Signup > 5%
+- **SEO Advanced Metrics** :
+  - Structured Data validés (Google Rich Results Test)
+  - Sitemap XML accessible et à jour
+  - Core Web Vitals : LCP < 2.5s, FID < 100ms, CLS < 0.1
+  - Mobile-friendly (Mobile-Friendly Test)
+  - Indexation > 80% des pages publiques (Google Search Console)
+  - Impressions organiques croissance > 20% après 3 mois
+  - **Multi-Langues Metrics** :
+    - Traduction complète 4 langues (EN/FR/ES/PT) : 100% des clés traduites
+    - Pages publiques traduites : Landing, Features, Pricing en ES/PT
+    - Hreflang tags fonctionnels pour toutes les langues
+    - Sitemaps multi-langues générés et indexés
 
 ---
 
-## 3. Epics Détaillés
+### Phase 10 : Community & Engagement (2-3 mois)
+
+**Objectif** : Engager la communauté et permettre feedback utilisateurs
+
+**Priorité** : 🟡 MOYENNE-HAUTE
+
+**Epics** :
+- Epic 10 : Beta & Voting System
+- Epic 11 : Advanced Admin & User Management
+
+**Dépendances** : Phase 1 (Foundation), Phase 9 (Pages Publiques - Landing)
+
+**Délivrables** :
+- Beta Voting Page : Interface utilisateur pour voter sur features (nouvelle page sidebar entre "Account" et "Settings")
+- Roadmap Visualization : Affichage roadmap avec statuts (🟠 Upcoming=Orange, 🟢 Completed=Green, 🔵 In Progress=Blue)
+- Admin Votes Management : CRUD options de vote, résultats, toggle status (nouvel onglet "Votes" dans Admin Dashboard)
+- Admin User Management : Gestion avancée utilisateurs (extend/modify/suspend subscriptions, promotion Admin)
+- **Admin User Detail Page** : Page dédiée pour chaque utilisateur accessible depuis l'admin dashboard, affichant :
+  - **1. Espace de stockage utilisé** : Taille totale fichiers uploadés (screenshots, audio, etc.) par type de fichier, évolution dans le temps, limite/quota utilisateur
+  - **2. Fonctionnalités utilisées + fréquence** : Analytics d'utilisation des features (dashboard, journal, calendar, statistics, import, etc.) avec fréquence d'utilisation (visites/jour, temps passé, dernières utilisations), tendances d'utilisation dans le temps
+  - **3. Dépenses estimées en APIs** : Coûts estimés par API utilisée (Google Gemini/OpenAI, Whisper, market data providers, etc.), répartition des coûts par feature, coûts totaux mensuels/an, projections futures
+  - **4. Informations relatives au compte** :
+    - Informations profil (email, Discord, date inscription, dernière connexion)
+    - Abonnement actuel (plan, statut, date début/fin, renouvellement auto)
+    - Statistiques trading (nombre trades, comptes, PnL total, meilleur/pire trade)
+    - Activité récente (derniers imports, dernières notes journal, derniers playbooks créés)
+    - Historique actions admin (blocage/déblocage, modifications abonnement, promotions)
+- Email Notifications : Notifications automatiques lors modifications admin avec commentaire personnalisé
+- Landing Page Update : Ajout bouton "Join Discord" (emphasize "Free") sur landing page temporaire
+
+**⚠️ IMPORTANT - APIs Requises** :
+- **Resend/SendGrid API** : Envoi emails notifications (déjà intégré partiellement)
+- **Stripe API** : `subscriptions.update` pour modifications abonnements
+
+**⚠️ NOTIFICATION IMMEDIATE REQUISE** : Si nouvelles APIs email ou Stripe nécessaires, notifier immédiatement le Product Manager.
+
+**Risques** :
+- Complexité système de vote (spam, manipulation)
+- Gestion permissions admin (sécurité)
+- Performance calculs stockage/analytics pour nombreux utilisateurs
+- Précision estimation coûts APIs (nécessite tracking détaillé)
+
+**Mitigation** :
+- Rate limiting sur votes (1 vote par utilisateur par option)
+- Validation permissions stricte
+- Audit logs pour actions admin
+- Caching calculs stockage/analytics (refresh périodique)
+- Tracking détaillé utilisation APIs pour estimations précises
+- Indexes optimisés pour queries analytics utilisateurs
+
+**Critères de Succès** :
+- Système de vote fonctionnel (1 vote par utilisateur par option)
+- Roadmap visualization < 1s load
+- Admin actions < 2s (extend/modify subscriptions)
+- **Admin User Detail Page Metrics** :
+  - Page dédiée utilisateur accessible depuis admin dashboard
+  - Calcul stockage < 1s (cached si nécessaire)
+  - Analytics fonctionnalités avec données réelles
+  - Estimation coûts APIs < 500ms
+  - Informations compte complètes et à jour
+
+---
+
+### Phase 11 : AI Daily Bias Analysis (3-4 mois)
+
+**Objectif** : Analyse de biais quotidien par instrument avec AI
+
+**Priorité** : 🟠 HAUTE
+
+**Epics** :
+- Epic 12 : AI Daily Bias Analysis
+
+**Dépendances** : Phase 3 (AI & Intelligence), Phase 2 (Data Collection)
+
+**Délivrables** :
+- Daily Bias Page : Interface sélection instrument + analyse
+- 6-Step Analysis Engine : Security, Macro, Institutional Flux, Mag 7 Leaders, Technical Structure, Synthesis
+- Real-Time Data Integration : ForexFactory, TradingView, Barchart, **FinancialJuice** (ou injection manuelle)
+- FinancialJuice Verification : Vérification supplémentaire des données et analyses via consultation du site FinancialJuice
+- Bias Report : Rapport structuré + Final Bias (Bullish/Bearish/Neutral) + Opening Confirmation
+- Rate Limiting : 1 requête/jour par utilisateur (unlimited pour admins)
+- Instrument Support : 21 instruments pré-définis (NQ1, ES1, TSLA, NVDA, SPY, TQQQ, AMD, AAPL, XAU/USD, PLTR, SOXL, AMZN, MSTR, EUR/USD, QQQ, MSFT, COIN, BTC, META, GME, SQQQ, MARA)
+
+**⚠️ IMPORTANT - APIs Requises** :
+- **Google Gemini API** : Analyse 6-step avec contexte (préféré à OpenAI GPT-4o, ou OpenAI GPT-4o en fallback si Gemini n'est pas adapté)
+- **ForexFactory API** : Données macro économiques (ou scraping)
+- **TradingView API** : Données techniques (ou scraping)
+- **Barchart API** : Données market (ou alternative)
+- **FinancialJuice** : Consultation/API pour vérification supplémentaire des données et analyses (ou scraping)
+- **Alternative** : Injection manuelle données par utilisateur
+
+**⚠️ NOTIFICATION IMMEDIATE REQUISE** : Dès qu'une API externe est identifiée (ForexFactory, TradingView, Barchart, FinancialJuice), notifier immédiatement le Product Manager pour validation budget et approbation.
+
+**Vérification FinancialJuice** :
+- **Objectif** : Ajouter une couche de vérification supplémentaire pour valider les données et analyses
+- **Méthode** : Consultation du site FinancialJuice (via API si disponible, sinon scraping) pour :
+  - Vérifier la cohérence des données macro économiques
+  - Confirmer les flux institutionnels identifiés
+  - Valider les tendances techniques détectées
+  - Cross-reference avec les données de l'analyse 6-step
+- **Intégration** : La vérification FinancialJuice doit être incluse dans le rapport final avec une section dédiée indiquant les confirmations/écarts identifiés
+
+**Risques** :
+- Coûts APIs données externes
+- Latence analyse 6-step (peut être longue)
+- Qualité données externes (scraping vs API)
+- Disponibilité FinancialJuice (API ou scraping)
+
+**Mitigation** :
+- POC avec données simulées d'abord
+- Caching résultats analyse (même jour = même résultat)
+- Fallback injection manuelle si APIs indisponibles
+- Validation budget avant intégration APIs
+- Research approfondie sur FinancialJuice (API vs scraping)
+
+**Critères de Succès** :
+- Analyse 6-step complète < 30s
+- Vérification FinancialJuice intégrée dans le rapport
+- Rate limiting fonctionnel (1/jour utilisateur)
+- Rapport structuré avec Final Bias + Opening Confirmation + Section FinancialJuice
+
+---
+
+### Phase 12 : Future Roadmap Features (Q3-Q4 2027)
+
+**Objectif** : Features avancées pour différenciation et engagement
+
+**Priorité** : 🟢 BASSE (post-MVP)
+
+**Epics** :
+- Epic 13 : Benchmarks & Peer Comparison
+- Epic 14 : Video AI Analysis
+- Epic 15 : Social Feed & Sharing
+- Epic 16 : Mobile App Companion
+- Epic 17 : Gamification & Challenges
+
+**Dépendances** : Phase 3 (AI), Phase 5 (Analytics), Phase 8 (Killer Features)
+
+**Délivrables** :
+- **Benchmarks** : Comparaison performance avec traders anonymisés
+- **Video AI** : Analyse vidéos uploadées pour conseils trading
+- **Social Feed** : Partage meilleurs trades/stratégies
+- **Mobile App** : Application mobile companion (iOS/Android)
+- **Gamification** : Challenges trading avec récompenses
+
+**⚠️ IMPORTANT - APIs Requises** :
+- **Google Gemini Vision API** : Analyse vidéos (préféré à OpenAI Vision API, ou OpenAI Vision API en fallback si Gemini Vision n'est pas adapté)
+- **Mobile Push Notifications** : Firebase/APNs
+- **Social Media APIs** : Partage (Twitter, LinkedIn) - optionnel
+
+**⚠️ NOTIFICATION IMMEDIATE REQUISE** : Dès qu'une API pour ces features est identifiée, notifier immédiatement le Product Manager.
+
+**Risques** :
+- Complexité mobile app (iOS + Android)
+- Coûts APIs vidéo AI
+- Maintenance social feed
+
+**Critères de Succès** :
+- Benchmarks : Matching peers similaires < 2s
+- Video AI : Analyse vidéo < 1min
+- Social Feed : Partage fonctionnel
+- Mobile App : Performance native
+- Gamification : Challenges avec rewards
+
+---
+
+## 3. Roadmap Visualization Structure
+
+Pour supporter la visualisation de la roadmap (Feature 1 - Beta & Voting System), la roadmap DOIT utiliser cette structure markdown :
+
+```markdown
+### Feature Name
+- **Status**: 🟠 Upcoming | 🟢 Completed | 🔵 In Progress
+- **Priority**: 🔴 CRITIQUE | 🟠 HAUTE | 🟡 MOYENNE | 🟢 BASSE
+- **Epic**: Epic X
+- **Phase**: Phase Y
+```
+
+**Mapping Status → Color** :
+- 🟠 Upcoming → Orange (affiché en orange dans l'UI)
+- 🟢 Completed → Green (affiché en vert dans l'UI)
+- 🔵 In Progress → Blue (affiché en bleu dans l'UI)
+
+**Note** : Le composant de visualisation (`src/components/beta/roadmap-visualization.tsx`) parse cette structure markdown et applique les couleurs correspondantes.
+
+---
+
+## 4. Epics Détaillés
 
 *(Détails complets de chaque Epic seront dans des documents séparés - format Epic avec Stories, Acceptance Criteria, etc.)*
 
@@ -479,17 +708,68 @@ Cette roadmap définit le plan de développement de **Trading Path Journal**, tr
 - **Durée estimée** : 3-4 mois
 - **Dépendances** : Epic 4 (AI), Epic 3 (Données), Epic 5 (Analytics)
 
-### Epic 9 : Pages Publiques
+### Epic 9 : Pages Publiques & SEO Advanced Optimization
 - **Status** : 📋 Backlog
 - **Phase** : Phase 9 (Pages Publiques)
 - **Durée estimée** : 2-3 mois
 - **Dépendances** : Aucune (peut être en parallèle)
+- **Note Spécifique** : Inclut optimisation SEO avancée (sitemap, structured data, meta tags, Core Web Vitals)
+
+### Epic 10 : Beta & Voting System
+- **Status** : 📋 Backlog
+- **Phase** : Phase 10 (Community & Engagement)
+- **Durée estimée** : 2-3 mois
+- **Dépendances** : Phase 1 (Foundation), Phase 9 (Landing)
+
+### Epic 11 : Advanced Admin & User Management
+- **Status** : 📋 Backlog
+- **Phase** : Phase 10 (Community & Engagement)
+- **Durée estimée** : 1-2 mois
+- **Dépendances** : Phase 1 (Foundation), Admin Dashboard existant
+- **Note Spécifique** : Inclut page dédiée utilisateur admin avec : stockage utilisé, fonctionnalités utilisées + fréquence, dépenses APIs estimées, informations compte complètes
+
+### Epic 12 : AI Daily Bias Analysis
+- **Status** : 📋 Backlog
+- **Phase** : Phase 11 (AI Daily Bias)
+- **Durée estimée** : 3-4 mois
+- **Dépendances** : Phase 3 (AI), Phase 2 (Data)
+- **Note Spécifique** : Inclut vérification supplémentaire via FinancialJuice
+
+### Epic 13 : Benchmarks & Peer Comparison
+- **Status** : 📋 Backlog
+- **Phase** : Phase 12 (Future Features)
+- **Durée estimée** : 2-3 mois
+- **Dépendances** : Phase 3 (AI), Phase 5 (Analytics)
+
+### Epic 14 : Video AI Analysis
+- **Status** : 📋 Backlog
+- **Phase** : Phase 12 (Future Features)
+- **Durée estimée** : 3-4 mois
+- **Dépendances** : Phase 3 (AI)
+
+### Epic 15 : Social Feed & Sharing
+- **Status** : 📋 Backlog
+- **Phase** : Phase 12 (Future Features)
+- **Durée estimée** : 2-3 mois
+- **Dépendances** : Phase 7 (Journalisation & Partage)
+
+### Epic 16 : Mobile App Companion
+- **Status** : 📋 Backlog
+- **Phase** : Phase 12 (Future Features)
+- **Durée estimée** : 4-6 mois
+- **Dépendances** : Phase 2 (Core Features)
+
+### Epic 17 : Gamification & Challenges
+- **Status** : 📋 Backlog
+- **Phase** : Phase 12 (Future Features)
+- **Durée estimée** : 2-3 mois
+- **Dépendances** : Phase 3 (AI), Phase 5 (Analytics)
 
 ---
 
-## 4. Dépendances & Ordre de Développement
+## 5. Dépendances & Ordre de Développement
 
-### 4.1 Graphique de Dépendances
+### 5.1 Graphique de Dépendances
 
 ```
 Phase 0: Foundation & Planning (POC)
@@ -513,9 +793,15 @@ Phase 0: Foundation & Planning (POC)
     │               └─→ Phase 6: Replay & Visualisation (Epic 6)
     │
     └─→ Phase 9: Pages Publiques (Epic 9) [Parallèle possible]
+            │
+            └─→ Phase 10: Community & Engagement (Epic 10, Epic 11)
+                    │
+                    └─→ Phase 11: AI Daily Bias Analysis (Epic 12)
+                            │
+                            └─→ Phase 12: Future Features (Epic 13-17)
 ```
 
-### 4.2 Ordre de Développement Recommandé
+### 5.2 Ordre de Développement Recommandé
 
 1. **Phase 0** : Foundation & Planning (POC) - **2-3 semaines**
 2. **Phase 1** : Infrastructure & Foundation - **2-3 mois**
@@ -527,10 +813,13 @@ Phase 0: Foundation & Planning (POC)
 8. **Phase 7** : Journalisation & Partage - **2-3 mois** (après Phase 3)
 9. **Phase 8** : Killer Features Inédites - **3-4 mois** (après Phase 3, 5)
 10. **Phase 9** : Pages Publiques - **2-3 mois** (peut être en parallèle dès Phase 2)
+11. **Phase 10** : Community & Engagement - **2-3 mois** (après Phase 1, 9)
+12. **Phase 11** : AI Daily Bias Analysis - **3-4 mois** (après Phase 3, 2)
+13. **Phase 12** : Future Features - **Q3-Q4 2027** (après Phases 3, 5, 8)
 
 **Total Estimé** : 15-22 mois (avec équipe dédiée)
 
-### 4.3 Chemin Critique
+### 5.3 Chemin Critique
 
 Le chemin critique (minimum pour MVP) :
 
@@ -540,9 +829,9 @@ Le chemin critique (minimum pour MVP) :
 
 ---
 
-## 5. Directives pour Développeurs
+## 6. Directives pour Développeurs
 
-### 5.1 ⚠️ NOTIFICATION IMMEDIATE - APIs Externes
+### 6.1 ⚠️ NOTIFICATION IMMEDIATE - APIs Externes
 
 **RÈGLE CRITIQUE** : Dès qu'une fonction nécessite une API externe (qu'elle soit payante ou gratuite), le développeur DOIT notifier immédiatement le Product Manager AVANT toute implémentation.
 
@@ -555,7 +844,7 @@ Le chemin critique (minimum pour MVP) :
 
 **APIs concernées** :
 - APIs de data providers (Barchart, IBKR, Intrinio, CQG, LSEG, TickData, etc.)
-- APIs AI (OpenAI, Anthropic, etc.) - nouvelles APIs ou extensions
+- APIs AI (Google Gemini préféré, OpenAI en fallback, Anthropic, etc.) - nouvelles APIs ou extensions
 - APIs brokers (nouvelles intégrations)
 - APIs tierces (TTS, Voice, etc.)
 
@@ -572,7 +861,21 @@ API Required Notification:
 - Justification: [Pourquoi cette API est nécessaire]
 ```
 
-### 5.2 🔍 Research Obligatoire - Brokers & Implémentations
+### 6.2 🤖 Préférence Google Gemini pour APIs d'IA
+
+**RÈGLE IMPORTANTE** : Pour tous les besoins d'IA (analyse, synthèse, génération de contenu, etc.), préférer l'API Google Gemini à OpenAI lorsque c'est techniquement possible et adapté au cas d'usage.
+
+**Exceptions** :
+- **Transcription audio** : OpenAI Whisper reste nécessaire (Gemini n'a pas d'API de transcription audio)
+- **Fine-tuning spécifique** : Si le fine-tuning OpenAI est nécessaire et que Gemini ne le supporte pas, OpenAI peut être utilisé
+
+**Fallback** : Si Google Gemini n'est pas adapté ou disponible pour un cas d'usage spécifique, OpenAI peut être utilisé en fallback après validation avec le Product Manager.
+
+**Documentation** :
+- Tous les choix d'API d'IA doivent être documentés avec justification
+- Les cas où OpenAI est utilisé (au lieu de Gemini) doivent être explicitement justifiés
+
+### 6.3 🔍 Research Obligatoire - Brokers & Implémentations
 
 **RÈGLE OBLIGATOIRE** : Avant toute implémentation de fonctionnalité liée aux brokers ou implémentations techniques, le développeur DOIT effectuer des recherches approfondies pour garantir l'efficacité maximale.
 
@@ -663,19 +966,20 @@ Research Document: [Feature/Broker Name]
    - [Mitigations proposées]
 ```
 
-### 5.3 Checklist Pré-Implémentation
+### 6.4 Checklist Pré-Implémentation
 
 Avant de commencer une implémentation, le développeur DOIT :
 
-- [ ] Effectuer research approfondie (Section 5.2)
+- [ ] Effectuer research approfondie (Section 6.3)
 - [ ] Identifier toutes les APIs externes nécessaires
-- [ ] Notifier Product Manager pour APIs (Section 5.1)
+- [ ] Vérifier si Google Gemini est adapté pour les besoins d'IA (Section 6.2)
+- [ ] Notifier Product Manager pour APIs (Section 6.1)
 - [ ] Documenter approche recommandée
 - [ ] Valider approche avec équipe technique
 - [ ] Créer ticket/story avec détails techniques
 - [ ] Estimer temps et risques
 
-### 5.4 Standards de Code & Documentation
+### 6.5 Standards de Code & Documentation
 
 - **Code Quality** : TypeScript strict, ESLint, Prettier
 - **Tests** : Unit tests (Vitest) + Integration tests (Playwright)
@@ -685,9 +989,9 @@ Avant de commencer une implémentation, le développeur DOIT :
 
 ---
 
-## 6. Métriques de Succès
+## 7. Métriques de Succès
 
-### 6.1 Métriques Techniques (par Phase)
+### 7.1 Métriques Techniques (par Phase)
 
 | Phase | Métrique | Cible | Status |
 |-------|----------|-------|--------|
@@ -705,15 +1009,25 @@ Avant de commencer une implémentation, le développeur DOIT :
 | Phase 7 | Transcription Latency | < 5s pour 1min audio | ⏳ Pending |
 | Phase 8 | Path Predictor Latency | < 5s | ⏳ Pending |
 | Phase 9 | Pages Publiques Load | < 2s | ⏳ Pending |
+| Phase 9 | SEO Score (Lighthouse) | > 90 | ⏳ Pending |
+| Phase 9 | Core Web Vitals | LCP < 2.5s, FID < 100ms, CLS < 0.1 | ⏳ Pending |
+| Phase 9 | Indexation Pages Publiques | > 80% (Google Search Console) | ⏳ Pending |
+| Phase 9 | Traduction Complète (EN/FR/ES/PT) | 100% clés traduites | ⏳ Pending |
+| Phase 9 | Pages Publiques Traduites ES/PT | Landing, Features, Pricing | ⏳ Pending |
+| Phase 10 | Admin User Detail Page Load | < 2s | ⏳ Pending |
+| Phase 10 | Calcul Stockage Utilisateur | < 1s (cached) | ⏳ Pending |
+| Phase 10 | Estimation Coûts APIs | < 500ms | ⏳ Pending |
+| Phase 11 | Analyse 6-step Latency | < 30s | ⏳ Pending |
+| Phase 11 | FinancialJuice Verification | Intégrée dans rapport | ⏳ Pending |
 
-### 6.2 Métriques Produit
+### 7.2 Métriques Produit
 
 - **Feature Parity** : 100% des fonctionnalités Premium des 5 concurrents intégrées
 - **User Satisfaction** : NPS > 50
 - **Adoption** : 80% des utilisateurs actifs utilisent au moins 3 modules
 - **Retention** : Retention Day 30 > 60%
 
-### 6.3 Métriques Business
+### 7.3 Métriques Business
 
 - **Conversion** : Free → Paid conversion > 15%
 - **MRR Growth** : Croissance mensuelle > 20%
@@ -722,19 +1036,20 @@ Avant de commencer une implémentation, le développeur DOIT :
 
 ---
 
-## 7. Risques & Mitigations
+## 8. Risques & Mitigations
 
-### 7.1 Risques Techniques
+### 8.1 Risques Techniques
 
 | Risque | Impact | Probabilité | Mitigation | Status |
 |--------|--------|-------------|------------|--------|
 | Complexité TimescaleDB | High | Medium | POC préalable (Phase 0) | ⏳ Pending |
 | Performance Replay | High | Medium | Compression, CDN caching | ⏳ Pending |
-| Coûts APIs OpenAI | Medium | High | Caching agressif, batch processing | ⏳ Pending |
+| Coûts APIs Google Gemini/LLM | Medium | High | Caching agressif, batch processing | ⏳ Pending |
 | Scalabilité 240+ brokers | Medium | Medium | Workers parallélisés, rate limiting | ⏳ Pending |
 | Complexité UI multi-compte | Medium | High | Virtual scrolling, UX testing précoce | ⏳ Pending |
+| Disponibilité FinancialJuice | Medium | Medium | Fallback injection manuelle, API vs scraping | ⏳ Pending |
 
-### 7.2 Risques Business
+### 8.2 Risques Business
 
 | Risque | Impact | Probabilité | Mitigation | Status |
 |--------|--------|-------------|------------|--------|
@@ -742,7 +1057,7 @@ Avant de commencer une implémentation, le développeur DOIT :
 | Timeline dépassée | Medium | Medium | Roadmap réaliste, buffer temps | ⏳ Pending |
 | Complexité sous-estimée | High | Medium | POC précoces, validation continue | ⏳ Pending |
 
-### 7.3 Risques Produit
+### 8.3 Risques Produit
 
 | Risque | Impact | Probabilité | Mitigation | Status |
 |--------|--------|-------------|------------|--------|
@@ -751,20 +1066,21 @@ Avant de commencer une implémentation, le développeur DOIT :
 
 ---
 
-## 8. Timeline Global
+## 9. Timeline Global
 
-### 8.1 Vue d'Ensemble
+### 9.1 Vue d'Ensemble
 
 ```
 Q1 2026: Phase 0 (POC) + Phase 1 (Foundation)
 Q2-Q3 2026: Phase 2 (Core Features) + Phase 3 (AI) [parallèle partiel]
 Q4 2026 - Q1 2027: Phase 4 (Market Replay) + Phase 5 (Analytics)
 Q2 2027: Phase 6 (Replay/Visualisation) + Phase 7 (Journalisation)
-Q3 2027: Phase 8 (Killer Features)
-Q4 2027: Phase 9 (Pages Publiques) + Polish & Launch
+Q3 2027: Phase 8 (Killer Features) + Phase 10 (Community & Engagement)
+Q4 2027: Phase 9 (Pages Publiques) + Phase 11 (AI Daily Bias) + Polish & Launch
+Q1-Q2 2028: Phase 12 (Future Features - Benchmarks, Video AI, Social, Mobile, Gamification)
 ```
 
-### 8.2 Milestones Clés
+### 9.2 Milestones Clés
 
 | Milestone | Date Estimée | Status |
 |-----------|--------------|--------|
@@ -775,21 +1091,22 @@ Q4 2027: Phase 9 (Pages Publiques) + Polish & Launch
 | Market Replay & Backtesting Complete | Q1 2027 | ⏳ Pending |
 | Analytics Avancées Complete | Q2 2027 | ⏳ Pending |
 | MVP Complete (Phases 1-4) | Q2 2027 | ⏳ Pending |
+| AI Daily Bias Analysis Complete (Phase 11) | Q4 2027 | ⏳ Pending |
 | Full Platform Complete | Q4 2027 | ⏳ Pending |
 
 ---
 
-## 9. Prochaines Étapes
+## 10. Prochaines Étapes
 
 1. **Validation Roadmap** : Review avec équipe produit & technique
 2. **Priorisation** : Affiner priorités selon contraintes business
-3. **Budget** : Valider budget APIs externes
+3. **Budget** : Valider budget APIs externes (notamment Google Gemini vs OpenAI)
 4. **Ressources** : Définir taille équipe, compétences nécessaires
-5. **Phase 0** : Démarrer POC (TimescaleDB, Replay, AI)
+5. **Phase 0** : Démarrer POC (TimescaleDB, Replay, AI avec Google Gemini)
 6. **Epics Détaillés** : Créer documents détaillés pour chaque Epic (Stories, Acceptance Criteria)
 
 ---
 
 **Document Status** : Draft - À valider par équipe produit & technique  
-**Last Updated** : 2026-01-XX  
+**Last Updated** : 2026-01-17  
 **Next Review** : Après validation roadmap

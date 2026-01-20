@@ -1,0 +1,83 @@
+{
+  "name": "NinjaTrader - Executions Export",
+  "brokerName": "ninjatrader",
+  "version": "1.0",
+  "description": "Import profile for NinjaTrader 8 executions CSV export. Reconstructs round-trip trades from individual fills.",
+  "fileFormat": {
+    "type": "csv",
+    "delimiter": ",",
+    "encoding": "utf-8",
+    "hasHeader": true,
+    "skipRows": 0
+  },
+  "columnMapping": {
+    "symbol": "Instrument",
+    "direction": {
+      "column": "Rate",
+      "mapping": {
+        "Buy": "LONG",
+        "Sell": "SHORT"
+      }
+    },
+    "openedAt": {
+      "column": "Time",
+      "format": "M/d/yyyy h:mm:ss a"
+    },
+    "closedAt": {
+      "column": "Time",
+      "format": "M/d/yyyy h:mm:ss a"
+    },
+    "entryPrice": "Avg fill price",
+    "exitPrice": "Avg fill price",
+    "quantity": "Quantity",
+    "fees": "Commission"
+  },
+  "transformations": {
+    "symbol": "extractRootSymbol",
+    "quantity": "abs"
+  },
+  "validation": {
+    "requiredColumns": [
+      "Instrument",
+      "Quantity",
+      "Avg fill price",
+      "Time",
+      "Rate"
+    ],
+    "dateRange": {
+      "min": "2000-01-01",
+      "max": "now"
+    }
+  },
+  "tradeReconstruction": {
+    "method": "positionTracking",
+    "groupBy": "symbol",
+    "sortBy": "time",
+    "calculatePnL": true,
+    "pointValues": {
+      "ES": 50,
+      "NQ": 20,
+      "YM": 5,
+      "RTY": 50,
+      "CL": 1000,
+      "GC": 100,
+      "SI": 5000,
+      "6E": 12500,
+      "6A": 10000,
+      "6B": 6250,
+      "6C": 10000,
+      "6J": 12500,
+      "ZB": 1000,
+      "ZN": 1000,
+      "ZF": 1000,
+      "ZT": 2000
+    }
+  },
+  "notes": [
+    "NinjaTrader exports individual executions (fills), not complete trades",
+    "Trades are reconstructed by tracking position changes",
+    "Symbol normalization extracts root symbol (e.g., 'ES 03-24' → 'ES')",
+    "Point values are used to calculate PnL for futures contracts",
+    "Commission is per-fill and will be summed for complete trades"
+  ]
+}

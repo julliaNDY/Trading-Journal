@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `trades` ADD COLUMN `timesManuallySet` BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "trades" ADD COLUMN "timesManuallySet" BOOLEAN NOT NULL DEFAULT false;

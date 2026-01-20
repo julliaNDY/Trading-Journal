@@ -91,14 +91,15 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
         continue;
       }
       
-      // Run sync
+      // Run sync with retry logic
       try {
         brokerLogger.debug(`[Scheduler] Syncing connection ${connection.id} (${connection.brokerType}/${connection.brokerAccountName})`);
         
-        const syncResult = await syncBrokerTrades(
+        const syncResult = await syncWithRetry(
           connection.id,
           connection.userId,
-          'scheduled'
+          connection.brokerType,
+          connection.brokerAccountName
         );
         
         result.connectionsSynced++;
@@ -110,13 +111,22 @@ export async function runScheduledSync(): Promise<SchedulerResult> {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
-        brokerLogger.error(`[Scheduler] Sync failed for ${connection.id}:`, errorMessage);
+        brokerLogger.error(`[Scheduler] Sync failed after retries for ${connection.id}:`, errorMessage);
         
         result.errors.push({
           connectionId: connection.id,
           brokerType: connection.brokerType,
           brokerAccountName: connection.brokerAccountName,
           error: errorMessage,
+        });
+        
+        // Mark connection as ERROR after max retries
+        await prisma.brokerConnection.update({
+          where: { id: connection.id },
+          data: {
+            status: 'ERROR',
+            lastSyncError: `Max retries exceeded: ${errorMessage}`,
+          },
         });
       }
     }
@@ -158,6 +168,59 @@ function isSyncDue(
   const nextSyncTime = lastSyncTime + intervalMs;
   
   return now.getTime() >= nextSyncTime;
+}
+
+/**
+ * Sync with retry logic (max 3 retries with exponential backoff)
+ * Story 3.5: AC4 - Retry automatique en cas d'erreur
+ */
+async function syncWithRetry(
+  connectionId: string,
+  userId: string,
+  brokerType: string,
+  brokerAccountName: string | null,
+  maxRetries: number = 3
+): Promise<{ tradesImported: number; tradesSkipped: number; tradesUpdated: number }> {
+  const backoffDelays = [60000, 300000, 900000]; // 1min, 5min, 15min
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      brokerLogger.debug(`[Scheduler] Sync attempt ${attempt}/${maxRetries} for ${connectionId}`);
+      
+      const syncResult = await syncBrokerTrades(
+        connectionId,
+        userId,
+        'scheduled'
+      );
+      
+      // Success - return result
+      return {
+        tradesImported: syncResult.tradesImported,
+        tradesSkipped: syncResult.tradesSkipped,
+        tradesUpdated: syncResult.tradesUpdated,
+      };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      brokerLogger.warn(
+        `[Scheduler] Sync attempt ${attempt}/${maxRetries} failed for ${connectionId} (${brokerType}/${brokerAccountName}): ${errorMessage}`
+      );
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const delay = backoffDelays[attempt - 1] || 60000;
+      brokerLogger.debug(`[Scheduler] Waiting ${delay}ms before retry ${attempt + 1}...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // Should never reach here, but TypeScript needs a return
+  throw new Error('Max retries exceeded');
 }
 
 /**

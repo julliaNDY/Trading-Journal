@@ -1,0 +1,84 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Define notification routing
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts go to PagerDuty + Slack
+    - match:
+        severity: critical
+      receiver: 'pagerduty-critical'
+      continue: true
+    
+    # Critical alerts also to Slack
+    - match:
+        severity: critical
+      receiver: 'slack-critical'
+    
+    # Warning alerts only to Slack
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+
+# Define receivers
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#alerts-production'
+        title: 'Trading Journal Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#alerts-critical'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          *Runbook:* {{ range .Alerts }}{{ .Annotations.runbook }}{{ end }}
+        send_resolved: true
+        color: 'danger'
+
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#alerts-warnings'
+        title: '⚠️ WARNING: {{ .GroupLabels.alertname }}'
+        text: |
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+        send_resolved: true
+        color: 'warning'
+
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        details:
+          summary: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+          description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+          runbook: '{{ range .Alerts }}{{ .Annotations.runbook }}{{ end }}'
+          severity: 'critical'
+
+# Inhibition rules (prevent alert spam)
+inhibit_rules:
+  # Circuit breaker open inhibits high error rate alert
+  - source_match:
+      alertname: 'CircuitBreakerOpen'
+    target_match:
+      alertname: 'HighErrorRate'
+    equal: ['component']
+  
+  # High error rate inhibits slow response time alert
+  - source_match:
+      alertname: 'HighErrorRate'
+    target_match:
+      alertname: 'SlowAPIResponseTime'
+    equal: ['component']

@@ -32,6 +32,7 @@ model User {
   coachConversations CoachConversation[]
   feedbacks          UserFeedback[]
   votes              Vote[]
+  dailyBiasAnalyses  DailyBiasAnalysis[]
 
   @@map("users")
 }
@@ -681,6 +682,12 @@ enum IntegrationStatus {
   COMING_SOON      // Planned for future
 }
 
+enum SynthesisSentiment {
+  BULLISH
+  BEARISH
+  NEUTRAL
+}
+
 model Broker {
   id                   String              @id @default(uuid()) @db.Uuid
   name                 String              @unique
@@ -711,4 +718,40 @@ model Broker {
   @@index([priority])
   @@index([isActive])
   @@map("brokers")
+}
+
+model DailyBiasAnalysis {
+  id                   String               @id @default(uuid()) @db.Uuid
+  userId               String               @db.Uuid
+  instrument           String               // One of 21 supported instruments
+  date                 DateTime             @db.Date
+  
+  // 6-Step Analysis Results (JSON fields)
+  securityAnalysis     Json?                // SecurityAnalysis type
+  macroAnalysis        Json?                // MacroAnalysis type
+  institutionalFlux    Json?                // InstitutionalFlux type
+  mag7Analysis         Json?                // Mag7Analysis type
+  technicalAnalysis    Json?                // TechnicalAnalysis type
+  synthesis            Json?                // Synthesis type
+  
+  // Story 12.11: Synthesis Text & Sentiment
+  synthesisText        String?              @db.Text
+  synthesisSentiment   SynthesisSentiment?
+  
+  // Metadata
+  processingTimeMs     Int?                 // Total processing time
+  aiProvider           String               @default("gemini") // "gemini" or "openai"
+  cacheHit             Boolean              @default(false)
+  
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, instrument, date])
+  @@index([userId])
+  @@index([instrument])
+  @@index([date])
+  @@index([synthesisSentiment])
+  @@map("daily_bias_analyses")
 }
