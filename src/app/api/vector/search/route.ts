@@ -34,7 +34,7 @@ const SearchRequestSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuth(request);
+    const user = await requireAuth();
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;

@@ -20,8 +20,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
-    // Required for instrumentation.ts
-    instrumentationHook: true,
   },
 
   // ESLint et TypeScript vérifiés pendant le build
@@ -43,11 +41,6 @@ const sentryWebpackPluginOptions = {
   // Upload source maps for better stack traces
   widenClientFileUpload: true,
 
-  // Automatically instrument React components
-  reactComponentAnnotation: {
-    enabled: true,
-  },
-
   // Route browser requests to Sentry through Next.js rewrites
   tunnelRoute: '/monitoring-tunnel',
 
@@ -57,8 +50,15 @@ const sentryWebpackPluginOptions = {
   // Hide source maps from end users
   hideSourceMaps: true,
 
-  // Disable logger in production
-  disableLogger: true,
+  // Tree-shaking configuration
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    reactComponentAnnotation: {
+      enabled: true,
+    },
+  },
 };
 
 // Chain: Sentry -> BundleAnalyzer -> NextIntl -> Base Config

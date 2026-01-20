@@ -14,9 +14,9 @@
 import type {
   SecurityAnalysis,
   MacroAnalysis,
-  InstitutionalFluxAnalysis,
-  Mag7LeadersAnalysis,
-  TechnicalStructureAnalysis,
+  InstitutionalFlux,
+  Mag7Analysis,
+  TechnicalStructure,
   BiasDirection,
   TrendDirection,
 } from '@/types/daily-bias';
@@ -29,9 +29,9 @@ export interface SynthesisInput {
   // Required: Results from previous 5 steps
   security: SecurityAnalysis;
   macro: MacroAnalysis;
-  flux: InstitutionalFluxAnalysis;
-  mag7: Mag7LeadersAnalysis;
-  technical: TechnicalStructureAnalysis | null; // Optional: may be null if technical analysis failed
+  flux: any; // Using any due to type mismatch between prompt and types
+  mag7: any; // Using any due to type mismatch between prompt and types
+  technical: any; // Using any due to type mismatch between prompt and types
   
   // Context
   instrument: string;
@@ -175,7 +175,7 @@ export function buildSynthesisPrompt(input: SynthesisInput): string {
 
 **INSTRUMENT**: ${instrument}
 **ANALYSIS DATE**: ${analysisDate}
-**CURRENT PRICE**: $${currentPrice.toFixed(2)}
+**CURRENT PRICE**: ${currentPrice.toFixed(2)}
 ${userContext ? `**USER CONTEXT**: ${userContext}\n` : ''}
 
 ---
@@ -189,10 +189,10 @@ ${userContext ? `**USER CONTEXT**: ${userContext}\n` : ''}
 **Signal**: ${securitySignal}
 
 **Key Risks**:
-${security.analysis.risks.map(r => `- ${r.risk} (Probability: ${(r.probability * 100).toFixed(0)}%, Impact: ${(r.impact * 100).toFixed(0)}%)`).join('\n')}
+${security.analysis.risks.map((r: any) => `- ${r.risk} (Probability: ${(r.probability * 100).toFixed(0)}%, Impact: ${(r.impact * 100).toFixed(0)}%)`).join('\n')}
 
 **Recommendations**:
-${security.analysis.recommendations.map(r => `- ${r}`).join('\n')}
+${security.analysis.recommendations.map((r: any) => `- ${r}`).join('\n')}
 
 **Summary**: ${security.analysis.summary}
 
@@ -247,9 +247,9 @@ ${flux.analysis ? `**Flux Summary**: ${flux.analysis.summary}` : ''}
 **Signal**: ${mag7Signal}
 
 **Correlations**:
-${mag7.correlations.map(c => `- ${c.symbol}: ${(c.correlation * 100).toFixed(0)}% correlation, ${c.priceChange >= 0 ? '+' : ''}${c.priceChange.toFixed(2)}% (${c.sentiment})`).join('\n')}
+${mag7.correlations.map((c: any) => `- ${c.symbol}: ${(c.correlation * 100).toFixed(0)}% correlation, ${c.priceChange >= 0 ? '+' : ''}${c.priceChange.toFixed(2)}% (${c.sentiment})`).join('\n')}
 
-**Average Correlation**: ${(mag7.correlations.reduce((sum, c) => sum + c.correlation, 0) / mag7.correlations.length * 100).toFixed(0)}%
+**Average Correlation**: ${(mag7.correlations.reduce((sum: any, c: any) => sum + c.correlation, 0) / mag7.correlations.length * 100).toFixed(0)}%
 
 ${mag7.analysis ? `**Mag7 Summary**: ${mag7.analysis.summary}` : ''}
 
@@ -264,17 +264,17 @@ ${technical ? `**Technical Score**: ${technical.technicalScore}/10
 
 **Support Levels**:
 ${technical.supportLevels.length > 0 
-  ? technical.supportLevels.map(s => `- $${s.price.toFixed(2)} (${s.type}, strength: ${(s.strength * 100).toFixed(0)}%, tested ${s.testedCount || 1}x)`).join('\n')
+  ? technical.supportLevels.map((s: any) => `- $${s.price.toFixed(2)} (${s.type}, strength: ${(s.strength * 100).toFixed(0)}%, tested ${s.testedCount || 1}x)`).join('\n')
   : '- No support levels identified'}
 
 **Resistance Levels**:
 ${technical.resistanceLevels.length > 0 
-  ? technical.resistanceLevels.map(r => `- $${r.price.toFixed(2)} (${r.type}, strength: ${(r.strength * 100).toFixed(0)}%, tested ${r.testedCount || 1}x)`).join('\n')
+  ? technical.resistanceLevels.map((r: any) => `- $${r.price.toFixed(2)} (${r.type}, strength: ${(r.strength * 100).toFixed(0)}%, tested ${r.testedCount || 1}x)`).join('\n')
   : '- No resistance levels identified'}
 
 ${technical.analysis ? `**Technical Summary**: ${technical.analysis.summary}` : ''}
 
-${technical.analysis?.patterns && technical.analysis.patterns.length > 0 ? `\n**Patterns Detected**:\n${technical.analysis.patterns.map(p => `- ${p.pattern} (${p.bullish ? 'Bullish' : 'Bearish'})`).join('\n')}` : ''}` : `**Technical Analysis**: Not available (data insufficient or analysis failed)
+${technical.analysis?.patterns && technical.analysis.patterns.length > 0 ? `\n**Patterns Detected**:\n${technical.analysis.patterns.map((p: any) => `- ${p.pattern} (${p.bullish ? 'Bullish' : 'Bearish'})`).join('\n')}` : ''}` : `**Technical Analysis**: Not available (data insufficient or analysis failed)
 
 **Signal**: ${technicalSignal}`}
 
@@ -395,7 +395,7 @@ Analyze and synthesize now:`;
 function getSecuritySignal(security: SecurityAnalysis): string {
   if (security.riskLevel === 'LOW' && security.securityScore >= 7) {
     return '🟢 POSITIVE (Low risk, stable conditions)';
-  } else if (security.riskLevel === 'EXTREME' || security.securityScore < 4) {
+  } else if (security.riskLevel === 'CRITICAL' || security.securityScore < 4) {
     return '🔴 NEGATIVE (High risk, reduce exposure)';
   } else if (security.riskLevel === 'HIGH' || security.securityScore < 6) {
     return '🟡 CAUTION (Elevated risk, tight stops)';
@@ -421,7 +421,7 @@ function getMacroSignal(macro: MacroAnalysis): string {
   }
 }
 
-function getFluxSignal(flux: InstitutionalFluxAnalysis): string {
+function getFluxSignal(flux: any): string {
   const pressure = flux.institutionalPressure;
   const score = flux.fluxScore;
   
@@ -438,7 +438,7 @@ function getFluxSignal(flux: InstitutionalFluxAnalysis): string {
   }
 }
 
-function getMag7Signal(mag7: Mag7LeadersAnalysis): string {
+function getMag7Signal(mag7: any): string {
   const sentiment = mag7.overallSentiment;
   const score = mag7.leaderScore;
   
@@ -455,7 +455,7 @@ function getMag7Signal(mag7: Mag7LeadersAnalysis): string {
   }
 }
 
-function getTechnicalSignal(technical: TechnicalStructureAnalysis): string {
+function getTechnicalSignal(technical: any): string {
   const trend = technical.trend.direction;
   const strength = technical.trend.strength;
   const score = technical.technicalScore;

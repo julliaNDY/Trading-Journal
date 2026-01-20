@@ -81,7 +81,7 @@ export function VolumeChart({
     chartRef.current = chart;
 
     // Create volume histogram series
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = (chart as any).addHistogramSeries({
       color: '#26a69a',
       priceFormat: {
         type: 'volume',
@@ -97,17 +97,20 @@ export function VolumeChart({
 
     // Set volume data
     if (volumeData.length > 0) {
+      const avgVolume = analysis.volumeProfile?.totalVolume ? 
+        analysis.volumeProfile.totalVolume / volumeData.length : 
+        0;
       const histogramData: HistogramData<Time>[] = volumeData.map((bar) => ({
         time: bar.time,
-        value: bar.value,
-        color: bar.value > (analysis.volume?.average || 0) ? '#10b981' : '#6b7280',
+        value: bar.close, // Use close price as volume value
+        color: bar.close > avgVolume ? '#10b981' : '#6b7280',
       }));
       volumeSeries.setData(histogramData);
     }
 
     // Create price line series if price data available
     if (priceData.length > 0) {
-      const priceSeries = chart.addLineSeries({
+      const priceSeries = (chart as any).addLineSeries({
         color: '#3b82f6',
         lineWidth: 2,
         priceScaleId: 'right',
@@ -146,10 +149,13 @@ export function VolumeChart({
   // Update data when data changes
   useEffect(() => {
     if (volumeSeriesRef.current && volumeData.length > 0) {
+      const avgVolume = analysis.volumeProfile?.totalVolume ? 
+        analysis.volumeProfile.totalVolume / volumeData.length : 
+        0;
       const histogramData: HistogramData<Time>[] = volumeData.map((bar) => ({
         time: bar.time,
-        value: bar.value,
-        color: bar.value > (analysis.volume?.average || 0) ? '#10b981' : '#6b7280',
+        value: bar.close,
+        color: bar.close > avgVolume ? '#10b981' : '#6b7280',
       }));
       volumeSeriesRef.current.setData(histogramData);
     }

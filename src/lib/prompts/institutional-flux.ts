@@ -352,11 +352,7 @@ export function createEmptyFluxAnalysis(instrument: string): InstitutionalFluxAn
       sellVolume,
       buyVsSellRatio: buyVolume / sellVolume,
       netOrderFlow: buyVolume - sellVolume,
-      netFlow: buyVolume - sellVolume, // Alias for UI compatibility
-      buyPressure: Math.round(buyRatio * 100), // Percentage
-      sellPressure: Math.round((1 - buyRatio) * 100), // Percentage
       orderFlowTrend: buyRatio > 0.52 ? 'BULLISH' : buyRatio < 0.48 ? 'BEARISH' : 'NEUTRAL',
-      confirmation: buyRatio > 0.52 ? 'BULLISH' : buyRatio < 0.48 ? 'BEARISH' : 'MIXED',
       largeOrders: [],
       aggressiveness: Math.round(3 + randomFactor * 4), // 3-7
     },

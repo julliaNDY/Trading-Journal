@@ -912,7 +912,7 @@ export function BrokersContent({ initialConnections, accounts }: BrokersContentP
                 <Label>Environment</Label>
                 <Select
                   value={formData.environment || 'live'}
-                  onValueChange={(value) => setFormData({ ...formData, environment: value })}
+                  onValueChange={(value) => setFormData({ ...formData, environment: value as 'demo' | 'live' })}
                 >
                   <SelectTrigger>
                     <SelectValue />

@@ -447,4 +447,4 @@ interface PolygonRawBar {
 }
 
 // Export for testing
-export { PolygonRawTrade, PolygonRawQuote, PolygonRawBar };
+export type { PolygonRawTrade, PolygonRawQuote, PolygonRawBar };

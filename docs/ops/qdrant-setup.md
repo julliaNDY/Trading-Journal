@@ -9,7 +9,7 @@ Les variables suivantes ont été configurées dans `.env.local` :
 ```bash
 QDRANT_URL="https://40099ca1-43df-4699-9f49-f13b3a16bb48.europe-west3-0.gcp.cloud.qdrant.io:6333"
 QDRANT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.XeQ06c2VJaVE0g31rkwfVJNhoIvNP6mdzujMNAwf65E"
-GOOGLE_API_KEY="AIzaSyCo-VNsZTorOEyahpnlvRo89zn4z2VFFsA"
+GOOGLE_API_KEY="your-gemini-api-key-here"
 ```
 
 ### Collections Créées

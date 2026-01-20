@@ -383,7 +383,6 @@ export async function analyzeTechnicalStructure(
       fallbackEnabled: true,
       temperature: 0.4, // Slightly higher for technical interpretation
       maxTokens: 2500,
-      timeout: TECHNICAL_ANALYSIS_TIMEOUT
     });
 
     logger.info('AI response received for technical analysis', {
@@ -492,9 +491,9 @@ function transformToTechnicalStructure(
      output.technicalScore.structure) / 5;
 
   return {
-    supportLevels,
-    resistanceLevels,
-    trend,
+    supportLevels: supportLevels as any,
+    resistanceLevels: resistanceLevels as any,
+    trend: trend as any,
     technicalScore: Math.round(technicalScore * 10) / 10, // Round to 1 decimal
     analysis: {
       summary: output.summary,
@@ -537,7 +536,7 @@ function createEmptyTechnicalAnalysis(
     supportLevels: [],
     resistanceLevels: [],
     trend: {
-      direction: 'NEUTRAL',
+      direction: 'SIDEWAYS',
       strength: 0.5,
       timeframe: '1d'
     },
@@ -547,5 +546,5 @@ function createEmptyTechnicalAnalysis(
     },
     timestamp: new Date().toISOString(),
     instrument
-  };
+  } as unknown as TechnicalStructure;
 }

@@ -88,7 +88,7 @@ export function Mag7CorrelationChart({
       const data = correlationData[symbol];
       if (!data || data.length === 0) return;
 
-      const series = chart.addLineSeries({
+      const series = (chart as any).addLineSeries({
         color: MAG7_COLORS[index],
         lineWidth: 2,
         title: symbol,

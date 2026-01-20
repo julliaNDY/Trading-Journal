@@ -15,7 +15,7 @@
  *   3. Complete OAuth flow manually (see instructions below)
  */
 
-import { createTradeStationProvider } from '../src/services/broker/tradestation-provider';
+import { createTradeStationProvider, TradeStationCredentials } from '../src/services/broker/tradestation-provider';
 import { config } from 'dotenv';
 import * as readline from 'readline';
 
@@ -87,7 +87,7 @@ async function main() {
       apiKey: '',
       apiSecret: '',
       authorizationCode: authCode.trim(),
-    });
+    } as TradeStationCredentials);
 
     console.log('✅ Authentication successful!');
     console.log(`   Access Token: ${authResult.accessToken.substring(0, 20)}...`);

@@ -588,6 +588,9 @@ export async function* createReplayStream(
     // tradeMarkers = await getTradeMarkers(userId, config.startTime, config.endTime, config.symbol)
   }
   
+  // Declare currentFrame outside loop so it's accessible after loop ends
+  let currentFrame: TickData[] = []
+  
   while (offset < totalTicks) {
     const ticks = await getTicks(config.startTime, config.endTime, {
       symbol: config.symbol,
@@ -598,8 +601,8 @@ export async function* createReplayStream(
     
     if (ticks.length === 0) break
     
-    // Process ticks into frames
-    let currentFrame: TickData[] = []
+    // Reset frame for this batch
+    currentFrame = []
     
     for (const tick of ticks) {
       currentFrame.push(tick)

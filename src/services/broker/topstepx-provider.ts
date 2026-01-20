@@ -200,7 +200,7 @@ export class TopstepXProvider implements BrokerProvider {
       );
       
       // Map TopstepX trades to our format
-      const trades = response.trades.map(trade => this.mapTrade(trade));
+      const trades = response.trades.map(trade => this._mapTrade(trade));
       allTrades.push(...trades);
       
       // Check if there are more pages
@@ -220,7 +220,7 @@ export class TopstepXProvider implements BrokerProvider {
   /**
    * Maps TopstepX trade to our standard format
    */
-  private mapTrade(trade: TopstepXTrade): BrokerTrade {
+  private _mapTrade(trade: TopstepXTrade): BrokerTrade {
     // Map side to direction
     const direction: Direction = trade.side === 'long' ? 'LONG' : 'SHORT';
     

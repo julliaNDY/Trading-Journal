@@ -98,11 +98,7 @@ export function BetaAccessLanding() {
             <div className="flex flex-col items-center gap-2">
               <span className="text-sm uppercase tracking-wide text-muted-foreground">{t('betaAccess')}</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold">$20</span>
-                <span className="text-muted-foreground">{t('perSemester')}</span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {t('publicPrice')} <span className="line-through">$30{t('perMonth')}</span>
+                <span className="text-4xl font-bold">{t('perSemester')}</span>
               </div>
             </div>
             <Button

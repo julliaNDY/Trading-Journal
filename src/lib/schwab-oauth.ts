@@ -203,7 +203,7 @@ export class SchwabOAuthService {
     const existing = await prisma.brokerConnection.findFirst({
       where: {
         userId,
-        brokerType: 'SCHWAB',
+        brokerType: 'TD_AMERITRADE' as any,
         brokerAccountId: primaryAccount.id,
       },
     });
@@ -236,7 +236,7 @@ export class SchwabOAuthService {
       const connection = await prisma.brokerConnection.create({
         data: {
           userId,
-          brokerType: 'SCHWAB',
+          brokerType: 'TD_AMERITRADE' as any,
           status: 'CONNECTED',
           encryptedApiKey: encryptedAccessToken,
           encryptedApiSecret: encryptedRefreshToken,
@@ -266,7 +266,7 @@ export class SchwabOAuthService {
     const connection = await prisma.brokerConnection.findFirst({
       where: {
         userId,
-        brokerType: 'SCHWAB',
+        brokerType: 'TD_AMERITRADE' as any,
       },
     });
     
@@ -289,6 +289,9 @@ export class SchwabOAuthService {
       // Parse access token to get refresh token
       let tokenData: any;
       try {
+        if (!connection.accessToken) {
+          throw new Error('Access token is null');
+        }
         tokenData = JSON.parse(connection.accessToken);
       } catch {
         // Access token is not JSON (old format or direct token)
@@ -298,7 +301,7 @@ export class SchwabOAuthService {
         });
         await prisma.brokerConnection.update({
           where: { id: connection.id },
-          data: { status: 'EXPIRED' },
+          data: { status: 'ERROR' },
         });
         return true;
       }
@@ -366,7 +369,7 @@ export class SchwabOAuthService {
       await prisma.brokerConnection.update({
         where: { id: connection.id },
         data: {
-          status: 'EXPIRED', // Mark expired - user needs to re-authenticate
+          status: 'ERROR', // Mark expired - user needs to re-authenticate
         },
       });
       
@@ -382,7 +385,7 @@ export class SchwabOAuthService {
       await prisma.brokerConnection.update({
         where: { id: connection.id },
         data: {
-          status: 'EXPIRED',
+          status: 'ERROR',
         },
       });
       

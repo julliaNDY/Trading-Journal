@@ -103,7 +103,7 @@ export const PROVIDER_METADATA: Record<BrokerType, ProviderMetadata> = {
     brokerType: 'TD_AMERITRADE',
     name: 'TD Ameritrade',
     description: 'Full-service brokerage platform with OAuth2',
-    authType: 'oauth2',
+    authType: 'oauth',
     supportsRealtime: true,
     supportsHistorical: true,
     maxHistoricalDays: 365,
@@ -117,7 +117,7 @@ export const PROVIDER_METADATA: Record<BrokerType, ProviderMetadata> = {
     brokerType: 'TRADESTATION',
     name: 'TradeStation',
     description: 'Professional trading tools & analysis platform',
-    authType: 'oauth2',
+    authType: 'oauth',
     supportsRealtime: true,
     supportsHistorical: true,
     maxHistoricalDays: 365,
@@ -131,7 +131,7 @@ export const PROVIDER_METADATA: Record<BrokerType, ProviderMetadata> = {
     brokerType: 'THINKORSWIM',
     name: 'thinkorswim',
     description: 'Advanced trading platform by TD Ameritrade',
-    authType: 'oauth2',
+    authType: 'oauth',
     supportsRealtime: true,
     supportsHistorical: true,
     maxHistoricalDays: 365,
@@ -145,7 +145,7 @@ export const PROVIDER_METADATA: Record<BrokerType, ProviderMetadata> = {
     brokerType: 'ETRADE',
     name: 'E*TRADE',
     description: 'Full-service online brokerage platform',
-    authType: 'oauth2',
+    authType: 'oauth',
     supportsRealtime: true,
     supportsHistorical: true,
     maxHistoricalDays: 365,
@@ -159,7 +159,7 @@ export const PROVIDER_METADATA: Record<BrokerType, ProviderMetadata> = {
     brokerType: 'ROBINHOOD',
     name: 'Robinhood',
     description: 'Commission-free trading app',
-    authType: 'oauth2',
+    authType: 'oauth',
     supportsRealtime: true,
     supportsHistorical: true,
     maxHistoricalDays: 365,
@@ -351,8 +351,8 @@ registry.register('OANDA', (options) => {
 });
 
 // Register TopstepX
-registry.register('TOPSTEPX', () => {
-  return createTopstepXProvider();
+registry.register('TOPSTEPX', (_options) => {
+  return createTopstepXProvider() as unknown as BrokerProvider;
 });
 
 // Register TradeStation

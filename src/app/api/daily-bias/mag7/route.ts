@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { 
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { 

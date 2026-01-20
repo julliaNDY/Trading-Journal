@@ -21,7 +21,7 @@ import { cacheGet, cacheSet, getOrSetCache } from '@/lib/cache';
 import { logger } from '@/lib/observability';
 import { getRedisConnection, isRedisConfigured } from '@/lib/queue/redis';
 import {
-  recordRequest,
+  recordRequest as recordMetricRequest,
   recordError,
   recordDuration,
   setCircuitBreakerState,

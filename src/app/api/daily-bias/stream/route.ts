@@ -30,7 +30,7 @@ import { getRedisConnection, isRedisConfigured } from '@/lib/queue/redis';
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return new Response('Unauthorized', { status: 401 });
     }
@@ -157,9 +157,6 @@ export async function GET(req: NextRequest) {
         req.signal.addEventListener('abort', () => {
           isClosed = true;
           if (pollInterval) clearInterval(pollInterval);
-          if (redisSubscription) {
-            // Cleanup Redis subscription if needed
-          }
           controller.close();
           
           logger.info('SSE stream connection closed', {

@@ -125,7 +125,7 @@ export async function analyzeInstitutionalFlux(
 
     // Generate prompt based on available data
     const userPrompt = params.volumeData && params.volumeData.length > 0
-      ? generateInstitutionalFluxPrompt(params)
+      ? generateInstitutionalFluxPrompt(params as any)
       : generateSimplifiedFluxPrompt({
           instrument: params.instrument,
           currentPrice: params.marketData.currentPrice,

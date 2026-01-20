@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { createTradeStationProvider } from '@/services/broker/tradestation-provider';
+import { createTradeStationProvider, TradeStationCredentials } from '@/services/broker/tradestation-provider';
 import { encryptCredential } from '@/services/broker/broker-sync-service';
 import { brokerLogger } from '@/lib/logger';
 
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       apiKey: '', // Not used for OAuth
       apiSecret: '', // Not used for OAuth
       authorizationCode: code,
-    });
+    } as TradeStationCredentials);
 
     brokerLogger.info('TradeStation OAuth successful', {
       userId: user.id,

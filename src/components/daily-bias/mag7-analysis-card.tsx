@@ -55,11 +55,11 @@ export function Mag7AnalysisCard({ analysis, loading = false, className = '', co
         </CardTitle>
         <CardDescription>
           <span>{analysis.instrument} • {new Date(analysis.timestamp).toLocaleString()}</span>
-          {analysis.dataSources && analysis.dataSources.length > 0 && (
+          {(analysis as any).dataSources && (analysis as any).dataSources.length > 0 && (
             <>
               <br />
               <span className="text-xs">
-                <strong>Sources:</strong> {analysis.dataSources.join(', ')}
+                <strong>Sources:</strong> {(analysis as any).dataSources.join(', ')}
               </span>
             </>
           )}
@@ -112,8 +112,8 @@ export function Mag7AnalysisCard({ analysis, loading = false, className = '', co
                           </span>
                         )}
                         <Badge variant="outline" className={
-                          corr.trend === 'BULLISH' ? 'bg-green-500/10 text-green-500' :
-                          corr.trend === 'BEARISH' ? 'bg-red-500/10 text-red-500' :
+                          corr.trend === 'UP' ? 'bg-green-500/10 text-green-500' :
+                          corr.trend === 'DOWN' ? 'bg-red-500/10 text-red-500' :
                           'bg-gray-500/10 text-gray-500'
                         }>
                           {corr.trend || 'N/A'}

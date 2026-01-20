@@ -28,7 +28,7 @@ export interface RateLimitConfig {
  * Broker-specific rate limits
  * These are conservative estimates - adjust based on actual broker documentation
  */
-export const BROKER_RATE_LIMITS: Record<BrokerType, RateLimitConfig> = {
+export const BROKER_RATE_LIMITS: Partial<Record<BrokerType, RateLimitConfig>> = {
   TRADOVATE: {
     maxRequests: 100,
     windowMs: 60000, // 100 requests per minute

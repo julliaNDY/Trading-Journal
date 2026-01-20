@@ -51,13 +51,14 @@ function log(message: string, level: 'info' | 'success' | 'warn' | 'error' = 'in
 async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> {
   log(`\n🔍 Validating ${brokerType} sync...`, 'info');
   
-  const broker = await prisma.broker.findFirst({
+  // BrokerConnection uses brokerType enum, find connections first
+  const brokerConnections = await prisma.brokerConnection.findMany({
     where: {
-      type: brokerType,
+      brokerType: brokerType,
     },
   });
   
-  if (!broker) {
+  if (brokerConnections.length === 0) {
     return {
       broker: brokerType,
       totalAccounts: 0,
@@ -71,14 +72,18 @@ async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> 
       tradesLast7d: 0,
       tradesLast30d: 0,
       status: 'NO_DATA',
-      issues: ['Broker not found in database'],
+      issues: ['No broker connections found in database'],
     };
   }
   
-  // Get all accounts for this broker
+  // Get all accounts for these broker connections
+  const accountIds = brokerConnections
+    .map(bc => bc.accountId)
+    .filter((id): id is string => id !== null);
+  
   const accounts = await prisma.account.findMany({
     where: {
-      brokerId: broker.id,
+      id: { in: accountIds },
     },
     include: {
       _count: {
@@ -92,12 +97,10 @@ async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> 
   const totalAccounts = accounts.length;
   const activeAccounts = accounts.filter(a => a._count.trades > 0).length;
   
-  // Get trade statistics
+  // Get trade statistics - accountIds already defined above, reuse it
   const trades = await prisma.trade.findMany({
     where: {
-      account: {
-        brokerId: broker.id,
-      },
+      accountId: { in: accountIds },
     },
     orderBy: {
       closedAt: 'asc',
@@ -128,9 +131,7 @@ async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> 
   
   const tradesLast24h = await prisma.trade.count({
     where: {
-      account: {
-        brokerId: broker.id,
-      },
+      accountId: { in: accountIds },
       closedAt: {
         gte: yesterday,
       },
@@ -139,9 +140,7 @@ async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> 
   
   const tradesLast7d = await prisma.trade.count({
     where: {
-      account: {
-        brokerId: broker.id,
-      },
+      accountId: { in: accountIds },
       closedAt: {
         gte: last7d,
       },
@@ -150,9 +149,7 @@ async function validateBrokerSync(brokerType: BrokerType): Promise<SyncMetrics> 
   
   const tradesLast30d = await prisma.trade.count({
     where: {
-      account: {
-        brokerId: broker.id,
-      },
+      accountId: { in: accountIds },
       closedAt: {
         gte: last30d,
       },
@@ -321,11 +318,11 @@ async function main() {
           'TRADESTATION',
           'TOPSTEPX',
           'NINJATRADER',
-          'CHARLES_SCHWAB',
           'BINANCE',
           'AMP_FUTURES',
-          'APEX_TRADER_FUNDING',
-          'GEMINI',
+          'APEX_TRADER',
+          'TRADOVATE',
+          'IBKR',
         ];
     
     const allMetrics: SyncMetrics[] = [];

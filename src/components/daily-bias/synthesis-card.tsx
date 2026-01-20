@@ -101,12 +101,14 @@ export function SynthesisCard({ synthesis, loading = false, className = '' }: Sy
         </div>
         
         {/* Summary */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Analysis Summary</h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {synthesis.summary}
-          </p>
-        </div>
+        {synthesis.analysis?.summary && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Analysis Summary</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {synthesis.analysis.summary}
+            </p>
+          </div>
+        )}
         
         {/* Opening Confirmation */}
         {synthesis.openingConfirmation && (
@@ -117,11 +119,11 @@ export function SynthesisCard({ synthesis, loading = false, className = '' }: Sy
             </h4>
             
             {/* Key Levels */}
-            {synthesis.openingConfirmation.keyLevels && synthesis.openingConfirmation.keyLevels.length > 0 && (
+            {(synthesis.openingConfirmation as any).keyLevels && (synthesis.openingConfirmation as any).keyLevels.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Key Price Levels to Watch</p>
                 <div className="flex flex-wrap gap-2">
-                  {synthesis.openingConfirmation.keyLevels.map((level, idx) => (
+                  {(synthesis.openingConfirmation as any).keyLevels.map((level: any, idx: number) => (
                     <Badge key={idx} variant="outline" className="font-mono">
                       ${typeof level === 'number' ? level.toFixed(2) : level}
                     </Badge>
@@ -131,11 +133,11 @@ export function SynthesisCard({ synthesis, loading = false, className = '' }: Sy
             )}
             
             {/* Conditions */}
-            {synthesis.openingConfirmation.conditions && synthesis.openingConfirmation.conditions.length > 0 && (
+            {(synthesis.openingConfirmation as any).conditions && (synthesis.openingConfirmation as any).conditions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Entry Conditions</p>
                 <ul className="space-y-1.5">
-                  {synthesis.openingConfirmation.conditions.map((condition, idx) => (
+                  {(synthesis.openingConfirmation as any).conditions.map((condition: any, idx: number) => (
                     <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
                       <span className="text-primary mt-0.5">•</span>
                       <span>{condition}</span>
@@ -146,10 +148,10 @@ export function SynthesisCard({ synthesis, loading = false, className = '' }: Sy
             )}
             
             {/* Timeframe */}
-            {synthesis.openingConfirmation.timeframe && (
+            {(synthesis.openingConfirmation as any).timeframe && (
               <div className="mt-3 pt-3 border-t">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Timeframe:</strong> {synthesis.openingConfirmation.timeframe}
+                  <strong>Timeframe:</strong> {(synthesis.openingConfirmation as any).timeframe}
                 </p>
               </div>
             )}
@@ -157,32 +159,32 @@ export function SynthesisCard({ synthesis, loading = false, className = '' }: Sy
         )}
         
         {/* Risk/Reward */}
-        {synthesis.riskReward && (
+        {(synthesis as any).riskReward && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Risk Management</h4>
             <div className="grid grid-cols-2 gap-4">
-              {synthesis.riskReward.expectedMove && (
+              {(synthesis as any).riskReward.expectedMove && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Expected Move</p>
-                  <p className="text-sm font-medium">±${synthesis.riskReward.expectedMove}</p>
+                  <p className="text-sm font-medium">±${(synthesis as any).riskReward.expectedMove}</p>
                 </div>
               )}
-              {synthesis.riskReward.riskLevel && (
+              {(synthesis as any).riskReward.riskLevel && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Risk Level</p>
                   <Badge variant="outline" className={
-                    synthesis.riskReward.riskLevel === 'LOW' ? 'bg-green-500/10 text-green-500' :
-                    synthesis.riskReward.riskLevel === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-500' :
+                    (synthesis as any).riskReward.riskLevel === 'LOW' ? 'bg-green-500/10 text-green-500' :
+                    (synthesis as any).riskReward.riskLevel === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-500' :
                     'bg-red-500/10 text-red-500'
                   }>
-                    {synthesis.riskReward.riskLevel}
+                    {(synthesis as any).riskReward.riskLevel}
                   </Badge>
                 </div>
               )}
-              {synthesis.riskReward.positionSizing && (
+              {(synthesis as any).riskReward.positionSizing && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Position Sizing</p>
-                  <p className="text-sm font-medium">{synthesis.riskReward.positionSizing}</p>
+                  <p className="text-sm font-medium">{(synthesis as any).riskReward.positionSizing}</p>
                 </div>
               )}
             </div>

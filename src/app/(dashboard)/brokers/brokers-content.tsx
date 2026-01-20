@@ -284,7 +284,7 @@ export function BrokersContent({ initialConnections, initialPagination, accounts
           
           // Set default brokerType if form is reset or brokerType not in available list
           // Only update if dialog is open and brokerType needs to change
-          if (mappedBrokers.length > 0 && !mappedBrokers.find(b => b.brokerType === formData.brokerType)) {
+          if (mappedBrokers.length > 0 && !mappedBrokers.find((b: { brokerType: BrokerType }) => b.brokerType === formData.brokerType)) {
             // Don't change formData.brokerType here, let user select manually
             // This prevents overwriting user's selection
           }

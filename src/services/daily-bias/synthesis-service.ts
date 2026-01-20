@@ -252,7 +252,6 @@ export async function synthesizeDailyBias(
         geminiModel: options?.model,
         temperature: options?.temperature ?? 0.4, // Slightly higher for creative synthesis
         maxTokens: 2500, // Synthesis requires more tokens
-        timeout: SYNTHESIS_TIMEOUT
       });
       
       logger.info('AI response received', {
@@ -327,7 +326,7 @@ export async function synthesizeDailyBias(
           provider: response.provider,
           model: response.model,
           latencyMs,
-          tokensUsed: response.tokensUsed,
+          tokensUsed: response.usage?.totalTokens,
           timestamp: new Date(),
           agreementLevel: validatedOutput.analysis.agreementLevel,
           confidence: validatedOutput.confidence,

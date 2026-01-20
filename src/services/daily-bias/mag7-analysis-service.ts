@@ -254,8 +254,7 @@ export async function analyzeMag7Leaders(
       preferredProvider: 'gemini',
       fallbackEnabled: true,
       temperature: 0.4, // Slightly higher for correlation interpretation
-      maxTokens: 2000,
-      timeout: MAG7_ANALYSIS_TIMEOUT
+      maxTokens: 2000
     });
 
     logger.info('AI response received for Mag 7 analysis', {

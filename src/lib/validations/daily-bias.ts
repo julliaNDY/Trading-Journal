@@ -415,20 +415,6 @@ export const StepValidators = {
 } as const;
 
 // ============================================================================
-// TYPE EXPORTS
+// TYPE EXPORTS (Already exported above via z.infer)
 // ============================================================================
-
-export type {
-  // Common types already exported from the Zod infer above
-  SecurityAnalysisRequest,
-  MacroAnalysisRequest,
-  InstitutionalFluxRequest,
-  Mag7AnalysisRequest,
-  TechnicalStructureRequest,
-  SynthesisRequest,
-  AnalysisRequest,
-  BatchAnalysisRequest,
-  DailyBiasAnalysisResponse,
-  ErrorResponse,
-};
 

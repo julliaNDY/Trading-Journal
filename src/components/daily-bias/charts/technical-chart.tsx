@@ -19,8 +19,6 @@ import {
   CandlestickData,
   Time,
   LineData,
-  createPriceLine,
-  PriceLineOptions,
 } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Download, Maximize2 } from 'lucide-react';
@@ -76,7 +74,7 @@ export function TechnicalChart({
     chartRef.current = chart;
 
     // Create candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = (chart as any).addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -98,14 +96,14 @@ export function TechnicalChart({
         const color = level.strength > 0.7 ? '#22c55e' : 
                      level.strength > 0.4 ? '#84cc16' : '#a3e635';
         
-        candlestickSeries.createPriceLine({
+        (candlestickSeries as any).createPriceLine({
           price: level.price,
           color: color,
           lineWidth: level.strength > 0.7 ? 2 : 1,
           lineStyle: level.strength > 0.7 ? 0 : 1, // 0 = solid, 1 = dashed
           axisLabelVisible: true,
           title: `Support ${level.price.toFixed(2)} (${(level.strength * 100).toFixed(0)}%)`,
-        } as PriceLineOptions);
+        });
       });
     }
 
@@ -114,14 +112,14 @@ export function TechnicalChart({
         const color = level.strength > 0.7 ? '#ef4444' : 
                      level.strength > 0.4 ? '#f97316' : '#fb923c';
         
-        candlestickSeries.createPriceLine({
+        (candlestickSeries as any).createPriceLine({
           price: level.price,
           color: color,
           lineWidth: level.strength > 0.7 ? 2 : 1,
           lineStyle: level.strength > 0.7 ? 0 : 1,
           axisLabelVisible: true,
           title: `Resistance ${level.price.toFixed(2)} (${(level.strength * 100).toFixed(0)}%)`,
-        } as PriceLineOptions);
+        });
       });
     }
 

@@ -23,7 +23,8 @@ config({ path: '.env' });
 const QDRANT_CLUSTER_ENDPOINT = 'https://40099ca1-43df-4699-9f49-f13b3a16bb48.europe-west3-0.gcp.cloud.qdrant.io';
 const QDRANT_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.XeQ06c2VJaVE0g31rkwfVJNhoIvNP6mdzujMNAwf65E';
 const QDRANT_URL = `${QDRANT_CLUSTER_ENDPOINT}:6333`;
-const GOOGLE_API_KEY = 'AIzaSyCo-VNsZTorOEyahpnlvRo89zn4z2VFFsA';
+// GOOGLE_API_KEY is loaded from .env.local - do NOT hardcode API keys
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
 
 async function main() {
   console.log('='.repeat(60));

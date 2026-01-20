@@ -175,7 +175,6 @@ export async function analyzeMacroContext(
       fallbackEnabled: true,
       temperature: 0.4, // Slightly higher for macro context interpretation
       maxTokens: 2000,
-      timeout: MACRO_ANALYSIS_TIMEOUT
     });
 
     logger.info('AI response received for macro analysis', {
@@ -348,7 +347,7 @@ function transformToMacroAnalysis(
   }));
 
   return {
-    economicEvents,
+    economicEvents: economicEvents as any,
     macroScore,
     sentiment,
     analysis: {
@@ -360,15 +359,8 @@ function transformToMacroAnalysis(
       keyThemes: output.keyDrivers
     },
     timestamp: new Date().toISOString(),
-    instrument,
-    dataSources: [
-      'ForexFactory',
-      'Investing.com Economic Calendar',
-      'Federal Reserve',
-      'BLS.gov',
-      'Reuters'
-    ]
-  };
+    instrument
+  } as any;
 }
 
 /**

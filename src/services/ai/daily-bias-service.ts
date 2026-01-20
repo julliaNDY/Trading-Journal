@@ -32,6 +32,7 @@ import type {
   TechnicalStructure,
   TechnicalAnalysis,
   Synthesis,
+  RiskLevel,
 } from '@/types/daily-bias';
 import { 
   calculateSentiment, 
@@ -173,7 +174,7 @@ export async function executeSecurityAnalysis(
     let attempt = 0;
     const maxRetries = 2;
     let response;
-    let parsed: SecurityAnalysisOutput;
+    let parsed!: SecurityAnalysisOutput;
     
     // Retry loop with anti-hallucination validation
     while (attempt < maxRetries) {
@@ -239,10 +240,22 @@ export async function executeSecurityAnalysis(
       break; // Success
     }
     
+    // Map risk level (AI may return EXTREME which maps to CRITICAL)
+    const mapRiskLevel = (level: string): RiskLevel => {
+      const mapping: Record<string, RiskLevel> = {
+        'LOW': 'LOW',
+        'MEDIUM': 'MEDIUM',
+        'HIGH': 'HIGH',
+        'EXTREME': 'CRITICAL',
+        'CRITICAL': 'CRITICAL'
+      };
+      return mapping[level] || 'MEDIUM';
+    };
+    
     // Transform to SecurityAnalysis type
     const result: SecurityAnalysis = {
       volatilityIndex: parsed.volatilityIndex,
-      riskLevel: parsed.riskLevel,
+      riskLevel: mapRiskLevel(parsed.riskLevel),
       securityScore: parsed.securityScore,
       analysis: {
         summary: parsed.reasoning,
@@ -273,7 +286,7 @@ export async function executeSecurityAnalysis(
       volatilityIndex: result.volatilityIndex,
       riskLevel: result.riskLevel,
       processingTimeMs: processingTime,
-      cacheHit: response.fromCache
+      cacheHit: response?.cached ?? false
     });
     
     return result;
@@ -413,7 +426,7 @@ export async function analyzeDailyBias(
         useCache: true
       });
       institutionalFlux = {
-        ...fluxResult.analysis as InstitutionalFlux,
+        ...(fluxResult.analysis as unknown as InstitutionalFlux),
         dataSources: getInstitutionalFluxDataSources(params.instrument)
       };
       
@@ -515,7 +528,8 @@ export async function analyzeDailyBias(
     let synthesis: Synthesis | null = null;
     try {
       // Build synthesis input (all previous analyses)
-      const synthesisInput: SynthesisInput = {
+      // Note: Using 'as any' to handle type mismatches between AI outputs and strict types
+      const synthesisInput: SynthesisInput = ({
         security: securityAnalysis,
         macro: macroAnalysis || {
           sentiment: 'NEUTRAL',
@@ -563,7 +577,7 @@ export async function analyzeDailyBias(
         instrument: params.instrument,
         analysisDate: params.date,
         currentPrice: marketData.currentPrice
-      };
+      }) as any;
       
       const synthesisResult = await synthesizeDailyBias(synthesisInput, {
         useCache: true,
@@ -632,7 +646,7 @@ export async function analyzeDailyBias(
       // Collect all data sources used across all steps
       const allDataSources = [
         ...getSecurityAnalysisDataSources(params.instrument),
-        ...getMacroAnalysisDataSources(params.instrument),
+        ...getMacroAnalysisDataSources(),
         ...getInstitutionalFluxDataSources(params.instrument),
         ...getMag7AnalysisDataSources(),
         ...getTechnicalAnalysisDataSources(params.instrument)

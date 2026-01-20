@@ -34,7 +34,7 @@ const IndexRequestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuth(request);
+    const user = await requireAuth();
 
     // Parse request body
     const body = await request.json();

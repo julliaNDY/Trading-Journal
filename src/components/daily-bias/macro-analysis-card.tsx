@@ -62,11 +62,11 @@ export function MacroAnalysisCard({ analysis, loading = false, className = '' }:
         </CardTitle>
         <CardDescription>
           <span>{analysis.instrument} • {new Date(analysis.timestamp).toLocaleString()}</span>
-          {analysis.dataSources && analysis.dataSources.length > 0 && (
+          {(analysis as any).dataSources && (analysis as any).dataSources.length > 0 && (
             <>
               <br />
               <span className="text-xs">
-                <strong>Sources:</strong> {analysis.dataSources.join(', ')}
+                <strong>Sources:</strong> {(analysis as any).dataSources.join(', ')}
               </span>
             </>
           )}

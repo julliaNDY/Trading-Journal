@@ -12,8 +12,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { synthesizeDailyBias, type SynthesisInput } from '@/services/daily-bias/synthesis-service';
-import type { SynthesisOutput } from '@/lib/prompts/synthesis-prompt';
+import { synthesizeDailyBias } from '@/services/daily-bias/synthesis-service';
+import type { SynthesisInput, SynthesisOutput } from '@/lib/prompts/synthesis-prompt';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/auth';
 import type {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { 
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { 

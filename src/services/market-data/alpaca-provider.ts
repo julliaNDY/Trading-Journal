@@ -439,4 +439,4 @@ interface AlpacaRawBar {
 }
 
 // Export for testing
-export { AlpacaRawTrade, AlpacaRawQuote, AlpacaRawBar };
+export type { AlpacaRawTrade, AlpacaRawQuote, AlpacaRawBar };

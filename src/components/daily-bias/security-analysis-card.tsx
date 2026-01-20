@@ -98,9 +98,9 @@ export function SecurityAnalysisCard({
         </CardTitle>
         <CardDescription>
           <span className="block">{analysis.instrument} • {new Date(analysis.timestamp).toLocaleString()}</span>
-          {analysis.dataSources && analysis.dataSources.length > 0 && (
+          {(analysis as any).dataSources && (analysis as any).dataSources.length > 0 && (
             <span className="block text-xs text-muted-foreground mt-1">
-              <strong>Sources:</strong> {analysis.dataSources.join(', ')}
+              <strong>Sources:</strong> {(analysis as any).dataSources.join(', ')}
             </span>
           )}
         </CardDescription>

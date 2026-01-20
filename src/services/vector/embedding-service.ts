@@ -141,7 +141,7 @@ export async function indexTrade(tradeId: string): Promise<void> {
     }
 
     const content = generateTradeContent(trade);
-    const direction = trade.quantity >= 0 ? 'LONG' : 'SHORT';
+    const direction = Number(trade.quantity) >= 0 ? 'LONG' : 'SHORT';
 
     const document: VectorDocument = {
       id: trade.id,
@@ -186,7 +186,7 @@ export async function indexUserTrades(userId: string, limit: number = 100): Prom
 
     const documents: VectorDocument[] = trades.map((trade) => {
       const content = generateTradeContent(trade);
-      const direction = trade.quantity >= 0 ? 'LONG' : 'SHORT';
+      const direction = Number(trade.quantity) >= 0 ? 'LONG' : 'SHORT';
 
       return {
         id: trade.id,
@@ -311,9 +311,9 @@ export async function indexDailyBiasAnalysis(analysisId: string): Promise<void> 
       content,
       metadata: {
         instrument: analysis.instrument,
-        finalBias: analysis.finalBias,
-        confidence: analysis.confidence,
-        analyzedAt: analysis.analyzedAt.toISOString(),
+        finalBias: (analysis as any).finalBias,
+        confidence: (analysis as any).confidence,
+        analyzedAt: (analysis as any).analyzedAt?.toISOString?.() ?? new Date().toISOString(),
         userId: analysis.userId,
       },
     };

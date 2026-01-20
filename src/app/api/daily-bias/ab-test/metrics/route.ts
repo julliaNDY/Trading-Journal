@@ -41,7 +41,7 @@ const metricsRequestSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user (admin only for now)
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },

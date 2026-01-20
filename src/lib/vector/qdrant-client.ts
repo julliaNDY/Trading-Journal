@@ -496,8 +496,8 @@ export async function getCollectionStats(collectionName: string = DEFAULT_COLLEC
   try {
     const info = await client.getCollection(collectionName);
     return {
-      vectorsCount: info.vectors_count,
-      pointsCount: info.points_count,
+      vectorsCount: info.indexed_vectors_count ?? info.points_count ?? 0,
+      pointsCount: info.points_count ?? 0,
       segmentsCount: info.segments_count,
       status: info.status,
     };

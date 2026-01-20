@@ -36,7 +36,7 @@ const securityAnalysisRequestSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await requireAuth(req);
+    const user = await requireAuth();
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },
