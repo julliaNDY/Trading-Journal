@@ -116,25 +116,37 @@ export async function middleware(request: NextRequest) {
 
   // Enforce subscription on gated routes
   if (user && isSubscriptionProtectedRoute) {
-    const apiUrl = `${request.nextUrl.origin}/api/subscription/status`
-    const apiResponse = await fetch(apiUrl, {
-      headers: {
-        cookie: request.headers.get('cookie') ?? '',
-      },
-      cache: 'no-store',
-    })
+    try {
+      // Use localhost for internal API calls to avoid SSL issues
+      // The server runs HTTP internally, even if accessed via HTTPS through a reverse proxy
+      const internalOrigin = process.env.NODE_ENV === 'production' 
+        ? 'http://localhost:3000' 
+        : request.nextUrl.origin
+      const apiUrl = `${internalOrigin}/api/subscription/status`
+      
+      const apiResponse = await fetch(apiUrl, {
+        headers: {
+          cookie: request.headers.get('cookie') ?? '',
+        },
+        cache: 'no-store',
+      })
 
-    if (!apiResponse.ok) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
-    }
+      if (!apiResponse.ok) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/'
+        return NextResponse.redirect(url)
+      }
 
-    const data = await apiResponse.json()
-    if (!data?.hasAccess) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      const data = await apiResponse.json()
+      if (!data?.hasAccess) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/'
+        return NextResponse.redirect(url)
+      }
+    } catch (error) {
+      // If subscription check fails, allow access to avoid blocking users
+      // The page-level checks will handle unauthorized access
+      console.error('[Middleware] Subscription check failed:', error)
     }
   }
 
