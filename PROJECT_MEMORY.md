@@ -7,6 +7,26 @@
 
 ## Historique des modifications
 
+## [2026-01-21 18:00] - Cleanup: Suppression instrumentation debug production
+
+### 📝 Demande utilisateur
+> Le problème de confirmation d'email en production a été résolu. Nettoyage de l'instrumentation de debug.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/app/auth/callback/route.ts` - Suppression de tous les logs de debug (fonction `debugLog`, try-catch global, appels de logs)
+  - `src/app/page.tsx` - Suppression de tous les logs de debug
+
+### 💡 Pourquoi (Raison du changement)
+L'instrumentation de debug ajoutée pour diagnostiquer le problème de confirmation d'email en production n'est plus nécessaire. Le code a été nettoyé pour revenir à l'état de production propre, tout en conservant la logique fonctionnelle corrigée.
+
+### 🔗 Contexte additionnel
+- Le problème était lié à la configuration Supabase (Site URL et Redirect URLs) et a été résolu côté configuration
+- Le code de redirection dans `page.tsx` reste en place car il améliore la robustesse du flow d'authentification
+- Commit: `bd433bf` - "fix: Use process.cwd() for debug logs + add console.log backup for PM2"
+
+---
+
 ## [2026-01-21 16:00] - Fix: Email Confirmation Callback Routing
 
 ### 📝 Demande utilisateur

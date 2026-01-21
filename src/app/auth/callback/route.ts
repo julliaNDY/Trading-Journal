@@ -46,44 +46,16 @@ function extractDiscordData(user: User): DiscordData {
 }
 
 export async function GET(request: Request) {
-  // #region agent log - helper function
-  const debugLog = async (loc: string, msg: string, data: object) => {
-    const logEntry = JSON.stringify({location:loc,message:msg,data,timestamp:Date.now(),sessionId:'debug-session',runId:'production'});
-    console.log('[DEBUG]', logEntry); // PM2 logs backup
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const logPath = path.join(process.cwd(), '.cursor', 'debug.log');
-      fs.mkdirSync(path.dirname(logPath), { recursive: true });
-      fs.appendFileSync(logPath, logEntry + '\n');
-    } catch (e) { console.error('[DEBUG LOG ERROR]', e); }
-  };
-  // #endregion
+  const { searchParams } = new URL(request.url)
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') ?? '/dashboard'
+  const type = searchParams.get('type') // 'signup', 'recovery', 'email_change'
   
-  try {
-    // #region agent log
-    await debugLog('callback:entry', 'Callback entry', {url:request.url,env:process.env.NODE_ENV,appUrl:process.env.APP_URL});
-    // #endregion
-    
-    const { searchParams } = new URL(request.url)
-    const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/dashboard'
-    const type = searchParams.get('type') // 'signup', 'recovery', 'email_change'
-    
-    const appUrl = getAppUrl()
-    // #region agent log
-    await debugLog('callback:config', 'Config loaded', {appUrl,hasCode:!!code,codeLength:code?.length,next,type});
-    // #endregion
+  const appUrl = getAppUrl()
 
-    if (code) {
-      const supabase = await createClient()
-      // #region agent log
-      await debugLog('callback:exchange-start', 'Attempting code exchange', {codePrefix:code.substring(0,8)});
-      // #endregion
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-      // #region agent log
-      await debugLog('callback:exchange-result', 'Code exchange result', {hasData:!!data,hasUser:!!data?.user,hasError:!!error,errorMsg:error?.message,errorCode:error?.code});
-      // #endregion
+  if (code) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
       // Extract Discord data (username + avatar) from OAuth, manual signup, or link
@@ -200,41 +172,13 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${appUrl}/settings?email_updated=true`)
       }
 
-      // #region agent log
-      await debugLog('callback:success', 'Success redirect', {redirectTo:`${appUrl}${next}`});
-      // #endregion
       return NextResponse.redirect(`${appUrl}${next}`)
     }
     
-    // #region agent log
-    await debugLog('callback:exchange-failed', 'Code exchange failed', {errorMsg:error?.message,errorCode:error?.code});
-    // #endregion
     authLogger.error('Code exchange failed', error)
   }
 
   // Erreur - rediriger vers login avec message
-  const finalAppUrl = getAppUrl()
-  // #region agent log
-  await debugLog('callback:error-redirect', 'Error redirect', {hasCode:!!code,redirectTo:`${finalAppUrl}/login?error=auth_callback_error`});
-  // #endregion
-  return NextResponse.redirect(`${finalAppUrl}/login?error=auth_callback_error`)
-  } catch (err: any) {
-    // #region agent log - catch all errors
-    console.error('[DEBUG FATAL]', err);
-    const debugLogErr = async (msg: string, data: object) => {
-      const logEntry = JSON.stringify({location:'callback:FATAL',message:msg,data,timestamp:Date.now()});
-      console.log('[DEBUG]', logEntry);
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const logPath = path.join(process.cwd(), '.cursor', 'debug.log');
-        fs.mkdirSync(path.dirname(logPath), { recursive: true });
-        fs.appendFileSync(logPath, logEntry + '\n');
-      } catch (e) { /* ignore */ }
-    };
-    await debugLogErr('FATAL ERROR in callback', {error:err?.message,stack:err?.stack?.substring(0,500)});
-    // #endregion
-    return NextResponse.redirect(`${getAppUrl()}/login?error=auth_callback_error`);
-  }
+  return NextResponse.redirect(`${appUrl}/login?error=auth_callback_error`)
 }
 
