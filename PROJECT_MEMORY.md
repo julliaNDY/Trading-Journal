@@ -7,6 +7,36 @@
 
 ## Historique des modifications
 
+## [2026-01-21 16:00] - Fix: Email Confirmation Callback Routing
+
+### 📝 Demande utilisateur
+> Après inscription, le lien de confirmation d'email affiche une erreur "Confirmation error. Please try again." L'utilisateur peut quand même se connecter manuellement mais la redirection automatique ne fonctionne pas.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/app/page.tsx` - Ajout de la gestion du paramètre `code` pour rediriger vers `/auth/callback`
+  - `src/app/auth/callback/route.ts` - Nettoyage de l'instrumentation debug
+  - `src/app/(auth)/login/page.tsx` - Nettoyage de l'instrumentation debug
+  - `.gitignore` - Ajout de `env.vps` pour éviter les fuites de secrets
+
+### 💡 Pourquoi (Raison du changement)
+**Cause racine:** Supabase ignorait notre `emailRedirectTo` paramètre et utilisait la "Site URL" par défaut (`https://tradingpathjournal.com`) au lieu de `http://localhost:3000/auth/callback`. 
+
+Cela se produisait car:
+1. L'URL localhost n'était pas dans la liste des "Redirect URLs" autorisées dans Supabase Dashboard
+2. Le code de confirmation arrivait à la racine `/` au lieu de `/auth/callback`
+3. Aucun code ne traitait ce cas, donc l'utilisateur était redirigé vers login avec une erreur
+
+**Solution:** Ajout d'une vérification dans `page.tsx` qui détecte le paramètre `code` dans l'URL et redirige automatiquement vers `/auth/callback`. Cela fonctionne que Supabase utilise la Site URL ou le emailRedirectTo.
+
+### 🔗 Contexte additionnel
+- **Configuration Supabase requise:** Ajouter `http://localhost:3000/auth/callback` et `https://tradingpathjournal.com/auth/callback` dans Dashboard > Authentication > URL Configuration > Redirect URLs
+- **Flow corrigé:** Email → Clic lien → `/?code=xxx` → Redirect vers `/auth/callback?code=xxx` → Traitement → Redirect vers `/dashboard`
+- **Production:** Le fix fonctionne aussi en production car il gère les deux cas (redirect direct au callback OU redirect à la racine)
+- Commit: `07a83e6` - "fix: Registration without Stripe re-enabled"
+
+---
+
 ## [2026-01-21 14:30] - Business Model: Passage en mode Beta Gratuit
 
 ### 📝 Demande utilisateur
