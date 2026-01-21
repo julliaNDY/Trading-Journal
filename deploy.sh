@@ -3,7 +3,7 @@
 # DEPLOY.SH - Script de déploiement production Next.js + Prisma + PM2
 # Usage: bash deploy.sh
 # ============================================================================
-
+buy
 set -e  # Arrêt immédiat en cas d'erreur
 
 # Configuration
