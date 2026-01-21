@@ -46,28 +46,44 @@ function extractDiscordData(user: User): DiscordData {
 }
 
 export async function GET(request: Request) {
-  // #region agent log
-  const fs1 = await import('fs');fs1.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:48',message:'Callback entry',data:{url:request.url,env:process.env.NODE_ENV},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2',runId:'production'})+'\n');
+  // #region agent log - helper function
+  const debugLog = async (loc: string, msg: string, data: object) => {
+    const logEntry = JSON.stringify({location:loc,message:msg,data,timestamp:Date.now(),sessionId:'debug-session',runId:'production'});
+    console.log('[DEBUG]', logEntry); // PM2 logs backup
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const logPath = path.join(process.cwd(), '.cursor', 'debug.log');
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.appendFileSync(logPath, logEntry + '\n');
+    } catch (e) { console.error('[DEBUG LOG ERROR]', e); }
+  };
   // #endregion
-  const { searchParams } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
-  const type = searchParams.get('type') // 'signup', 'recovery', 'email_change'
   
-  const appUrl = getAppUrl()
-  // #region agent log
-  const fs2 = await import('fs');fs2.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:56',message:'Config loaded',data:{appUrl,hasCode:!!code,codeLength:code?.length,next,type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1',runId:'production'})+'\n');
-  // #endregion
+  try {
+    // #region agent log
+    await debugLog('callback:entry', 'Callback entry', {url:request.url,env:process.env.NODE_ENV,appUrl:process.env.APP_URL});
+    // #endregion
+    
+    const { searchParams } = new URL(request.url)
+    const code = searchParams.get('code')
+    const next = searchParams.get('next') ?? '/dashboard'
+    const type = searchParams.get('type') // 'signup', 'recovery', 'email_change'
+    
+    const appUrl = getAppUrl()
+    // #region agent log
+    await debugLog('callback:config', 'Config loaded', {appUrl,hasCode:!!code,codeLength:code?.length,next,type});
+    // #endregion
 
-  if (code) {
-    const supabase = await createClient()
-    // #region agent log
-    const fs3 = await import('fs');fs3.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:63',message:'Attempting code exchange',data:{codePrefix:code.substring(0,8)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4',runId:'production'})+'\n');
-    // #endregion
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    // #region agent log
-    const fs4 = await import('fs');fs4.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:67',message:'Code exchange result',data:{hasData:!!data,hasUser:!!data?.user,hasError:!!error,errorMsg:error?.message,errorCode:error?.code,errorStatus:error?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5',runId:'production'})+'\n');
-    // #endregion
+    if (code) {
+      const supabase = await createClient()
+      // #region agent log
+      await debugLog('callback:exchange-start', 'Attempting code exchange', {codePrefix:code.substring(0,8)});
+      // #endregion
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      // #region agent log
+      await debugLog('callback:exchange-result', 'Code exchange result', {hasData:!!data,hasUser:!!data?.user,hasError:!!error,errorMsg:error?.message,errorCode:error?.code});
+      // #endregion
 
     if (!error && data.user) {
       // Extract Discord data (username + avatar) from OAuth, manual signup, or link
@@ -185,21 +201,40 @@ export async function GET(request: Request) {
       }
 
       // #region agent log
-      const fs5 = await import('fs');fs5.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:175',message:'Success redirect',data:{redirectTo:`${appUrl}${next}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1',runId:'production'})+'\n');
+      await debugLog('callback:success', 'Success redirect', {redirectTo:`${appUrl}${next}`});
       // #endregion
       return NextResponse.redirect(`${appUrl}${next}`)
     }
     
     // #region agent log
-    const fs6 = await import('fs');fs6.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:181',message:'Code exchange failed',data:{errorMsg:error?.message,errorCode:error?.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5',runId:'production'})+'\n');
+    await debugLog('callback:exchange-failed', 'Code exchange failed', {errorMsg:error?.message,errorCode:error?.code});
     // #endregion
     authLogger.error('Code exchange failed', error)
   }
 
   // Erreur - rediriger vers login avec message
+  const finalAppUrl = getAppUrl()
   // #region agent log
-  const fs7 = await import('fs');fs7.appendFileSync('/Users/l3j/Desktop/Trading/Useful Shit/Trading-Journal/cryptosite/.cursor/debug.log',JSON.stringify({location:'callback/route.ts:188',message:'Error redirect',data:{hasCode:!!code,redirectTo:`${appUrl}/login?error=auth_callback_error`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H4',runId:'production'})+'\n');
+  await debugLog('callback:error-redirect', 'Error redirect', {hasCode:!!code,redirectTo:`${finalAppUrl}/login?error=auth_callback_error`});
   // #endregion
-  return NextResponse.redirect(`${appUrl}/login?error=auth_callback_error`)
+  return NextResponse.redirect(`${finalAppUrl}/login?error=auth_callback_error`)
+  } catch (err: any) {
+    // #region agent log - catch all errors
+    console.error('[DEBUG FATAL]', err);
+    const debugLogErr = async (msg: string, data: object) => {
+      const logEntry = JSON.stringify({location:'callback:FATAL',message:msg,data,timestamp:Date.now()});
+      console.log('[DEBUG]', logEntry);
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const logPath = path.join(process.cwd(), '.cursor', 'debug.log');
+        fs.mkdirSync(path.dirname(logPath), { recursive: true });
+        fs.appendFileSync(logPath, logEntry + '\n');
+      } catch (e) { /* ignore */ }
+    };
+    await debugLogErr('FATAL ERROR in callback', {error:err?.message,stack:err?.stack?.substring(0,500)});
+    // #endregion
+    return NextResponse.redirect(`${getAppUrl()}/login?error=auth_callback_error`);
+  }
 }
 
