@@ -1,22 +1,16 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Check, Clock3, Sparkles } from 'lucide-react';
-import { PlanInterval } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { useToast } from '@/hooks/use-toast';
-import { createCheckoutSessionAction } from '@/app/actions/subscription';
 
 export function BetaAccessLanding() {
   const t = useTranslations('landing');
   const router = useRouter();
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Get features from translations
   const availableFeatures = Array.from({ length: 10 }, (_, i) => 
@@ -27,34 +21,9 @@ export function BetaAccessLanding() {
   );
 
   const handleJoinBeta = async () => {
-    setIsSubmitting(true);
-    try {
-      const result = await createCheckoutSessionAction(PlanInterval.BETA);
-
-      if (result.success && 'data' in result && result.data?.url) {
-        window.location.href = result.data.url;
-        return;
-      }
-
-      if (!result.success && result.error === 'Not authenticated') {
-        router.push('/register?next=/');
-        return;
-      }
-
-      toast({
-        title: t('paymentUnavailable'),
-        description: result.success ? t('paymentErrorDescription') : result.error,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      toast({
-        title: t('paymentError'),
-        description: error instanceof Error ? error.message : t('tryAgain'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // FREE BETA MODE: Redirect directly to registration
+    // Stripe integration preserved but bypassed for free beta period
+    router.push('/register');
   };
 
   return (
@@ -105,9 +74,8 @@ export function BetaAccessLanding() {
               size="lg"
               className="mt-6 w-full"
               onClick={handleJoinBeta}
-              disabled={isSubmitting}
             >
-              {isSubmitting ? t('redirectingToStripe') : t('joinBeta')}
+              {t('joinBeta')}
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
               {t('securePayment')}

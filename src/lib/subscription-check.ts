@@ -57,6 +57,10 @@ export async function checkSubscription(): Promise<SubscriptionInfo> {
     };
   }
 
+  // FREE BETA MODE: Grant access to all authenticated users
+  // Subscription checks are bypassed but code preserved for future use
+  // Original logic remains below for reference:
+  /*
   // Check early access first
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
@@ -101,25 +105,38 @@ export async function checkSubscription(): Promise<SubscriptionInfo> {
     currentPeriodEnd: subscription.currentPeriodEnd,
     planName: subscription.plan.displayName || subscription.plan.name,
   };
+  */
+
+  return {
+    hasActiveSubscription: true,
+    isTrialing: false,
+    status: 'ACTIVE' as SubscriptionStatus,
+    trialEndsAt: null,
+    currentPeriodEnd: null,
+    planName: 'Free Beta',
+  };
 }
 
 /**
  * Check if the current user has premium access
  */
 export async function hasPremiumAccess(): Promise<boolean> {
+  // FREE BETA MODE: All authenticated users have premium access
   const { hasActiveSubscription } = await checkSubscription();
-  return hasActiveSubscription;
+  return hasActiveSubscription; // Always true for authenticated users in free beta
 }
 
 /**
  * Require premium access - throws if no subscription
  */
 export async function requirePremiumAccess(): Promise<void> {
+  // FREE BETA MODE: All authenticated users have premium access
   const { hasActiveSubscription } = await checkSubscription();
   
   if (!hasActiveSubscription) {
     throw new Error('SUBSCRIPTION_REQUIRED');
   }
+  // In free beta mode, this will never throw for authenticated users
 }
 
 // ============================================================================
@@ -173,6 +190,9 @@ export const FREE_TIER_LIMITS = {
  * Note: Uses the current authenticated user's subscription status
  */
 export async function hasExceededTradeLimit(userId: string): Promise<boolean> {
+  // FREE BETA MODE: No trade limits for any users
+  // Original limit logic preserved below for future use:
+  /*
   // Check early access first
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
@@ -199,5 +219,8 @@ export async function hasExceededTradeLimit(userId: string): Promise<boolean> {
   });
 
   return tradeCount >= FREE_TIER_LIMITS.maxTrades;
+  */
+
+  return false; // No limits in free beta mode
 }
 

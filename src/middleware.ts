@@ -114,6 +114,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // FREE BETA MODE: Subscription enforcement disabled
+  // All authenticated users have full access
+  // Original subscription check logic preserved below for future use:
+  /*
   // Enforce subscription on gated routes
   if (user && isSubscriptionProtectedRoute) {
     try {
@@ -149,6 +153,7 @@ export async function middleware(request: NextRequest) {
       console.error('[Middleware] Subscription check failed:', error)
     }
   }
+  */
 
   // Auth routes that should redirect to dashboard if already logged in
   const authPathsToRedirect = ['/login', '/register', '/forgot-password']

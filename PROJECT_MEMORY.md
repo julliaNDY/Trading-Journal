@@ -7,6 +7,72 @@
 
 ## Historique des modifications
 
+## [2026-01-21 14:30] - Business Model: Passage en mode Beta Gratuit
+
+### 📝 Demande utilisateur
+> Convertir l'application du modèle "pay-to-access" vers "free beta". Permettre à tous les utilisateurs de s'inscrire et d'accéder à l'intégralité de la plateforme sans interaction avec Stripe.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `src/components/landing/beta-access-landing.tsx` - Redirection directe vers /register au lieu de Stripe checkout
+  - `src/app/api/subscription/status/route.ts` - Retourne hasAccess: true pour tous les utilisateurs authentifiés
+  - `src/lib/subscription-check.ts` - Tous les checks retournent accès premium pour utilisateurs authentifiés
+  - `src/middleware.ts` - Désactivation de l'enforcement de subscription
+
+- **Changements de comportement :**
+  1. Landing page: bouton "Join Beta For Free" redirige vers `/register` (plus de Stripe checkout)
+  2. API subscription/status: retourne `hasAccess: true` et `status: 'FREE_BETA'` pour tous les users authentifiés
+  3. `checkSubscription()`: retourne toujours `hasActiveSubscription: true` avec planName "Free Beta"
+  4. `hasPremiumAccess()`: retourne toujours `true` pour users authentifiés
+  5. `hasExceededTradeLimit()`: retourne toujours `false` (pas de limites)
+  6. Middleware: subscription enforcement commenté (plus de redirection vers landing si pas d'abonnement)
+
+### 💡 Pourquoi (Raison du changement)
+Passage d'un modèle payant à un modèle de beta gratuite pour permettre l'acquisition utilisateurs et les tests. Tout le code Stripe est préservé mais bypassé via des commentaires pour faciliter la réactivation future.
+
+### 🔗 Contexte additionnel
+- **Code Stripe préservé** : Tous les appels Stripe, logic de subscription, et intégrations sont commentés mais conservés
+- **Réactivation facile** : Pour revenir au modèle payant, décommenter les blocs de code marqués "FREE BETA MODE"
+- **Page pricing** : `/pricing` conservée intacte avec Stripe (accessible mais pas promue)
+- **Flow utilisateur** : Landing → Register → Dashboard (aucun blocage "Payment Required")
+- **Authentification uniquement** : Seul requirement = compte authentifié (pas de subscription check)
+
+---
+
+## [2026-01-21 12:00] - DevOps: Mise à jour complète du script de déploiement
+
+### 📝 Demande utilisateur
+> Mettre à jour deploy.sh pour un déploiement complet et fiable en une seule commande sur VPS Debian avec PM2
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :** 
+  - `deploy.sh` - Script de déploiement entièrement réécrit
+
+- **Fonctionnalités ajoutées:**
+  1. Vérification du répertoire d'exécution
+  2. Chargement automatique des variables d'environnement (.env)
+  3. Vérification de la version Node.js (v18-v22)
+  4. Pull automatique depuis origin/main
+  5. Installation des dépendances (npm ci)
+  6. Génération du client Prisma (`prisma generate`)
+  7. Application des migrations Prisma (`prisma migrate deploy`)
+  8. Build Next.js en mode standalone
+  9. Préparation des fichiers standalone (static + public)
+  10. Arrêt propre de l'ancienne instance PM2
+  11. Démarrage avec PM2 (avec restart mémoire 1G)
+  12. Sauvegarde de la configuration PM2
+  13. Affichage d'un résumé complet avec commandes utiles
+
+### 💡 Pourquoi (Raison du changement)
+L'ancien script était trop basique et ne gérait pas les migrations Prisma, le chargement des variables d'environnement, ni la vérification de compatibilité Node.js. Le nouveau script est idempotent et peut être relancé sans risque.
+
+### 🔗 Contexte additionnel
+- Migrations récentes à appliquer (depuis le 15/01): voting_system, voting_option_category, timescaledb_tick_data, account_indexes, broker_database, import_profile_fields, apex_trader_broker_type, daily_bias_analysis, topstepx_broker_type, synthesis_sentiment
+- Le script utilise `prisma migrate deploy` (sécurisé pour la production, pas de destructive operations)
+- Compatible avec le mode standalone de Next.js 15
+
+---
+
 ## [2026-01-20 18:30] - Documentation: Création plan global Stories 1.1 à 17.1
 
 ### 📝 Demande utilisateur
