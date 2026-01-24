@@ -340,3 +340,138 @@ Selon `docs/EPIC-12-DEPENDENCIES-ROADMAP.md` :
 **Créé le** : 2026-01-20  
 **Dernière mise à jour** : 2026-01-20  
 **Auteur** : PM Agent (John)
+
+# Plan Global — Stories 1.1 → 17.1 (Token‑Efficient)
+
+> Synthèse courte pour navigation + référence (pas un PRD).  
+> Date: 2026-01-20 • Statut: snapshot basé sur le repo.
+
+## 1) But du document
+- Donner **un index** Phases ↔ Epics ↔ Stories.
+- Pointer vers **les docs sources** (les vrais détails vivent ailleurs).
+- Mettre en évidence **les manquants / blocages**.
+
+## 2) Mapping Epics → Stories (règle de numérotation)
+- **1.x** → Epic 1 (Infrastructure & Foundation)
+- **2.x** → Epic 2 (Market Replay & Backtesting Infra)
+- **3.x** → Epic 3 (Unlimited Accounts & Broker Sync)
+- **4.x** → Epic 4 (AI & Intelligence)
+- **5.x** → Epic 5 (Advanced Analytics)
+- **6.x** → Epic 6 (Replay & Visualization)
+- **7.x** → Epic 7 (Journaling & Sharing)
+- **8.x** → Epic 8 (Killer Features)
+- **9.x** → Epic 9 (Public Pages)
+- **10.x** → Epic 10 (Beta & Voting)
+- **11.x** → Epic 11 (Admin & User Mgmt)
+- **12.x** → Epic 12 (AI Daily Bias)
+- **13.x–17.x** → Epics 13–17 (Future Roadmap)
+
+## 3) Phases — résumé (statuts)
+> Convention: ✅ done • 🟢 en cours • ⏳ à faire • 🧩 dépendance
+
+### Phase 0 — Foundation & Planning
+- ✅ 1.1–1.5, 2.1
+- Réfs:
+  - `docs/specs/phase-0-poc-plan.md`
+  - `docs/specs/phase-0-execution-plan.md`
+
+### Phase 1 — Foundation & Core Infrastructure (Epic 1)
+- ✅ 1.1–1.5
+- ⏳ 1.6–1.10 (prod Timescale/BullMQ/Vector/Observability + pipeline export/import)
+
+### Phase 2 — Data & Connectivity (Epics 2–3)
+- Epic 2:
+  - ✅ 2.1
+  - ⏳ 2.2–2.5
+- Epic 3:
+  - ✅ 3.1 (data model), ✅ 3.8 (broker DB)
+  - ⏳ 3.2–3.7, 3.9
+- Docs utiles:
+  - `docs/brokers/`
+  - `docs/brokers/TOP-10-PRIORITY-BROKERS-2026.md`
+
+### Phase 3 — AI & Intelligence (Epic 4)
+- ⏳ 4.1–4.6
+- Note: statut global « ~70% » mentionné dans des docs Phase 11 (à vérifier)
+
+### Phase 5 — Advanced Analytics (Epic 5)
+- ⏳ 5.1–5.5
+
+### Phase 6 — Replay & Visualization (Epic 6)
+- ⏳ 6.1–6.2, 6.4
+- 🟠 **6.3 Roadmap Ready** (TradingView Entry/Exit Overlays)
+  - Roadmap: `docs/STORY-6.3-ROADMAP.md`
+  - Sprint Plan: `docs/STORY-6.3-SPRINT-PLAN.md`
+  - Visual: `docs/chart_example.png`
+  - Timeline: 5–7 days of dev
+
+### Phase 7 — Journaling & Sharing (Epic 7)
+- ⏳ 7.1–7.4
+
+### Phase 8 — Killer Features (Epic 8)
+- ⏳ 8.1–8.3
+
+### Phase 9 — Public Pages (Epic 9)
+- ⏳ 9.1–9.7
+
+### Phase 10 — Community & Engagement (Epics 10–11)
+- Epic 10:
+  - ⏳ 10.1–10.4
+- Epic 11:
+  - ⏳ 11.1–11.5
+
+### Phase 11 — AI Daily Bias (Epic 12)
+- 🟢 en cours (Jan 2026)
+- ⏳ 12.1–12.9, 12.11–12.14
+- ✅ 12.10 (implementation summary)
+- Docs:
+  - `PHASE-11-MASTER-README.md`
+  - `PHASE-11-QUICK-REFERENCE.txt`
+  - `docs/phase-11/`
+  - `docs/EPIC-12-DEPENDENCIES-ROADMAP.md`
+- Timeline (doc): 2026-01-20 → 2026-02-05
+
+### Phase 12 — Future Roadmap (Epics 13–17)
+- Drafts: 13.1, 14.1, 15.1, 16.1
+- Story actuelle mentionnée: **17.1** (Trading Challenges)
+
+## 4) Documents existants (index)
+- Phase 0:
+  - `docs/specs/phase-0-poc-plan.md`
+  - `docs/specs/phase-0-execution-plan.md`
+- Phase 11:
+  - `PHASE-11-MASTER-README.md`
+  - `PHASE-11-QUICK-REFERENCE.txt`
+  - `docs/phase-11/`
+  - `docs/EPIC-12-DEPENDENCIES-ROADMAP.md`
+- Brokers:
+  - `docs/brokers/`
+  - `docs/brokers/TOP-10-PRIORITY-BROKERS-2026.md`
+- Architecture:
+  - `docs/architecture/`
+  - `docs/architecture/tech-stack.md`
+
+## 5) Doc manquant (bloquant)
+- **Manquant**: `docs/roadmap-trading-path-journal.md`
+- Impact:
+  - référencé dans des stories
+  - utilisé par `src/lib/roadmap-parser.ts`
+  - utilisé par `src/components/beta/roadmap-visualization.tsx`
+
+## 6) Dépendances clés
+### Epic 12 (Phase 11)
+- ✅ 3.8 (broker DB) — resolved
+- ⏳ Top 10 Brokers — en cours
+- 🧩 Phase 3 AI infra — objectif: 80%+ (doc)
+
+### Story 17.1
+- 🧩 dépend de Phase 3 (AI) + Phase 5 (Analytics)
+- 🧩 dépend des infos du roadmap manquant (Phase 12)
+
+## 7) Prochaines étapes (courtes)
+1) Créer `docs/roadmap-trading-path-journal.md` (format compatible parser + viz)
+2) Clarifier Phase 1–10 via docs d’exécution légères (1 page/phase max)
+3) Reprendre Story 17.1: dépendances + critères d’acceptation
+
+---
+Dernière mise à jour: 2026-01-20 • Auteur: PM Agent (John)

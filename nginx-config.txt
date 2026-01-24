@@ -1,0 +1,9 @@
+# Add to your Nginx server block or http block:
+
+server {
+    # ... existing configuration ...
+    
+    client_max_body_size 50M;
+    
+    # ... rest of configuration ...
+}

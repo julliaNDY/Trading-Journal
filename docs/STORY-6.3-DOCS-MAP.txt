@@ -1,0 +1,261 @@
+```
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║          STORY 6.3 ROADMAP — TradingView Entry/Exit Overlays                  ║
+║          Complete Documentation Suite — Ready for Development                 ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📊 DOCUMENT ECOSYSTEM (5 Documents)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+                          📌 START HERE
+                              │
+                              ▼
+    ┌───────────────────────────────────────┐
+    │  STORY-6.3-INDEX.md                   │  ⭐ Entry Point
+    │  (Navigation Map)                     │     • Read first (5 min)
+    │  • Quick reference for all docs       │     • Points to other docs
+    │  • Reading guides by role             │     • FAQ section
+    └───────────────────────────────────────┘
+         │         │            │
+         │         │            └─────┐
+         │         │                  │
+         ▼         ▼                  ▼
+    ┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+    │  QUICK-VISUAL   │  │  ROADMAP         │  │  SPRINT-PLAN     │
+    │  (5 min)        │  │  (20 min)        │  │  (15 min)        │
+    │                 │  │                  │  │                  │
+    │ • ASCII charts  │  │ • 6 phases       │  │ • 5-day timeline │
+    │ • Architecture  │  │ • Code examples  │  │ • Daily checklist│
+    │ • Gotchas       │  │ • Test strategy  │  │ • Sign-off gates │
+    │ • File list     │  │ • AC mapping     │  │ • Coverage %     │
+    └─────────────────┘  └──────────────────┘  └──────────────────┘
+         │                      │                      │
+         └──────────┬───────────┴──────────┬───────────┘
+                    │                      │
+                    ▼                      ▼
+            ┌─────────────────────────────────────────┐
+            │  STORY-6.3-DELIVERY-SUMMARY.md          │  📦 Recap
+            │  (5 min — comprehensive overview)       │
+            │  • All 4 docs summarized                │
+            │  • Architecture decisions               │
+            │  • Timeline + resources                 │
+            │  • Next steps                           │
+            └─────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 DOCUMENT PURPOSES (At a Glance)                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STORY-6.3-INDEX.md
+├─ Purpose: Navigation hub
+├─ Audience: Everyone
+├─ Read Time: 5 minutes
+├─ Key Content:
+│  ├─ Document comparison table
+│  ├─ Navigation by goal ("I want to...")
+│  ├─ Recommended reading order
+│  └─ Quick takeaways
+└─ When to Use: First thing you read
+
+
+STORY-6.3-QUICK-VISUAL.md
+├─ Purpose: Visual reference + key snippets
+├─ Audience: Quick learners, reference seekers
+├─ Read Time: 5 minutes
+├─ Key Content:
+│  ├─ ASCII diagram of TradingView overlay
+│  ├─ 3-layer architecture
+│  ├─ 6-phase checklist with timeline
+│  ├─ Core code snippet (createExecutionShape)
+│  ├─ Lifecycle diagram
+│  ├─ Performance targets (hard gates)
+│  └─ Potential gotchas + mitigations
+└─ When to Use: Get visual overview, copy code snippets
+
+
+STORY-6.3-ROADMAP.md ⭐ MAIN REFERENCE
+├─ Purpose: Complete implementation guide
+├─ Audience: Developers, architects, code reviewers
+├─ Read Time: 15-20 minutes (full) / 5 min (per phase)
+├─ Key Content:
+│  ├─ Full architecture (3 tiers)
+│  ├─ Phase 1: Types & styling (Task 1.1, 1.2 with code)
+│  ├─ Phase 2: API endpoint (Task 2.1, 2.2 with code)
+│  ├─ Phase 3: React integration (Task 3.1, 3.2 with code)
+│  ├─ Phase 4: Testing & performance (Task 4.1-4.3)
+│  ├─ Phase 5: Refinement (Task 5.1-5.3)
+│  ├─ Phase 6: Documentation (Task 6.1-6.3)
+│  ├─ Dépendances & priorities
+│  └─ AC mapping
+└─ When to Use: While writing code (reference each phase)
+
+
+STORY-6.3-SPRINT-PLAN.md
+├─ Purpose: Executable sprint execution
+├─ Audience: Dev lead, PM, daily standup team
+├─ Read Time: 10-15 minutes
+├─ Key Content:
+│  ├─ Proposed 5-day timeline (Day 1-5)
+│  ├─ Daily standup checklist (what to complete each day)
+│  ├─ 4 implementation checkpoints (with blocker mitigations)
+│  ├─ Test coverage targets (≥75%)
+│  ├─ AC verification checklist
+│  ├─ Branch strategy & commit conventions
+│  ├─ Dev environment setup (pre-requisites)
+│  └─ Sign-off checklist (Dev → QA → PM)
+└─ When to Use: During sprint execution (daily reference)
+
+
+STORY-6.3-DELIVERY-SUMMARY.md
+├─ Purpose: High-level recap + status
+├─ Audience: Everyone (status check)
+├─ Read Time: 5 minutes
+├─ Key Content:
+│  ├─ What was delivered (5 docs)
+│  ├─ Files to create/modify
+│  ├─ Architecture decisions (with justification)
+│  ├─ Performance targets
+│  ├─ Timeline overview
+│  ├─ Key implementation details
+│  └─ Next steps
+└─ When to Use: Status meetings, after sprint close
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 👥 RECOMMENDED READING BY ROLE                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+DEVELOPER (Writing the Code)
+├─ 5 min:  INDEX (navigate all docs)
+├─ 5 min:  QUICK-VISUAL (understand target + core concept)
+├─ 20 min: ROADMAP Phase 1 (read before coding)
+├─ 20 min: ROADMAP Phase 2 (read before coding)
+├─ 15 min: ROADMAP Phase 3 (read before coding)
+├─ 10 min: SPRINT-PLAN (know daily deliverables)
+└─ Daily: SPRINT-PLAN Standup Checklist
+
+PROJECT MANAGER / TEAM LEAD
+├─ 10 min: INDEX (orient yourself)
+├─ 5 min:  QUICK-VISUAL (visual overview)
+├─ 15 min: SPRINT-PLAN "Proposed Timeline" (5-day schedule)
+├─ 10 min: SPRINT-PLAN "Daily Standup Checklist" (bookmark for dailies)
+└─ 5 min:  SPRINT-PLAN "Sign-Off Checklist" (for acceptance gates)
+
+QA / TESTER
+├─ 10 min: INDEX (navigate docs)
+├─ 5 min:  QUICK-VISUAL (visual target)
+├─ 10 min: ROADMAP "Phase 4: Testing & Performance"
+├─ 15 min: SPRINT-PLAN "AC Verification Checklist"
+└─ 10 min: SPRINT-PLAN "Checkpoint 3" (perf gates)
+
+CODE REVIEWER
+├─ 20 min: ROADMAP (full, understand decisions)
+├─ 10 min: SPRINT-PLAN "Sign-Off Checklist" (review criteria)
+└─ Per-PR: Use ROADMAP phase sections during review
+
+STAKEHOLDER / EXECUTIVE
+├─ 5 min:  QUICK-VISUAL (understand concept)
+├─ 5 min:  DELIVERY-SUMMARY (status + timeline)
+└─ 5 min:  SPRINT-PLAN "Proposed Timeline" (when ready)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📋 DOCUMENTATION CHECKLIST                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ STORY-6.3-ROADMAP.md
+   ├─ ✅ 6 phases with clear tasks
+   ├─ ✅ Code examples (6+ snippets)
+   ├─ ✅ Architecture diagram
+   ├─ ✅ Dependencies + blockers
+   ├─ ✅ AC mapping
+   └─ ✅ Test strategy
+
+✅ STORY-6.3-SPRINT-PLAN.md
+   ├─ ✅ 5-day timeline
+   ├─ ✅ Daily checklist
+   ├─ ✅ 4 checkpoints with mitigations
+   ├─ ✅ Test coverage targets
+   ├─ ✅ Sign-off criteria
+   └─ ✅ Environment setup
+
+✅ STORY-6.3-QUICK-VISUAL.md
+   ├─ ✅ ASCII chart diagram
+   ├─ ✅ Architecture layers
+   ├─ ✅ Core code snippet
+   ├─ ✅ Lifecycle diagram
+   ├─ ✅ Performance targets
+   ├─ ✅ File references
+   └─ ✅ Gotchas + mitigations
+
+✅ STORY-6.3-INDEX.md
+   ├─ ✅ Navigation hub
+   ├─ ✅ Document comparison
+   ├─ ✅ Reading guide by role
+   └─ ✅ FAQ section
+
+✅ STORY-6.3-DELIVERY-SUMMARY.md
+   ├─ ✅ Recap of all deliverables
+   ├─ ✅ Architecture decisions
+   ├─ ✅ Timeline + resources
+   └─ ✅ Next steps
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 QUICK START (5 Minutes)                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. READ INDEX (2 min)
+   → docs/STORY-6.3-INDEX.md
+
+2. SCAN QUICK-VISUAL (2 min)
+   → docs/STORY-6.3-QUICK-VISUAL.md
+
+3. YOU'RE READY!
+   → Pick your role above → Start reading relevant docs
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📞 NAVIGATION TIPS                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+• All docs are in: /docs/STORY-6.3-*.md
+
+• Related docs:
+  - docs/stories/6.3.story.md (updated story)
+  - docs/chart_example.png (visual target)
+  - docs/tradingview_API.md (BMAD guide)
+  - docs/PLAN-GLOBAL-1.1-17.1.md (phase context)
+  - PROJECT_MEMORY.md (entry added 2026-01-24)
+
+• External resources:
+  - TradingView API v29: https://www.tradingview.com/charting-library-docs/latest/api/
+
+• Search for:
+  - "Phase 1" → Find Tasks 1.1 + 1.2
+  - "Task 2.1" → Find API endpoint details
+  - "AC1" → Find implementation details
+  - "Checkpoint" → Find gate criteria
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ✅ STATUS: READY FOR DEVELOPMENT                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+All documents complete ✅
+Architecture defined ✅
+Timeline realistic ✅
+Tests planned ✅
+Performance gates set ✅
+
+Next action: Assign developer → Start sprint → Use daily checklist
+
+
+Created: 2026-01-24
+Updated: 2026-01-24
+Status: 🟠 Ready for Dev (awaiting sprint assignment)
+```

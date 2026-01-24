@@ -8,6 +8,14 @@ import {
   type CreateTradeInput 
 } from '@/services/trade-service';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+};
+
 /**
  * Check for potential duplicates/merges before importing
  * Uses signature-based matching for intelligent detection

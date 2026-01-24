@@ -7,6 +7,85 @@
 
 ## Historique des modifications
 
+## [2026-01-24 15:30] - Story 6.3: Scope Expanded to Full TradingView Advanced Charts
+
+### 📝 Demande utilisateur
+> Mettre à jour Story 6.3 pour intégration complète de TradingView **Advanced Charts Library** (et non Lightweight) avec toolbar, header, drawings, indicators + execution markers.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `docs/stories/6.3.story.md` — AC expandés (AC1–AC12), Widget Config spec
+  - `docs/STORY-6.3-ROADMAP.md` — Phase 2 ajoutée (Widget Configuration), task renumbering
+
+### 💡 Pourquoi (Raison du changement)
+L'UX cible (`chart_example.png`) montre une intégration TradingView complète avec toolbar gauche (dessins) et header (timeframes, indicators). La story initiale se limitait aux execution markers. Scope étendu pour correspondre à l'UX "Chartist-ready".
+
+### 🔗 Contexte additionnel
+- **Scope v1**: Toolbar + Header + Indicators + Execution Markers
+- **Out of Scope v1 (Story 6.4)**: Drawing persistence (save/load)
+- **Widget Config Critical**: `enabled_features` avec `left_toolbar`, `header_widget`, `drawing_templates`
+- **7 Phases**: Types → Widget Config → API → React → Tests → Refinement → Docs
+- **AC Count**: 12 (dont AC12 = deferred)
+
+---
+
+## [2026-01-24 14:45] - Story 6.3: TradingView Entry/Exit Overlays - Complete Roadmap Suite
+
+### 📝 Demande utilisateur
+> Créer une roadmap complète pour Story 6.3 (Epic 6 - Replay & Visualization) en supprimant toute implémentation antérieure et recommencer depuis les specs TradingView Charting Library v29, basé sur `docs/chart_example.png`.
+
+### 🔧 Modifications techniques
+- **Fichiers créés (5 documents):**
+  - `docs/STORY-6.3-ROADMAP.md` — Master roadmap (6 phases, 400 lignes)
+  - `docs/STORY-6.3-SPRINT-PLAN.md` — Plan 5 jours (timeline + daily checklist)
+  - `docs/STORY-6.3-QUICK-VISUAL.md` — Référence visuelle (ASCII + snippets)
+  - `docs/STORY-6.3-INDEX.md` — Index navigation (guide par rôle)
+  - `docs/STORY-6.3-DELIVERY-SUMMARY.md` — Recap complet
+  - `docs/STORY-6.3-DOCS-MAP.txt` — Carte visuelle des docs
+
+- **Fichiers modifiés (2):**
+  - `docs/stories/6.3.story.md` — Mise à jour AC + lien roadmap + tech decisions
+  - `docs/PLAN-GLOBAL-1.1-17.1.md` — Référence ajoutée Phase 6
+
+### 💡 Pourquoi (Raison du changement)
+Story 6.3 nécessite une intégration complète de TradingView Charting Library v29 avec overlay d'entrées/sorties (buy/sell arrows). La roadmap suit BMAD (Brief, Minimal, Actionable, Design-first) et s'aligne sur TradingView v29 API + `docs/tradingview_API.md`.
+
+### 🔗 Contexte additionnel
+- **Phase**: 6, **Epic**: 6 (Replay & Visualization)
+- **Dépendances**: Phase 2 (Market Replay Infra ✅), Broker DB 263 ✅
+- **Timeline**: 5-7 jours de dev (33h estimé, 1 sprint)
+- **Visual target**: `docs/chart_example.png` (entrée flèche bleue ↓, sortie flèche rouge ⊗)
+- **Architecture**: 3 tiers (Frontend Hook → Backend API → Types)
+- **Tech Stack**: 
+  - Frontend: React hook + TradingView Charting Library v29 (createExecutionShape)
+  - Backend: API endpoint `/api/trades/executions` (< 500ms)
+  - Types: `ExecutionMarker` interface
+  - Styling: Buy #2962FF (blue), Sell #F23645 (red)
+  - Rendering: Idempotent (clear all → render new)
+- **Performance gates (hard)**: 
+  - Chart load < 2.0s ✅
+  - Marker render (50) < 300ms ✅
+  - API response < 500ms ✅
+  - Lighthouse ≥ 80 ✅
+- **6 Phases**:
+  - Phase 1: Types & styling (1 day)
+  - Phase 2: API backend (1.5 days)
+  - Phase 3: React integration (1.5 days)
+  - Phase 4: Testing & perf (1.5 days)
+  - Phase 5: Refinement UI (1 day)
+  - Phase 6: Documentation (0.5 day)
+- **Documentation**: 5 docs (1000+ lignes total)
+  - INDEX: Navigation hub (tous les rôles)
+  - QUICK-VISUAL: 5 min ref (code snippets, gotchas)
+  - ROADMAP: Implementation guide (code examples 6+)
+  - SPRINT-PLAN: Execution timeline (daily checklist)
+  - DELIVERY-SUMMARY: Status recap
+- **Files to create**: 8 new + 2 modified
+- **Test coverage target**: ≥ 75% (unit + integration)
+- **Status**: 🟠 Ready for Sprint Planning
+
+---
+
 ## [2026-01-21 18:00] - Cleanup: Suppression instrumentation debug production
 
 ### 📝 Demande utilisateur
