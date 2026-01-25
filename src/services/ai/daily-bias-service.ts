@@ -1182,18 +1182,27 @@ export async function generateSynthesis(input: {
       return generateFallbackSynthesis(input, sentimentCalc.sentiment);
     }
 
-    const output = parsedOutput as SynthesisTextOutput;
+    let output = parsedOutput as SynthesisTextOutput;
 
     // Verify sentiment matches algorithm (AC4: not arbitrary)
     // Allow slight deviation but log if significantly different
     if (output.sentiment !== sentimentCalc.sentiment) {
-      logger.warn('AI sentiment differs from algorithm, using algorithm result', {
+      logger.warn('AI sentiment differs from algorithm, correcting both JSON and text', {
         instrument: input.instrument,
         aiSentiment: output.sentiment,
         algorithmSentiment: sentimentCalc.sentiment,
         weightedScore: sentimentCalc.weightedScore
       });
-      output.sentiment = sentimentCalc.sentiment; // Override with algorithm result
+      
+      // Override JSON sentiment with algorithm result
+      output.sentiment = sentimentCalc.sentiment;
+      
+      // ALSO fix the text to match the corrected sentiment
+      // Replace "Final sentiment: X" with correct value to prevent UI mismatch
+      output.text = output.text.replace(
+        /Final\s+sentiment[:\s]+\w+/gi,
+        `Final sentiment: ${sentimentCalc.sentiment}`
+      );
     }
 
     logger.info('Synthesis generated successfully', {

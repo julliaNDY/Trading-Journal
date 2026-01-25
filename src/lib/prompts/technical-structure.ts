@@ -96,6 +96,13 @@ export interface TrendAnalysis {
   barsInTrend: number; // Number of bars in current trend
 }
 
+export interface KeyDriver {
+  indicator: string;
+  value: string;
+  signal: 'bullish' | 'bearish' | 'neutral';
+  weight: 'high' | 'medium' | 'low';
+}
+
 export interface TechnicalStructureOutput {
   // Overall technical bias
   bias: 'bullish' | 'bearish' | 'neutral';
@@ -122,11 +129,15 @@ export interface TechnicalStructureOutput {
   // Key technical signals
   keySignals: string[];
   
+  // KEY DRIVERS - Transparency requirement (REQUIRED)
+  // Explicitly cites which indicators drove the bias determination
+  keyDrivers: KeyDriver[];
+  
   // Risks/confirmations needed
   risks: string[];
   confirmations: string[]; // What would confirm this view
   
-  // Summary
+  // Summary (MUST include drivers in format: "Bias (Drivers: X, Y, Z)")
   summary: string;
   
   // Detailed technical analysis
@@ -222,6 +233,29 @@ OUTPUT REQUIREMENTS:
 - Suggest confirmations needed
 - Provide concise summary (2-3 sentences)
 - Provide detailed analysis (4-6 sentences)
+
+CRITICAL - TRANSPARENCY REQUIREMENT:
+You MUST include a "keyDrivers" field in your JSON response that explicitly cites the specific indicators driving your bias determination.
+
+Format for keyDrivers (REQUIRED):
+"keyDrivers": [
+  {
+    "indicator": "<indicator name>",
+    "value": "<current value or state>",
+    "signal": "bullish" | "bearish" | "neutral",
+    "weight": "high" | "medium" | "low"
+  }
+]
+
+Examples of keyDrivers entries:
+- { "indicator": "RSI(14)", "value": "28.5 (oversold)", "signal": "bullish", "weight": "high" }
+- { "indicator": "Price vs SMA200", "value": "Below 200 SMA by 2.3%", "signal": "bearish", "weight": "high" }
+- { "indicator": "MACD Histogram", "value": "Divergence forming", "signal": "bearish", "weight": "medium" }
+- { "indicator": "Volume Profile", "value": "Price at POC", "signal": "neutral", "weight": "medium" }
+
+The summary MUST follow this format:
+"[BIAS] (Drivers: [indicator1], [indicator2], [indicator3])"
+Example: "Bearish (Drivers: RSI Divergence, Price below VWAP, declining Volume Profile)"
 
 Remember: Price action is the primary data. Indicators confirm but don't lead. Focus on what price is doing.`;
 
@@ -343,11 +377,21 @@ REQUIRED OUTPUT FORMAT (JSON):
     "overall": <0-10>
   },
   "keySignals": ["signal1", "signal2", ...],
+  "keyDrivers": [
+    {
+      "indicator": "<indicator name e.g. RSI(14), SMA200, MACD>",
+      "value": "<current value or state e.g. 28.5 (oversold), Below SMA by 2.3%>",
+      "signal": "bullish" | "bearish" | "neutral",
+      "weight": "high" | "medium" | "low"
+    }
+  ],
   "risks": ["risk1", "risk2"],
   "confirmations": ["confirmation1", "confirmation2"],
-  "summary": "<2-3 sentence summary>",
+  "summary": "<Bias (Drivers: indicator1, indicator2, indicator3)> - <2-3 sentence summary>",
   "detailedAnalysis": "<4-6 sentence detailed technical analysis>"
 }
+
+IMPORTANT: The "keyDrivers" array is REQUIRED and must contain at least 2-4 entries that explicitly cite which indicators drove the bias determination. The "summary" field MUST start with the bias and its drivers in parentheses.
 
 Respond ONLY with valid JSON. No additional text.`;
   
@@ -394,6 +438,17 @@ export function validateTechnicalStructureOutput(output: unknown): output is Tec
   
   // Check arrays
   if (!Array.isArray(o.keySignals) || !Array.isArray(o.risks) || !Array.isArray(o.confirmations)) return false;
+  
+  // Check keyDrivers (optional but validated if present)
+  if (o.keyDrivers !== undefined) {
+    if (!Array.isArray(o.keyDrivers)) return false;
+    for (const driver of o.keyDrivers) {
+      if (typeof driver.indicator !== 'string') return false;
+      if (typeof driver.value !== 'string') return false;
+      if (!['bullish', 'bearish', 'neutral'].includes(driver.signal)) return false;
+      if (!['high', 'medium', 'low'].includes(driver.weight)) return false;
+    }
+  }
   
   // Check strings
   if (typeof o.summary !== 'string' || o.summary.length === 0) return false;

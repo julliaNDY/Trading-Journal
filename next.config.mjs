@@ -68,8 +68,13 @@ const sentryWebpackPluginOptions = {
   },
 };
 
-// Chain: Sentry -> BundleAnalyzer -> NextIntl -> Base Config
-export default withSentryConfig(
-  withBundleAnalyzer(withNextIntl(nextConfig)),
-  sentryWebpackPluginOptions
-);
+const withPlugins = withBundleAnalyzer(withNextIntl(nextConfig));
+const isSentryEnabled =
+  process.env.CI === 'true' &&
+  process.env.SENTRY_UPLOAD === 'true' &&
+  Boolean(process.env.SENTRY_AUTH_TOKEN);
+
+// Chain: Sentry -> BundleAnalyzer -> NextIntl -> Base Config (when Sentry enabled)
+export default isSentryEnabled
+  ? withSentryConfig(withPlugins, sentryWebpackPluginOptions)
+  : withPlugins;

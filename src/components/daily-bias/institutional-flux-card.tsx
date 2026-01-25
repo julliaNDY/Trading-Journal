@@ -108,17 +108,17 @@ export function InstitutionalFluxCard({ analysis, loading = false, className = '
               <div>
                 <p className="text-xs text-muted-foreground">Volume Level</p>
                 <Badge variant="outline" className={
-                  analysis.volumeProfile.volumeLevel === 'EXTREMELY_HIGH' ? 'bg-red-500/10 text-red-500' :
-                  analysis.volumeProfile.volumeLevel === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
-                  analysis.volumeProfile.volumeLevel === 'NORMAL' ? 'bg-green-500/10 text-green-500' :
+                  (analysis.volumeProfile.volumeLevel || (analysis.volumeProfile.volumeRatio > 1.5 ? 'HIGH' : analysis.volumeProfile.volumeRatio > 1.2 ? 'ABOVE_AVERAGE' : 'NORMAL')) === 'EXTREMELY_HIGH' ? 'bg-red-500/10 text-red-500' :
+                  (analysis.volumeProfile.volumeLevel || (analysis.volumeProfile.volumeRatio > 1.5 ? 'HIGH' : analysis.volumeProfile.volumeRatio > 1.2 ? 'ABOVE_AVERAGE' : 'NORMAL')) === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
+                  (analysis.volumeProfile.volumeLevel || (analysis.volumeProfile.volumeRatio > 1.5 ? 'HIGH' : analysis.volumeProfile.volumeRatio > 1.2 ? 'ABOVE_AVERAGE' : 'NORMAL')) === 'NORMAL' ? 'bg-green-500/10 text-green-500' :
                   'bg-gray-500/10 text-gray-500'
                 }>
-                  {analysis.volumeProfile.volumeLevel}
+                  {analysis.volumeProfile.volumeLevel || (analysis.volumeProfile.volumeRatio > 1.5 ? 'HIGH' : analysis.volumeProfile.volumeRatio > 1.2 ? 'ABOVE_AVERAGE' : 'NORMAL')}
                 </Badge>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Volume Trend</p>
-                <Badge variant="secondary">{analysis.volumeProfile.trend}</Badge>
+                <Badge variant="secondary">{analysis.volumeProfile.trend || analysis.volumeProfile.volumeTrend || 'N/A'}</Badge>
               </div>
             </div>
           </div>
@@ -127,30 +127,45 @@ export function InstitutionalFluxCard({ analysis, loading = false, className = '
         {/* Order Flow */}
         {analysis.orderFlow && (
           <div className="space-y-3 flex-grow">
-            <h4 className="text-sm font-medium">Order Flow</h4>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Net Flow</span>
-                <span className={`text-sm font-medium ${(analysis.orderFlow.netFlow || 0) > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {(analysis.orderFlow.netFlow || 0) > 0 ? '+' : ''}{(typeof analysis.orderFlow.netFlow === 'number' && !isNaN(analysis.orderFlow.netFlow) ? (analysis.orderFlow.netFlow / 1e6).toFixed(2) : '0.00')}M
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-green-500/10 rounded">
-                  <p className="text-xs text-green-500">Buy Pressure</p>
-                  <p className="text-sm font-medium">{typeof analysis.orderFlow.buyPressure === 'number' ? analysis.orderFlow.buyPressure.toFixed(0) : '0'}%</p>
-                </div>
-                <div className="p-2 bg-red-500/10 rounded">
-                  <p className="text-xs text-red-500">Sell Pressure</p>
-                  <p className="text-sm font-medium">{typeof analysis.orderFlow.sellPressure === 'number' ? analysis.orderFlow.sellPressure.toFixed(0) : '0'}%</p>
-                </div>
-              </div>
-              <Badge variant="outline" className={
-                analysis.orderFlow.confirmation === 'BULLISH' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-              }>
-                {analysis.orderFlow.confirmation}
-              </Badge>
-            </div>
+            {(() => {
+              // Map API field names to expected field names
+              const netFlow = analysis.orderFlow.netFlow ?? analysis.orderFlow.netOrderFlow ?? 0;
+              const totalVolume = (analysis.orderFlow.buyVolume || 0) + (analysis.orderFlow.sellVolume || 0);
+              const buyPressure = analysis.orderFlow.buyPressure ?? (totalVolume > 0 ? (analysis.orderFlow.buyVolume / totalVolume) * 100 : 0);
+              const sellPressure = analysis.orderFlow.sellPressure ?? (totalVolume > 0 ? (analysis.orderFlow.sellVolume / totalVolume) * 100 : 0);
+              const confirmation = analysis.orderFlow.confirmation || analysis.orderFlow.orderFlowTrend || 'NEUTRAL';
+              
+              return (
+                <>
+                  <h4 className="text-sm font-medium">Order Flow</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Net Flow</span>
+                      <span className={`text-sm font-medium ${netFlow > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {netFlow > 0 ? '+' : ''}{(netFlow / 1e6).toFixed(2)}M
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 bg-green-500/10 rounded">
+                        <p className="text-xs text-green-500">Buy Pressure</p>
+                        <p className="text-sm font-medium">{buyPressure.toFixed(0)}%</p>
+                      </div>
+                      <div className="p-2 bg-red-500/10 rounded">
+                        <p className="text-xs text-red-500">Sell Pressure</p>
+                        <p className="text-sm font-medium">{sellPressure.toFixed(0)}%</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={
+                      confirmation === 'BULLISH' ? 'bg-green-500/10 text-green-500' : 
+                      confirmation === 'BEARISH' ? 'bg-red-500/10 text-red-500' :
+                      'bg-gray-500/10 text-gray-500'
+                    }>
+                      {confirmation}
+                    </Badge>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
         

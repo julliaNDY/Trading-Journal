@@ -23,7 +23,8 @@ export type PriceTrendDirection = 'UPTREND' | 'DOWNTREND' | 'SIDEWAYS';
 export type Timeframe = 'INTRADAY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
 export type MacroEconomicCycle = 'EXPANSION' | 'PEAK' | 'CONTRACTION' | 'TROUGH';
 export type IndicatorSignal = 'BULLISH_CROSS' | 'BEARISH_CROSS' | 'NEUTRAL';
-export type OrderFlowConfirmation = 'BULLISH' | 'BEARISH';
+export type OrderFlowConfirmation = 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'MIXED';
+export type OrderFlowTrend = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 
 export type Mag7Symbol = 'AAPL' | 'MSFT' | 'GOOGL' | 'AMZN' | 'META' | 'NVDA' | 'TSLA';
 
@@ -102,11 +103,37 @@ export interface VolumeHeatMap {
   intensity: number; // 0-1
 }
 
+export interface VolumeSpike {
+  timestamp: string; // ISO 8601
+  volume: number;
+  priceChange: number; // % change
+}
+
+export interface VolumeByPriceLevel {
+  priceLevel: number;
+  volume: number;
+  percentage: number; // % of total volume
+}
+
 export interface VolumeProfile {
   volumeLevel: VolumeLevel;
-  trend: VolumeTrend;
+  trend?: VolumeTrend;
+  volumeTrend: VolumeTrend;
   concentration: number; // 0-1
+  volumeRatio: number;
+  totalVolume?: number;
+  averageVolume?: number;
+  volumeSpikes?: VolumeSpike[];
+  volumeByPriceLevel?: VolumeByPriceLevel[];
   heatMap?: VolumeHeatMap[];
+}
+
+export interface LargeOrder {
+  timestamp: string; // ISO 8601
+  side: 'BUY' | 'SELL';
+  size: number;
+  price: number;
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
 export interface LargeOrders {
@@ -116,8 +143,14 @@ export interface LargeOrders {
 }
 
 export interface OrderFlow {
-  buyerDominance: number; // 0-1
-  largeOrders?: LargeOrders;
+  buyVolume: number;
+  sellVolume: number;
+  buyVsSellRatio: number;
+  netOrderFlow: number;
+  orderFlowTrend: OrderFlowTrend;
+  buyerDominance?: number; // 0-1
+  largeOrders?: LargeOrders | LargeOrder[];
+  aggressiveness?: number; // 0-10
   institutionalPressure?: InstitutionalPressure;
 }
 
@@ -230,6 +263,13 @@ export interface TechnicalAnalysisDetails {
   macd?: MACD;
 }
 
+export interface KeyDriver {
+  indicator: string;
+  value: string;
+  signal: 'bullish' | 'bearish' | 'neutral';
+  weight: 'high' | 'medium' | 'low';
+}
+
 export interface TechnicalStructure {
   supportLevels: SupportLevel[];
   resistanceLevels: ResistanceLevel[];
@@ -237,6 +277,7 @@ export interface TechnicalStructure {
   technicalScore: number; // 0-10
   analysis?: TechnicalAnalysisDetails;
   indicators?: Array<{ name: string; value: number; signal?: IndicatorSignal }>;
+  keyDrivers?: KeyDriver[]; // Key indicators driving the bias determination
   timestamp: string; // ISO 8601
   instrument: string;
   dataSources?: string[]; // Data sources used for analysis
@@ -784,9 +825,16 @@ export function createMockAnalysisResponse(
         volumeProfile: {
           volumeLevel: 'NORMAL',
           trend: 'STABLE',
+          volumeTrend: 'STABLE',
           concentration: 0.5,
+          volumeRatio: 1,
         },
         orderFlow: {
+          buyVolume: 1_000_000,
+          sellVolume: 1_000_000,
+          buyVsSellRatio: 1,
+          netOrderFlow: 0,
+          orderFlowTrend: 'NEUTRAL',
           buyerDominance: 0.5,
         },
         fluxScore: 5,
@@ -851,4 +899,3 @@ export function createMockErrorResponse(
     timestamp: new Date().toISOString(),
   };
 }
-

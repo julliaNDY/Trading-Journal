@@ -131,13 +131,21 @@ async function cacheAnalysis(
 // ============================================================================
 
 /**
- * Fetch historical bars from Polygon.io
+ * Fetch historical bars from Polygon.io with automatic lookback fallback
+ * 
+ * FAIL-SAFE: If today's data returns empty/minimal (e.g., before market open),
+ * automatically fallback to fetch previous day's data.
+ * NEVER pass empty datasets to the AI.
  */
 async function fetchHistoricalBars(
   symbol: string,
   timeframe: 'daily' | '4h' | '1h' | '15m',
-  daysBack: number = 30
+  daysBack: number = 30,
+  lookbackAttempt: number = 0
 ): Promise<Bar[]> {
+  const MAX_LOOKBACK_ATTEMPTS = 3; // Try up to 3 days back
+  const MIN_BARS_THRESHOLD = 10; // Minimum bars to consider data valid
+  
   try {
     const polygon = new PolygonProvider();
     
@@ -152,16 +160,18 @@ async function fetchHistoricalBars(
       timeframe === '4h' ? '4hour' :
       timeframe === '1h' ? '1hour' : '15min';
 
-    // Calculate date range
+    // Calculate date range with lookback offset
     const endDate = new Date();
-    const startDate = new Date();
+    endDate.setDate(endDate.getDate() - lookbackAttempt); // Apply lookback offset
+    const startDate = new Date(endDate);
     startDate.setDate(startDate.getDate() - daysBack);
 
     logger.debug('Fetching historical bars from Polygon', {
       symbol,
       timeframe: polygonTimeframe,
       startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0]
+      endDate: endDate.toISOString().split('T')[0],
+      lookbackAttempt
     });
 
     const response = await polygon.getBars({
@@ -173,13 +183,48 @@ async function fetchHistoricalBars(
       adjusted: true
     });
 
-    return response.bars || [];
+    const bars = response.bars || [];
+    
+    // FAIL-SAFE: If bars are insufficient and we haven't exhausted lookback attempts
+    if (bars.length < MIN_BARS_THRESHOLD && lookbackAttempt < MAX_LOOKBACK_ATTEMPTS) {
+      logger.warn('Insufficient bars received, attempting lookback fallback', {
+        symbol,
+        barsReceived: bars.length,
+        minRequired: MIN_BARS_THRESHOLD,
+        currentAttempt: lookbackAttempt,
+        nextAttempt: lookbackAttempt + 1
+      });
+      
+      // Recursive call with incremented lookback
+      return fetchHistoricalBars(symbol, timeframe, daysBack, lookbackAttempt + 1);
+    }
+    
+    if (lookbackAttempt > 0 && bars.length >= MIN_BARS_THRESHOLD) {
+      logger.info('Lookback fallback successful', {
+        symbol,
+        lookbackDays: lookbackAttempt,
+        barsReceived: bars.length
+      });
+    }
+
+    return bars;
   } catch (error) {
     logger.error('Failed to fetch historical bars from Polygon', {
       symbol,
       timeframe,
+      lookbackAttempt,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
+    
+    // FAIL-SAFE: If error and lookback attempts remain, try again
+    if (lookbackAttempt < MAX_LOOKBACK_ATTEMPTS) {
+      logger.warn('Retrying with lookback due to error', {
+        symbol,
+        nextAttempt: lookbackAttempt + 1
+      });
+      return fetchHistoricalBars(symbol, timeframe, daysBack, lookbackAttempt + 1);
+    }
+    
     return [];
   }
 }
@@ -399,11 +444,12 @@ export async function analyzeTechnicalStructure(
       throw new Error('Invalid technical structure output from AI');
     }
 
-    // 9. Transform to TechnicalStructure type
+    // 9. Transform to TechnicalStructure type (include calculated indicators)
     const technicalAnalysis: TechnicalStructure = transformToTechnicalStructure(
       parsedOutput,
       params.instrument,
-      analysisDate
+      analysisDate,
+      indicators // Pass calculated indicators to be included in output
     );
 
     // 10. Cache result
@@ -451,7 +497,8 @@ export async function analyzeTechnicalStructure(
 function transformToTechnicalStructure(
   output: TechnicalStructureOutput,
   instrument: string,
-  analysisDate: string
+  analysisDate: string,
+  calculatedIndicators?: TechnicalIndicators
 ): TechnicalStructure {
   // Transform support levels
   const supportLevels = output.supportLevels.map(level => ({
@@ -490,6 +537,56 @@ function transformToTechnicalStructure(
      output.technicalScore.volatility + output.technicalScore.volume + 
      output.technicalScore.structure) / 5;
 
+  // Build indicators array from calculated indicators for UI display
+  const indicatorsArray: Array<{ name: string; value: number; signal?: 'BULLISH_CROSS' | 'BEARISH_CROSS' | 'NEUTRAL' }> = [];
+  
+  if (calculatedIndicators) {
+    // Add RSI with signal
+    if (calculatedIndicators.rsi !== undefined) {
+      indicatorsArray.push({
+        name: 'RSI(14)',
+        value: calculatedIndicators.rsi,
+        signal: calculatedIndicators.rsi > 70 ? 'BEARISH_CROSS' : calculatedIndicators.rsi < 30 ? 'BULLISH_CROSS' : 'NEUTRAL'
+      });
+    }
+    
+    // Add SMA 20
+    if (calculatedIndicators.sma20 !== undefined) {
+      indicatorsArray.push({
+        name: 'SMA(20)',
+        value: calculatedIndicators.sma20,
+        signal: 'NEUTRAL'
+      });
+    }
+    
+    // Add SMA 50
+    if (calculatedIndicators.sma50 !== undefined) {
+      indicatorsArray.push({
+        name: 'SMA(50)',
+        value: calculatedIndicators.sma50,
+        signal: 'NEUTRAL'
+      });
+    }
+    
+    // Add SMA 200
+    if (calculatedIndicators.sma200 !== undefined) {
+      indicatorsArray.push({
+        name: 'SMA(200)',
+        value: calculatedIndicators.sma200,
+        signal: 'NEUTRAL'
+      });
+    }
+    
+    // Add ATR
+    if (calculatedIndicators.atr !== undefined) {
+      indicatorsArray.push({
+        name: 'ATR(14)',
+        value: calculatedIndicators.atr,
+        signal: 'NEUTRAL'
+      });
+    }
+  }
+
   return {
     supportLevels: supportLevels as any,
     resistanceLevels: resistanceLevels as any,
@@ -501,9 +598,13 @@ function transformToTechnicalStructure(
         pattern: signal,
         bullish: signal.toLowerCase().includes('bull') || signal.toLowerCase().includes('breakout')
       })),
-      rsi: undefined, // Can be filled from indicators if available
+      rsi: calculatedIndicators?.rsi, // Fill from calculated indicators
       macd: undefined
     },
+    // Include calculated indicators for UI display
+    indicators: indicatorsArray.length > 0 ? indicatorsArray : undefined,
+    // Include keyDrivers if present (Transparency Enhancement)
+    keyDrivers: output.keyDrivers || [],
     timestamp: new Date().toISOString(),
     instrument
   };

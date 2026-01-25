@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -134,7 +135,6 @@
 .calendar-day-neutral {
   @apply bg-muted hover:bg-muted/80;
 }
-
 
 
 

@@ -108,12 +108,12 @@ export function TechnicalAnalysisCard({ analysis, loading = false, className = '
         )}
         
         {/* Support Levels */}
-        {analysis.supportLevels && analysis.supportLevels.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-green-500" />
-              Support Levels
-            </h4>
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <TrendingDown className="h-4 w-4 text-green-500" />
+            Support Levels
+          </h4>
+          {analysis.supportLevels && analysis.supportLevels.length > 0 ? (
             <div className="space-y-1.5">
               {analysis.supportLevels.slice(0, 3).map((level, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-green-500/5 border border-green-500/20 rounded">
@@ -127,16 +127,18 @@ export function TechnicalAnalysisCard({ analysis, loading = false, className = '
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No support levels detected</p>
+          )}
+        </div>
         
         {/* Resistance Levels */}
-        {analysis.resistanceLevels && analysis.resistanceLevels.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-red-500" />
-              Resistance Levels
-            </h4>
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-red-500" />
+            Resistance Levels
+          </h4>
+          {analysis.resistanceLevels && analysis.resistanceLevels.length > 0 ? (
             <div className="space-y-1.5">
               {analysis.resistanceLevels.slice(0, 3).map((level, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-red-500/5 border border-red-500/20 rounded">
@@ -150,13 +152,47 @@ export function TechnicalAnalysisCard({ analysis, loading = false, className = '
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No resistance levels detected</p>
+          )}
+        </div>
+        
+        {/* Key Drivers - Transparency Enhancement */}
+        {(analysis as any).keyDrivers && (analysis as any).keyDrivers.length > 0 && (
+          <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-muted">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              Key Drivers
+            </h4>
+            <div className="space-y-1.5">
+              {(analysis as any).keyDrivers.slice(0, 4).map((driver: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-2 bg-background/50 rounded">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={
+                      driver.signal === 'bullish' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                      driver.signal === 'bearish' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                      'bg-gray-500/10 text-gray-500 border-gray-500/20'
+                    }>
+                      {driver.signal.toUpperCase()}
+                    </Badge>
+                    <span className="text-sm font-medium">{driver.indicator}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{driver.value}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {driver.weight}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         
         {/* Indicators */}
-        {analysis.indicators && analysis.indicators.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Indicators</h4>
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Indicators</h4>
+          {analysis.indicators && analysis.indicators.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {analysis.indicators.slice(0, 5).map((indicator, idx) => (
                 <Badge key={idx} variant="secondary" className={
@@ -168,8 +204,10 @@ export function TechnicalAnalysisCard({ analysis, loading = false, className = '
                 </Badge>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No indicator signals detected</p>
+          )}
+        </div>
         
         {/* Technical Chart - TradingView Lightweight Charts */}
         {priceData && priceData.length > 0 && (

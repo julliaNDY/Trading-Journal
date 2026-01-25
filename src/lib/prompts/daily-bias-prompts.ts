@@ -466,3 +466,47 @@ export function validateSynthesisTextOutput(output: unknown): output is Synthesi
   
   return true;
 }
+
+/**
+ * Extract sentiment from synthesis text
+ * Parses "Final sentiment: X" from the text and ensures consistency
+ */
+export function extractSentimentFromText(text: string): 'BULLISH' | 'BEARISH' | 'NEUTRAL' | null {
+  // Look for "Final sentiment: X" pattern (case insensitive)
+  const patterns = [
+    /Final\s+sentiment[:\s]+(\w+)/i,
+    /sentiment[:\s]+(\w+)\.?\s*$/i,
+    /overall\s+(?:sentiment|bias)[:\s]+(\w+)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const sentiment = match[1].toUpperCase();
+      if (sentiment === 'BULLISH' || sentiment === 'BEARISH' || sentiment === 'NEUTRAL') {
+        return sentiment;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Ensure sentiment consistency between JSON field and text content
+ * Returns the corrected sentiment based on what's written in the text
+ */
+export function ensureSentimentConsistency(output: SynthesisTextOutput): SynthesisTextOutput {
+  const textSentiment = extractSentimentFromText(output.text);
+  
+  // If we found a sentiment in the text and it differs from JSON, use text sentiment
+  if (textSentiment && textSentiment !== output.sentiment) {
+    console.warn(`Synthesis sentiment mismatch: JSON="${output.sentiment}", Text="${textSentiment}". Using text sentiment.`);
+    return {
+      ...output,
+      sentiment: textSentiment
+    };
+  }
+  
+  return output;
+}
