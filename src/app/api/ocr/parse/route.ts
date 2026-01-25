@@ -6,6 +6,15 @@ import { parseVisionResponse, parseOcrText, isVisionApiConfigured } from '@/serv
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds timeout
 
+// Increase body size limit for large image uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================

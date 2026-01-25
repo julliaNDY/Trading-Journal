@@ -18,7 +18,14 @@ const nextConfig = {
 
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb',
+      bodySizeLimit: '100mb',
+    },
+  },
+
+  // Increase API payload limit for images/CSVs
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
     },
   },
 
