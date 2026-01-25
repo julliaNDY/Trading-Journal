@@ -169,7 +169,7 @@ export function ImportProfileSelector({
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <Select
-            value={selectedProfileId || ''}
+            value={selectedProfileId || undefined}
             onValueChange={handleProfileChange}
             disabled={isLoading}
           >

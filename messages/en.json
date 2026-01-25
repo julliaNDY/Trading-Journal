@@ -401,6 +401,7 @@
       "nameRequired": "Profile name is required",
       "mappingIncomplete": "Please map all required columns",
       "dateFieldRequired": "Date or Opened At field is required",
+      "optional": "(Optional)",
       "profileCreated": "Import profile created successfully",
       "profileUpdated": "Import profile updated successfully",
       "profileDeleted": "Import profile deleted successfully",
