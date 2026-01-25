@@ -7,6 +7,42 @@
 
 ## Historique des modifications
 
+## [2026-01-25 18:00] - Corrections de bugs production critiques
+
+### 📝 Demande utilisateur
+> Corriger une liste de bugs détectés en production : erreurs 413, 404 Vercel, erreur React Select, i18n manquante, et problèmes de données statiques dans Daily Bias.
+
+### 🔧 Modifications techniques
+- **Fichiers modifiés :**
+  - `next.config.mjs` — bodySizeLimit augmenté de 50MB → 100MB + config API bodyParser
+  - `src/app/api/ocr/parse/route.ts` — config body size limit 100MB ajouté
+  - `src/components/import/import-profile-selector.tsx` — Select value vide remplacé par `undefined`
+  - `messages/en.json` — clé `import.profiles.optional` ajoutée
+  - `BUGFIX-SUMMARY.md` — documentation complète des bugs créée
+
+### 💡 Pourquoi (Raison du changement)
+**Bugs critiques bloquants :**
+1. **413 Payload Size:** Uploads >50MB échouaient (images OCR, gros CSV)
+2. **React Select Error:** Valeur vide causait warning React console
+3. **i18n Missing:** Clé manquante cassait l'affichage des profils d'import
+4. **Vercel 404:** Scripts analytics non configurés (documenté, non corrigé)
+
+**Bugs UI Daily Bias (documentés uniquement) :**
+- Institutional Flux/Technical Structure montrent données statiques → **cause: cache Redis + mock data**
+- Synthesis sentiment mismatch → **cause: conflit props sentiment**
+
+### 🔗 Contexte additionnel
+- **Build validation:** ✅ Succès (88.9s, 0 erreurs)
+- **Commits:** `15e3af3` (payload), `f7f01a8` (UI/i18n)
+- **Daily Bias issues:** Non corrigés car ce ne sont pas des bugs de code mais des limitations de cache/mock data
+- **Prochaines étapes recommandées:**
+  - Vérifier config Vercel Analytics
+  - Implémenter invalidation cache UI pour Daily Bias
+  - Ajouter indicateurs "données simulées" dans Daily Bias
+  - Intégrer vraies sources de données de marché
+
+---
+
 ## [2026-01-24 15:30] - Story 6.3: Scope Expanded to Full TradingView Advanced Charts
 
 ### 📝 Demande utilisateur
